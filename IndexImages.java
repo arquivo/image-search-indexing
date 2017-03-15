@@ -7,6 +7,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
@@ -25,6 +26,9 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.Iterator;
 import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -46,25 +50,41 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 
+
+
 class Map extends Mapper<LongWritable, Text, Text, Text> {
 
-    String collectionName;
+    public static String collectionName;
 
     @Override
-    public void configure(JobConf job) {
-        super.configure(job);
-        collectionName = job.get("collection", "notSet");
+    public void setup(Context context) {
+        Configuration config = context.getConfiguration();
+        collectionName = config.get("collection");
+        System.out.println("collection: " + collectionName);
     }
 
+	public static String guessEncoding(byte[] bytes) {
+	    String DEFAULT_ENCODING = "UTF-8";
+	    org.mozilla.universalchardet.UniversalDetector detector =
+	        new org.mozilla.universalchardet.UniversalDetector(null);
+	    detector.handleData(bytes, 0, bytes.length);
+	    detector.dataEnd();
+	    String encoding = detector.getDetectedCharset();
+	    detector.reset();
+	    if (encoding == null) {
+	        encoding = DEFAULT_ENCODING;
+	    }
+	    return encoding;
+	}
 
-    public static void parseImagesFromHtmlRecord(ARCRecord record, Context context) throws IOException{
-        OutputStream output = new OutputStream()
+    public  void parseImagesFromHtmlRecord(ARCRecord record, Context context) throws IOException{
+        OutputStream output = new ByteArrayOutputStream()
         {
             private StringBuilder string = new StringBuilder();
-            @Override
+            /*@Override
             public void write(int b) throws IOException {
                 this.string.append((char) b );
-            }
+            }*/
 
             //Netbeans IDE automatically overrides this toString()
             public String toString(){
@@ -72,9 +92,18 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
             }
         };                    
         record.dump(output);
-        String pageHTML = output.toString();
+
+        output.close();
+        byte[] arcRecordBytes = ((ByteArrayOutputStream) output).toByteArray();
+
+        String recordEncoding = guessEncoding(arcRecordBytes); 
+
         try{
-            Document doc = Jsoup.parse(pageHTML);
+
+			InputStream is = new ByteArrayInputStream(arcRecordBytes);  
+
+            Document doc = Jsoup.parse(is, recordEncoding, "");
+
             Elements imgs = doc.getElementsByTag("img");
             for(Element el: imgs){
                 JSONObject obj = new JSONObject();      
@@ -115,8 +144,8 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                     continue;
                 }
 
-                obj.put( "imgWidth", imgResult.getWidth( ) ); /*To be replaced with Real Width of Image*/
-                obj.put( "imgHeight", imgResult.getHeight( ) ); /*To be replaced with Real Height of Image*/
+                obj.put( "imgWidth", imgResult.getWidth( ) ); 
+                obj.put( "imgHeight", imgResult.getHeight( ) ); 
                 //obj.put( "digest" , imgResult.getDigest( ) );
                 obj.put( "imgSrc", imgSrc); /*The URL of the Image*/
                 if(el.attr("title").length() > 9999){
@@ -131,12 +160,13 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                 else{
                     obj.put( "imgAlt", el.attr("alt"));
                 }
-                //obj.put("imgWidth", el.attr("width")); /*To be replaced with Real Width of Image*/
-                //obj.put("imgHeight", el.attr("height")); /*To be replaced with Real Height of Image*/
-                obj.put("timestamp", timestamp);
-                obj.put("originalURL", originalURL); /*The URL of the Archived page*/
-                obj.put("collection", collectionName);
-                
+                obj.put( "timestamp" , timestamp );
+                obj.put( "originalURL" , originalURL ); /*The URL of the Archived page*/
+                obj.put( "collection" , collectionName );
+                obj.put( "mimeType" ,  imgResult.getMime( ) );
+                obj.put( "srcBase64" , imgResult.getThumbnail( ) );
+                obj.put( "digest" , imgResult.getDigest( ) );
+
                 context.write( new Text (obj.toJSONString()),null);
             }
         }catch (Exception e){
@@ -196,7 +226,9 @@ public class IndexImages
 {
     public static void main( String[] args ) throws IOException, ClassNotFoundException, InterruptedException
     {
-    	Configuration conf = new Configuration();
+    Configuration conf = new Configuration();
+    conf.set("collection", args[2]);
+
 	Job job = new Job(conf, "Mapper_Only_Job");
 
 	job.setJarByClass(IndexImages.class);
@@ -204,7 +236,7 @@ public class IndexImages
 	job.setOutputKeyClass(Text.class);
 	job.setOutputValueClass(Text.class);
 	job.setJobName(args[2]);
-	conf.set("collection", args[2]);
+	
 
     job.setInputFormatClass(NLineInputFormat.class);
     NLineInputFormat.addInputPath(job, new Path(args[0]));
