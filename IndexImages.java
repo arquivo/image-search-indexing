@@ -140,7 +140,7 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
 
                 ImageSearchResult imgResult = ImageParse.getPropImage("http://preprod.arquivo.pt/wayback/"+timestamp+"/"+imgSrc);
                 if ( imgResult == null ){
-                    System.out.println("null image");
+                    System.out.println("Not Found Image URL: http://preprod.arquivo.pt/wayback/"+timestamp+"/"+imgSrc );
                     continue;
                 }
 
