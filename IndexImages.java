@@ -81,11 +81,6 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
         OutputStream output = new ByteArrayOutputStream()
         {
             private StringBuilder string = new StringBuilder();
-            /*@Override
-            public void write(int b) throws IOException {
-                this.string.append((char) b );
-            }*/
-
             //Netbeans IDE automatically overrides this toString()
             public String toString(){
                 return this.string.toString();
@@ -103,6 +98,7 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
 			InputStream is = new ByteArrayInputStream(arcRecordBytes);  
 
             Document doc = Jsoup.parse(is, recordEncoding, "");
+            String webpageTitle = doc.title(); /*returns empty string if no title in html document*/
 
             Elements imgs = doc.getElementsByTag("img");
             for(Element el: imgs){
@@ -124,13 +120,15 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                     }
                 }
                 if(imgSrc.length() > 10000 || originalURL.length() > 10000){
-                    System.out.println("URL of image too big ");
+                    System.err.println("URL of image too big ");
+                    System.err.printlnoriginalURL.substring(0,500) + "...");
                     continue;
                 }/*Maximum size for SOLR index is 10 000*/
                 
                 String timestamp = record.getMetaData().getDate();
                 if (timestamp == null || timestamp.equals("")){
-                    System.out.println("Null Timestamp");
+                    System.err.println("Null Timestamp");
+                    continue;
                 }
                 if (imgSrc == null || imgSrc.equals("")){
                     System.out.println("Null imgSrc");
@@ -140,13 +138,12 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
 
                 ImageSearchResult imgResult = ImageParse.getPropImage("http://preprod.arquivo.pt/wayback/"+timestamp+"/"+imgSrc);
                 if ( imgResult == null ){
-                    System.out.println("Not Found Image URL: http://preprod.arquivo.pt/wayback/"+timestamp+"/"+imgSrc );
+                    System.err.println("Not Found Image URL: http://preprod.arquivo.pt/wayback/"+timestamp+"/"+imgSrc );
                     continue;
                 }
 
                 obj.put( "imgWidth", imgResult.getWidth( ) ); 
                 obj.put( "imgHeight", imgResult.getHeight( ) ); 
-                //obj.put( "digest" , imgResult.getDigest( ) );
                 obj.put( "imgSrc", imgSrc); /*The URL of the Image*/
                 if(el.attr("title").length() > 9999){
                     obj.put( "imgTitle", el.attr("title").substring(0,10000) );
@@ -166,11 +163,13 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                 obj.put( "mimeType" ,  imgResult.getMime( ) );
                 obj.put( "srcBase64" , imgResult.getThumbnail( ) );
                 obj.put( "digest" , imgResult.getDigest( ) );
-
+                if(! webpageTitle.isEmpty()){
+                	obj.put( "originalTitle" , webpageTitle); /*The URL of the Archived page*/
+                }
                 context.write( new Text (obj.toJSONString()),null);
             }
         }catch (Exception e){
-            System.out.println("Something failed JSOUP parsing");
+            System.err.println("Something failed JSOUP parsing");
             e.printStackTrace();
         }
       
@@ -184,13 +183,13 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
         try {
             int records = 0;
             int errors = 0;
- 
+            
+            System.out.println("ARCNAME: " + value.toString());
             reader = ARCReaderFactory.get(value.toString());
 
 
             for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
                     ARCRecord record = (ARCRecord)ii.next();
-
                     if(record.getMetaData().getMimetype().contains("html"))
                         parseImagesFromHtmlRecord(record, context);
                     ++records;
@@ -201,17 +200,21 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
             System.out.println("--------------");
             System.out.println("       Records: " + records);
             System.out.println("        Errors: " + errors);
-            /*reader.close();*/
-            		// Do what ever you want here
         }
         catch (FileNotFoundException e) {
             // TODO Auto-generated catch block
+            System.err.println("ARCNAME: " + value.toString());
             e.printStackTrace();
         }
         catch (IOException e) {
             // TODO Auto-generated catch block
+            System.err.println("ARCNAME: " + value.toString());
             e.printStackTrace();
         }
+		catch(Exception e){
+		    System.err.println("Unhandled exception?");
+		    e.printStackTrace();
+		}
         finally{
             if(reader!=null){
                 reader.close();
