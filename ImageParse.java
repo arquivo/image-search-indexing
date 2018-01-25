@@ -151,9 +151,18 @@ public class ImageParse {
 		
 	}
 	
+	/**
+	 * get sha-256 digest string of a given string data
+	 * @param data
+	 * @return
+	 */
+    public static String hash256(String data) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(data.getBytes());
+        return convertByteArrayToHexString(md.digest());
+    }	
 
 
-	
 	/**
 	 * convert the byte to hex format method (digest imgge)
 	 * @param arrayBytes
