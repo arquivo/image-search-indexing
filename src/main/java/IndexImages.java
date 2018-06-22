@@ -1,5 +1,5 @@
-import hadoopImageParser.ImageSearchResult;
-import hadoopImageParser.ImageParse;
+/*import hadoopImageParser.ImageSearchResult;
+import hadoopImageParser.ImageParse;*/
 
 import java.io.IOException;
 

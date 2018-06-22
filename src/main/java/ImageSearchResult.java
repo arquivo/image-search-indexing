@@ -1,4 +1,3 @@
-package hadoopImageParser;
 import java.math.BigDecimal;
 
 
