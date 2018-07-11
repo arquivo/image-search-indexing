@@ -1,5 +1,11 @@
+ImageMap.class
 ImageParse.class
 Map.class
+ImageDBOutputWritable.class
+DBOutputWritable.class
+ImageSQLDTO.class
+DBInputWritable.class
 Map$1.class
 ImageSearchResult.class
+CreateImageDB.class
 IndexImages.class

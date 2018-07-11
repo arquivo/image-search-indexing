@@ -1,48 +1,35 @@
-/*import hadoopImageParser.ImageSearchResult;
-import hadoopImageParser.ImageParse;*/
-
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import java.io.IOException;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
-
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.Iterator;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLDecoder;
-
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
- 
 import org.archive.io.arc.ARCReader;
 import org.archive.io.arc.ARCReaderFactory;
 import org.archive.io.arc.ARCRecord;
-import org.archive.io.arc.ARCRecordMetaData;
 import org.archive.io.ArchiveRecord;
 
 import org.jsoup.Jsoup;
@@ -50,17 +37,26 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.log4j.Logger;
 
 
 
 class Map extends Mapper<LongWritable, Text, Text, Text> {
-
-    public static String collectionName;
+	 private Logger logger = Logger.getLogger(Map.class);
+	 public static String collectionName;
 
     @Override
     public void setup(Context context) {
@@ -92,6 +88,15 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
             result+= matcher.group() + " ";
         }
         return result;
+    }
+    
+    private JSONArray stringToJsonArray(String content){
+    	JSONArray result = new JSONArray();
+    	String[] tokens = content.split("\\s+");
+    	for(String current: tokens){
+    		result.add(current);
+    	}
+    	return result;
     }
 
 
@@ -158,10 +163,11 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                     System.out.println("Null imgSrc");
                     continue;
                 }
-
-                ImageSearchResult imgResult = ImageParse.getPropImage("http://preprod.arquivo.pt/wayback/"+pageTstamp+"/"+imgSrc);
+                ImageSQLDTO imgSQLDTO = retreiveImageFromDB(DigestUtils.md5Hex(imgSrc), Long.parseLong(pageTstamp), context.getConfiguration());
+                if(imgSQLDTO == null){continue;}
+                ImageSearchResult imgResult = ImageParse.getPropImage(imgSQLDTO);
                 if ( imgResult == null ){
-                    System.err.println("Not Found Image URL: http://preprod.arquivo.pt/wayback/"+pageTstamp+"/"+imgSrc );
+                    logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
                     continue;
                 }
                 String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
@@ -171,20 +177,22 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                 obj.put( "imgWidth", imgResult.getWidth( ) ); 
                 obj.put( "imgHeight", imgResult.getHeight( ) ); 
                 obj.put( "imgSrc", imgSrc); /*The URL of the Image*/
-                obj.put( "imgSrcTokens", imgSrcTokens);
+                obj.put( "imgTstamp", imgSQLDTO.getTstamp());
+                obj.put( "imgSrcTokens", stringToJsonArray(imgSrcTokens));
                 obj.put( "imgSrcURLDigest", ImageParse.hash256(imgSrc)); /*Digest Sha-256 of the URL of the Image*/
                 
+                
                 if(el.attr("title").length() > 9999){
-                    obj.put( "imgTitle", el.attr("title").substring(0,10000) );
+                    obj.put( "imgTitle", stringToJsonArray(el.attr("title").substring(0,10000)));
                 }
                 else{
-                    obj.put( "imgTitle", el.attr("title") );
+                    obj.put( "imgTitle", stringToJsonArray(el.attr("title")));
                 }
                 if(el.attr("alt").length() > 9999){
-                    obj.put( "imgAlt", el.attr("alt").substring(0,10000) );
+                    obj.put( "imgAlt", stringToJsonArray(el.attr("alt").substring(0,10000)));
                 }
                 else{
-                    obj.put( "imgAlt", el.attr("alt"));
+                    obj.put( "imgAlt", stringToJsonArray(el.attr("alt")));
                 }
                 obj.put( "imgMimeType" ,  imgResult.getMime( ) );
                 obj.put( "imgSrcBase64" , imgResult.getThumbnail( ) );
@@ -196,19 +204,74 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                 obj.put( "pageHost", pageHost);
                 obj.put( "pageProtocol", pageProtocol);
                 if(! pageTitle.isEmpty()){
-                    obj.put( "pageTitle" , pageTitle); /*The URL of the Archived page*/
+                    obj.put( "pageTitle" , stringToJsonArray(pageTitle)); /*The URL of the Archived page*/
                 }
-                obj.put("pageURLTokens", pageURLTokens);                
+                obj.put("pageURLTokens", stringToJsonArray(pageURLTokens));                
                 obj.put( "collection" , collectionName );
+                                
                 context.write( new Text (obj.toJSONString()),null);
             }
-        }catch (Exception e){
+        }catch (SQLException e){
+        	logger.error("ERROR in SQL..." + e.getMessage());      	
+        } catch (ClassNotFoundException e){
+        	logger.error("ERROR in SQL driver not found..." + e.getMessage());    	
+        }
+        catch (Exception e){
+        	logger.error("ERROR..." + e.getMessage());
             System.err.println("Something failed JSOUP parsing");
             e.printStackTrace();
         }
       
     }
 
+    /* Retreives ImageSQLDTO with the closest date to pageTstamp
+     * Returns null if no results found in the SQL DB
+     * 
+     */
+    public ImageSQLDTO retreiveImageFromDB(String imgHashKey, long pageTstamp, Configuration conf) throws SQLException, ClassNotFoundException, IOException{
+    	MongoClient mongoClient = new MongoClient(new MongoClientURI("mongodb://p10.arquivo.pt:27017"));
+    	DB database = mongoClient.getDB("hadoop_images");
+    	DBCollection collection = database.getCollection("images");
+    	BasicDBObject whereQuery = new BasicDBObject();
+  	  	whereQuery.put("_id.image_hash_key", imgHashKey);
+  	  	DBCursor cursor = collection.find(whereQuery);
+
+        long tstampDiff = 99999999999999L; /*Difference between pageStamp and imgTstamp, we want the closest possible*/
+        long imgTstamp = -1;
+        long currentTstamp = -1;
+        String mime ="";
+        String imgContentHash = null;
+  	  	  	  	
+  	  	while (cursor.hasNext()) {
+  	  		DBObject currentResult = cursor.next();
+        	currentTstamp = Long.parseLong((String) currentResult.get("_id.tstamp"));
+    		if(Math.abs(currentTstamp - pageTstamp) < tstampDiff){
+    			imgTstamp = currentTstamp;
+    			imgContentHash = (String)  currentResult.get("content_hash");
+    			mime = (String) currentResult.get("mime");
+    			tstampDiff = currentTstamp - pageTstamp;
+    			if(tstampDiff == 0){break;} /*No need to continue the cycle if the imgtstamp is the same as the pagetstamp*/
+    		}  	  		
+  	  	}
+  	  	
+  	  	mongoClient.close();
+        
+        return imgTstamp == -1 ?  null : new ImageSQLDTO(readImgContentFromHDFS(imgContentHash, conf), mime, String.valueOf(imgTstamp));
+        
+    }
+    
+    public byte[] readImgContentFromHDFS(String imgContentHash, Configuration conf) throws IOException{
+    	/*write image in hdfs a file with name content_hash*/
+    	String collection = conf.get("mapred.job.name");
+	    FileSystem fs = FileSystem.get(conf);
+	    String s = fs.getHomeDirectory()+"/"+ collection+ "/img/"+ imgContentHash; 
+	    Path path = new Path(s);
+    	FSDataInputStream in = fs.open(path);
+        byte[] imgContent = new byte[in.available()];
+        in.read(imgContent);
+	    in.close();
+	    return imgContent;    	
+    }
 
 
 	public void map(LongWritable key, Text value, Context context)
@@ -278,6 +341,8 @@ public class IndexImages
     job.setInputFormatClass(NLineInputFormat.class);
     NLineInputFormat.addInputPath(job, new Path(args[0]));
     job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
+    job.getConfiguration().setInt("mapreduce.job.running.map.limit", 200); /*Maximum o simultaneous maps accessing preprod for now*/
+    
 
 	job.setOutputFormatClass(TextOutputFormat.class);
 		
