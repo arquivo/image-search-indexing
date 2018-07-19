@@ -1,6 +1,11 @@
 import java.io.IOException;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.ServerAddress;
+import com.mongodb.gridfs.GridFS;
+import com.mongodb.gridfs.GridFSInputFile;
+import com.sun.tools.javadoc.JavaScriptScanner.Reporter;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBObject;
@@ -12,6 +17,9 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobPriority;
+import org.apache.hadoop.mapred.MapReduceBase;
+import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
@@ -19,11 +27,16 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.log4j.Logger;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
@@ -61,12 +74,22 @@ import org.apache.commons.lang3.StringUtils;
 class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	private Logger logger = Logger.getLogger(ImageMap.class);
     public static String collectionName;
+	private MongoClient mongoClient;
+	private DB database;
+	private DBCollection MongoCollection;      
 
     @Override
     public void setup(Context context) {
         Configuration config = context.getConfiguration();
         collectionName = config.get("collection");
         System.out.println("collection: " + collectionName);
+     	MongoClientOptions.Builder options = MongoClientOptions.builder();
+     	options.socketKeepAlive(true);        
+    	MongoClient mongoClient = new MongoClient( Arrays.asList(
+       		   new ServerAddress("p12.arquivo.pt", 27020),
+       		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+    	database = mongoClient.getDB("hadoop_images");
+    	MongoCollection = database.getCollection("images");        
     }
 
 	public static String guessEncoding(byte[] bytes) {
@@ -108,16 +131,13 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
     
 	private byte[] getRecordContentBytes(ARCRecord record) throws IOException {
     	record.skipHttpHeader();/*Skipping http headers to only get the content bytes*/
-		int readLimit = 102400;
     	byte[] buffer = new byte[1024 * 16];    	
     	int len = record.read(buffer, 0, buffer.length);
         ByteArrayOutputStream contentBuffer =
-            new ByteArrayOutputStream(1024 * 16);        
+            new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/        
         contentBuffer.reset();
-        int total = 0;
-        while ((len != -1) && ((readLimit == -1) || (total < readLimit)))
+        while (len != -1)
         {
-          total += len;
           contentBuffer.write(buffer, 0, len);
           len = record.read(buffer, 0, buffer.length);
         }
@@ -139,9 +159,6 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		try {
 			contentBytes = getRecordContentBytes(record);
 	    	
-	    	MongoClient mongoClient = new MongoClient(new MongoClientURI("mongodb://p10.arquivo.pt:27017"));
-	    	DB database = mongoClient.getDB("hadoop_images");
-	    	DBCollection MongoCollection = database.getCollection("images");
 	    	DBObject img = new BasicDBObject("_id", new BasicDBObject("image_hash_key", image_hash_key).append("tstamp", tstamp))
                     .append("url", url)
                     .append("tstamp", tstamp)
@@ -150,15 +167,20 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
                     .append("safe", -1)
                     .append("content_hash", content_hash);
 	    	MongoCollection.insert(img);
-	    	mongoClient.close();
+	    	GridFS gfsPhoto = new GridFS(database, collection+"/img/"); /*Create namespace*/
+	    	GridFSInputFile gfsFile = gfsPhoto.createFile(contentBytes);
+	    	gfsFile.setFilename(content_hash);
+	    	gfsFile.save();
+	    	
+	    	System.out.println("GRIDFS: File Saved in: "+ collection+"/img/"+content_hash);
 	    	
 	    	/*write image in hdfs a file with name content_hash*/
-		    FileSystem fs = FileSystem.get(conf);
-		    String s = fs.getHomeDirectory()+"/"+ collection+ "/img/"+ content_hash; 
-		    Path path = new Path(s);
-	    	FSDataOutputStream out = fs.create(path);
-		    out.write(contentBytes);
-		    out.close();
+		    //FileSystem fs = FileSystem.get(conf);
+		    //String s = fs.getHomeDirectory()+"/"+ collection+ "/img/"+ content_hash; 
+		    //Path path = new Path(s);
+	    	//FSDataOutputStream out = fs.create(path);
+		    //out.write(contentBytes);
+		    //out.close();
 
 		}catch (IOException e) {
 			logger.error("IOException" + e.getMessage() );	
@@ -206,10 +228,34 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
             if(reader!=null){
                 reader.close();
             }
+            if(mongoClient!=null){
+            	mongoClient.close();
+            }
         }				
 	}
-
 }
+
+class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
+	public void reduce(Text key, Iterator<IntWritable> values,
+			OutputCollector<Text, DoubleWritable> output,
+			Reporter reporter)
+					throws IOException {
+		System.out.println("Creating Index for image hash key!");
+     	MongoClientOptions.Builder options = MongoClientOptions.builder();
+     	options.socketKeepAlive(true);        
+     	     	
+    	MongoClient mongoClient = new MongoClient( Arrays.asList(
+      		   new ServerAddress("p12.arquivo.pt", 27020),
+      		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+    			
+    	DB database = mongoClient.getDB("hadoop_images");
+    	DBCollection MongoCollection = database.getCollection("images");  		
+    	MongoCollection.createIndex(new BasicDBObject("_id.image_hash_key", 1)); /*Need to create index for this field to be fast to search in the next step*/
+    	mongoClient.close();
+    	System.out.println("Created Index");
+	}
+}
+
 
 
 public class CreateImageDB 
@@ -218,13 +264,8 @@ public class CreateImageDB
     {
     Configuration conf = new Configuration();
     conf.set("collection", args[2]);
-
-    DBConfiguration.configureDB(conf,
-    "com.mysql.jdbc.Driver",   // driver class
-    "jdbc:mysql://p10.arquivo.pt:3306/hadoop_images", // db url
-    "root",    
-    "Hadoop#570");     
-    
+    conf.set("mapred.job.priority", JobPriority.VERY_HIGH.toString());
+      
 	Job job = new Job(conf, "Mapper_Only_Job");
 	job.setJarByClass(CreateImageDB.class);
 	job.setMapperClass(ImageMap.class);
@@ -234,22 +275,19 @@ public class CreateImageDB
     job.setOutputFormatClass(NullOutputFormat.class);
     job.setOutputKeyClass(LongWritable.class);
 	
+    job.setReducerClass(ImageMapReducer.class);
+    
 	job.setInputFormatClass(NLineInputFormat.class);
     NLineInputFormat.addInputPath(job, new Path(args[0]));
     
     job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
     job.getConfiguration().setInt("mapreduce.job.running.map.limit", 500); /*Maximum of 500 simultaneous maps accessing preprod for now*/
   
-    /*job.setOutputKeyClass(ImageDBOutputWritable.class);
-    job.setOutputValueClass(NullWritable.class);
-	job.setOutputFormatClass(DBOutputFormat.class);*/
-		
-	// Sets reducer tasks to 0
-	job.setNumReduceTasks(0);
+	// Sets reducer tasks to 1
+	job.setNumReduceTasks(1);
 	
-
-
 	boolean result = job.waitForCompletion(true);
+
 
 	System.exit(result ? 0 : 1);
     }

@@ -6,6 +6,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobPriority;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -14,6 +15,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
@@ -43,7 +45,11 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.ServerAddress;
+import com.mongodb.gridfs.GridFS;
+import com.mongodb.gridfs.GridFSDBFile;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -57,13 +63,42 @@ import org.apache.log4j.Logger;
 class Map extends Mapper<LongWritable, Text, Text, Text> {
 	 private Logger logger = Logger.getLogger(Map.class);
 	 public static String collectionName;
+	 private MongoClient mongoClient;
+  	 private DB database;
+  	 private DBCollection collection;
+  	 private GridFS gfsPhoto;
 
     @Override
     public void setup(Context context) {
         Configuration config = context.getConfiguration();
         collectionName = config.get("collection");
         System.out.println("collection: " + collectionName);
+     	MongoClientOptions.Builder options = MongoClientOptions.builder();
+     	options.socketKeepAlive(true);
+    	MongoClient mongoClient = new MongoClient( Arrays.asList(
+        		   new ServerAddress("p12.arquivo.pt", 27020),
+        		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+     	database = mongoClient.getDB("hadoop_images");
+     	collection = database.getCollection("images");	  
+    	gfsPhoto = new GridFS(database,collectionName+"_Images/img/");
+    	System.out.println(collectionName+"_Images"+"/img/");
     }
+    
+	private byte[] getRecordContentBytes(ARCRecord record) throws IOException {
+    	record.skipHttpHeader();/*Skipping http headers to only get the content bytes*/
+    	byte[] buffer = new byte[1024 * 16];    	
+    	int len = record.read(buffer, 0, buffer.length);
+        ByteArrayOutputStream contentBuffer =
+        		new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/               
+        contentBuffer.reset();
+        while (len != -1)
+        {
+          contentBuffer.write(buffer, 0, len);
+          len = record.read(buffer, 0, buffer.length);
+        }
+        record.close();      
+        return contentBuffer.toByteArray();
+	}         
 
 	public static String guessEncoding(byte[] bytes) {
 	    String DEFAULT_ENCODING = "UTF-8";
@@ -100,24 +135,16 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
     }
 
 
-    public  void parseImagesFromHtmlRecord(ARCRecord record, Context context) throws IOException{
-        OutputStream output = new ByteArrayOutputStream()
-        {
-            private StringBuilder string = new StringBuilder();
-            //Netbeans IDE automatically overrides this toString()
-            public String toString(){
-                return this.string.toString();
-            }
-        };                    
-        record.dump(output);
-
-        output.close();
-        byte[] arcRecordBytes = ((ByteArrayOutputStream) output).toByteArray();
-
-        String recordEncoding = guessEncoding(arcRecordBytes); 
-
+    public  void parseImagesFromHtmlRecord(ARCRecord record, Context context){
         try{
-
+        	System.out.println("Parsing Images from ARCrecord");
+        	logger.info("Parsing Images from ARCrecord" );
+        	logger.error("Parsing Images from ARCrecord" );
+            byte[] arcRecordBytes = getRecordContentBytes(record);
+            logger.info("Read Content Bytes from ARCrecord" );
+            logger.error("Read Content Bytes from ARCrecord" );
+            System.out.println("Read Content Bytes from ARCrecord" );
+            String recordEncoding = guessEncoding(arcRecordBytes); 
 			InputStream is = new ByteArrayInputStream(arcRecordBytes);  
 
             Document doc = Jsoup.parse(is, recordEncoding, "");
@@ -126,7 +153,7 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
             Elements imgs = doc.getElementsByTag("img");
             int pageImages = imgs.size();
             String pageURL = record.getHeader().getUrl();
-            String pageURLDigest = ImageParse.hash256(pageURL);
+            //String pageURLDigest = ImageParse.hash256(pageURL);
             String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
             pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
             String pageURLTokens = parseURL(pageURLCleaned); /*split the URL*/
@@ -138,7 +165,9 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
             String pageTstamp = record.getMetaData().getDate();
             if (pageTstamp == null || pageTstamp.equals("")){
                 System.err.println("Null pageTstamp");                
-            }                     
+            }
+            System.out.println("pageTstamp:" + pageTstamp);
+            
 
             for(Element el: imgs){
                 JSONObject obj = new JSONObject();      
@@ -164,7 +193,10 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                     continue;
                 }
                 ImageSQLDTO imgSQLDTO = retreiveImageFromDB(DigestUtils.md5Hex(imgSrc), Long.parseLong(pageTstamp), context.getConfiguration());
-                if(imgSQLDTO == null){continue;}
+                if(imgSQLDTO == null){
+                	System.err.println("Got null image for hash: "+ DigestUtils.md5Hex(imgSrc));
+                	continue;
+                }
                 ImageSearchResult imgResult = ImageParse.getPropImage(imgSQLDTO);
                 if ( imgResult == null ){
                     logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
@@ -178,21 +210,21 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                 obj.put( "imgHeight", imgResult.getHeight( ) ); 
                 obj.put( "imgSrc", imgSrc); /*The URL of the Image*/
                 obj.put( "imgTstamp", imgSQLDTO.getTstamp());
-                obj.put( "imgSrcTokens", stringToJsonArray(imgSrcTokens));
+                obj.put( "imgSrcTokens", imgSrcTokens);
                 obj.put( "imgSrcURLDigest", ImageParse.hash256(imgSrc)); /*Digest Sha-256 of the URL of the Image*/
                 
                 
                 if(el.attr("title").length() > 9999){
-                    obj.put( "imgTitle", stringToJsonArray(el.attr("title").substring(0,10000)));
+                    obj.put( "imgTitle", el.attr("title").substring(0,10000));
                 }
                 else{
-                    obj.put( "imgTitle", stringToJsonArray(el.attr("title")));
+                    obj.put( "imgTitle", el.attr("title"));
                 }
                 if(el.attr("alt").length() > 9999){
-                    obj.put( "imgAlt", stringToJsonArray(el.attr("alt").substring(0,10000)));
+                    obj.put( "imgAlt", el.attr("alt").substring(0,10000));
                 }
                 else{
-                    obj.put( "imgAlt", stringToJsonArray(el.attr("alt")));
+                    obj.put( "imgAlt", el.attr("alt"));
                 }
                 obj.put( "imgMimeType" ,  imgResult.getMime( ) );
                 obj.put( "imgSrcBase64" , imgResult.getThumbnail( ) );
@@ -204,34 +236,30 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                 obj.put( "pageHost", pageHost);
                 obj.put( "pageProtocol", pageProtocol);
                 if(! pageTitle.isEmpty()){
-                    obj.put( "pageTitle" , stringToJsonArray(pageTitle)); /*The URL of the Archived page*/
+                    obj.put( "pageTitle" , pageTitle); /*The URL of the Archived page*/
                 }
-                obj.put("pageURLTokens", stringToJsonArray(pageURLTokens));                
+                obj.put("pageURLTokens", pageURLTokens);                
                 obj.put( "collection" , collectionName );
                                 
                 context.write( new Text (obj.toJSONString()),null);
+                
+                logger.info("Written to file - successfully indexed image record" );
+                System.out.println("Written to file - successfully indexed image record" );
             }
-        }catch (SQLException e){
-        	logger.error("ERROR in SQL..." + e.getMessage());      	
-        } catch (ClassNotFoundException e){
-        	logger.error("ERROR in SQL driver not found..." + e.getMessage());    	
-        }
-        catch (Exception e){
+        } catch (Exception e){
         	logger.error("ERROR..." + e.getMessage());
-            System.err.println("Something failed JSOUP parsing");
-            e.printStackTrace();
+        	System.err.println("Something failed JSOUP parsing");
+        	System.out.println("Something failed JSOUP parsing");       	
+        	e.printStackTrace();
         }
-      
+
     }
 
     /* Retreives ImageSQLDTO with the closest date to pageTstamp
      * Returns null if no results found in the SQL DB
      * 
      */
-    public ImageSQLDTO retreiveImageFromDB(String imgHashKey, long pageTstamp, Configuration conf) throws SQLException, ClassNotFoundException, IOException{
-    	MongoClient mongoClient = new MongoClient(new MongoClientURI("mongodb://p10.arquivo.pt:27017"));
-    	DB database = mongoClient.getDB("hadoop_images");
-    	DBCollection collection = database.getCollection("images");
+    public ImageSQLDTO retreiveImageFromDB(String imgHashKey, long pageTstamp, Configuration conf) {
     	BasicDBObject whereQuery = new BasicDBObject();
   	  	whereQuery.put("_id.image_hash_key", imgHashKey);
   	  	DBCursor cursor = collection.find(whereQuery);
@@ -244,7 +272,12 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
   	  	  	  	
   	  	while (cursor.hasNext()) {
   	  		DBObject currentResult = cursor.next();
-        	currentTstamp = Long.parseLong((String) currentResult.get("_id.tstamp"));
+  	  		String ctstamp =(String) currentResult.get("tstamp");
+  	  		if(ctstamp == null) {
+  	  			System.err.println("Empty tstamp for image with hash: " + imgHashKey);
+  	  			return null;
+  	  		};
+        	currentTstamp = Long.parseLong(ctstamp);
     		if(Math.abs(currentTstamp - pageTstamp) < tstampDiff){
     			imgTstamp = currentTstamp;
     			imgContentHash = (String)  currentResult.get("content_hash");
@@ -253,12 +286,26 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
     			if(tstampDiff == 0){break;} /*No need to continue the cycle if the imgtstamp is the same as the pagetstamp*/
     		}  	  		
   	  	}
-  	  	
-  	  	mongoClient.close();
         
-        return imgTstamp == -1 ?  null : new ImageSQLDTO(readImgContentFromHDFS(imgContentHash, conf), mime, String.valueOf(imgTstamp));
+        try {
+			return imgTstamp == -1 ?  null : new ImageSQLDTO(readImgContentFromGridFS(imgContentHash, conf), mime, String.valueOf(imgTstamp));
+		} catch (IOException e) {
+			System.err.println("Error retrievImageFromDB");
+			e.printStackTrace();
+			return null;
+		}
         
     }
+
+    public byte[] readImgContentFromGridFS(String imgContentHash, Configuration conf) throws IOException{
+    	GridFSDBFile imageForOutput = gfsPhoto.findOne(imgContentHash);
+    	System.out.println("ImageHash: " + imgContentHash);
+    	System.out.println(imageForOutput);
+    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    	imageForOutput.writeTo(baos);
+    	return baos.toByteArray();    	    	
+    }
+    
     
     public byte[] readImgContentFromHDFS(String imgContentHash, Configuration conf) throws IOException{
     	/*write image in hdfs a file with name content_hash*/
@@ -276,16 +323,21 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
 
 	public void map(LongWritable key, Text value, Context context)
 			throws IOException, InterruptedException {
+		logger.info("Map Started for ARCNAME: " + value.toString());
         ARCReader reader = null;
         try {
             int records = 0;
             int errors = 0;
             
             System.out.println("ARCNAME: " + value.toString());
+            
+            
+            logger.info("Started Reading ARCNAME: " + value.toString());
             reader = ARCReaderFactory.get(value.toString());
-
+            logger.info("Ended Reading ARCNAME: " + value.toString());
 
             for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
+            	 	logger.info("Reading record number " + records+1);
                     ARCRecord record = (ARCRecord)ii.next();
                     if(record.getMetaData().getMimetype().contains("html"))
                         parseImagesFromHtmlRecord(record, context);
@@ -316,6 +368,9 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
             if(reader!=null){
                 reader.close();
             }
+            if(mongoClient != null){
+            	mongoClient.close(); /*Close connection to MongoDB*/
+            }
         }				
 	}
 
@@ -341,7 +396,7 @@ public class IndexImages
     job.setInputFormatClass(NLineInputFormat.class);
     NLineInputFormat.addInputPath(job, new Path(args[0]));
     job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
-    job.getConfiguration().setInt("mapreduce.job.running.map.limit", 200); /*Maximum o simultaneous maps accessing preprod for now*/
+    job.getConfiguration().setInt("mapreduce.job.running.map.limit", 500); /*Maximum o simultaneous maps accessing preprod for now*/
     
 
 	job.setOutputFormatClass(TextOutputFormat.class);
