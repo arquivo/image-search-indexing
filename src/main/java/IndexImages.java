@@ -381,6 +381,7 @@ public class IndexImages
 {
     public static void main( String[] args ) throws IOException, ClassNotFoundException, InterruptedException
     {
+	int maxMaps = args.length >=4 ? Integer.parseInt(args[3]) : 40;    	
     Configuration conf = new Configuration();
     conf.set("collection", args[2]);
 
@@ -396,7 +397,7 @@ public class IndexImages
     job.setInputFormatClass(NLineInputFormat.class);
     NLineInputFormat.addInputPath(job, new Path(args[0]));
     job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
-    job.getConfiguration().setInt("mapreduce.job.running.map.limit", 500); /*Maximum o simultaneous maps accessing preprod for now*/
+    job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum o simultaneous maps accessing preprod for now*/
     
 
 	job.setOutputFormatClass(TextOutputFormat.class);

@@ -262,6 +262,7 @@ public class CreateImageDB
 {
     public static void main( String[] args ) throws IOException, ClassNotFoundException, InterruptedException
     {
+    int maxMaps = args.length >=4 ? Integer.parseInt(args[3]) : 50;
     Configuration conf = new Configuration();
     conf.set("collection", args[2]);
     conf.set("mapred.job.priority", JobPriority.VERY_HIGH.toString());
@@ -281,7 +282,7 @@ public class CreateImageDB
     NLineInputFormat.addInputPath(job, new Path(args[0]));
     
     job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
-    job.getConfiguration().setInt("mapreduce.job.running.map.limit", 500); /*Maximum of 500 simultaneous maps accessing preprod for now*/
+    job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum of 500 simultaneous maps accessing preprod for now*/
   
 	// Sets reducer tasks to 1
 	job.setNumReduceTasks(1);
