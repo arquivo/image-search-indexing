@@ -16,12 +16,15 @@ import org.apache.hadoop.mapreduce.Mapper;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -66,6 +69,7 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
 	 private MongoClient mongoClient;
   	 private DB database;
   	 private DBCollection collection;
+  	 private DBCollection imageIndexes;
   	 private GridFS gfsPhoto;
 
     @Override
@@ -79,8 +83,9 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
         		   new ServerAddress("p12.arquivo.pt", 27020),
         		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
      	database = mongoClient.getDB("hadoop_images");
-     	collection = database.getCollection("images");	  
-    	gfsPhoto = new GridFS(database,collectionName+"_Images/img/");
+     	collection = database.getCollection("images");	
+     	imageIndexes = database.getCollection("imageIndexes");
+    	gfsPhoto = new GridFS(database,"gridfsimages");
     	System.out.println(collectionName+"_Images"+"/img/");
     }
     
@@ -202,46 +207,22 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
                     logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
                     continue;
                 }
+
+               
+                
+                
                 String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
                 imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
                 String imgSrcTokens = parseURL(imgSrcCleaned); /*split the imgSrc URL*/                
+                
+                String imgTitle = el.attr("title");
+                if(imgTitle.length() > 9999){imgTitle =  imgTitle.substring(0, 10000); }
+                String imgAlt = el.attr("alt");
+                if(imgAlt.length() > 9999){imgAlt =  imgAlt.substring(0, 10000); }                
 
-                obj.put( "imgWidth", imgResult.getWidth( ) ); 
-                obj.put( "imgHeight", imgResult.getHeight( ) ); 
-                obj.put( "imgSrc", imgSrc); /*The URL of the Image*/
-                obj.put( "imgTstamp", imgSQLDTO.getTstamp());
-                obj.put( "imgSrcTokens", imgSrcTokens);
-                obj.put( "imgSrcURLDigest", ImageParse.hash256(imgSrc)); /*Digest Sha-256 of the URL of the Image*/
                 
                 
-                if(el.attr("title").length() > 9999){
-                    obj.put( "imgTitle", el.attr("title").substring(0,10000));
-                }
-                else{
-                    obj.put( "imgTitle", el.attr("title"));
-                }
-                if(el.attr("alt").length() > 9999){
-                    obj.put( "imgAlt", el.attr("alt").substring(0,10000));
-                }
-                else{
-                    obj.put( "imgAlt", el.attr("alt"));
-                }
-                obj.put( "imgMimeType" ,  imgResult.getMime( ) );
-                obj.put( "imgSrcBase64" , imgResult.getThumbnail( ) );
-                obj.put( "imgDigest" , imgResult.getDigest( ) );
-
-                obj.put("pageImages", pageImages);
-                obj.put( "pageTstamp" , pageTstamp );
-                obj.put( "pageURL" , pageURL ); /*The URL of the Archived page*/
-                obj.put( "pageHost", pageHost);
-                obj.put( "pageProtocol", pageProtocol);
-                if(! pageTitle.isEmpty()){
-                    obj.put( "pageTitle" , pageTitle); /*The URL of the Archived page*/
-                }
-                obj.put("pageURLTokens", pageURLTokens);                
-                obj.put( "collection" , collectionName );
-                                
-                context.write( new Text (obj.toJSONString()),null);
+                insertImageIndexes(imgResult, imgSrc,imgSQLDTO, imgSrcTokens,imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol,  pageTitle, pageURLTokens);
                 
                 logger.info("Written to file - successfully indexed image record" );
                 System.out.println("Written to file - successfully indexed image record" );
@@ -255,7 +236,8 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
 
     }
 
-    /* Retreives ImageSQLDTO with the closest date to pageTstamp
+
+	/* Retreives ImageSQLDTO with the closest date to pageTstamp
      * Returns null if no results found in the SQL DB
      * 
      */
@@ -297,6 +279,73 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
         
     }
 
+
+    public void insertImageIndexes(ImageSearchResult imgResult, String imgSrc, ImageSQLDTO imgSQLDTO,
+			String imgSrcTokens, String imgTitle, String imgAlt, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String pageTitle, String pageURLTokens) throws NoSuchAlgorithmException {
+    	String imgDigest = imgResult.getDigest();
+    	String imgTstamp = imgSQLDTO.getTstamp();
+    	Long imgTstampLong = Long.parseLong(imgTstamp);
+    	DBObject img;
+    	
+    	BasicDBObject whereQuery = new BasicDBObject();
+  	  	whereQuery.put("imgDigest", imgDigest);
+  	  	DBCursor cursor = imageIndexes.find(whereQuery);
+  	  	int numberofImagesWithHashKey =cursor.size();
+  	  	if(numberofImagesWithHashKey <=1){ /*Create object to insert or update the DB*/
+  			img = new BasicDBObject()
+    			.append("imgDigest", imgResult.getDigest())
+    			.append("imgTitle", imgTitle)
+    			.append("imgAlt", imgAlt)
+    			.append("imgWidth", imgResult.getWidth())
+    			.append("imgHeight", imgResult.getHeight())
+                .append("safe", -1)
+  	    	    .append( "imgSrc", imgSrc) /*The URL of the Image*/
+        		.append( "imgTstamp", imgSQLDTO.getTstamp())
+        		.append( "imgSrcTokens", imgSrcTokens)
+        		.append( "imgSrcURLDigest", ImageParse.hash256(imgSrc)) /*Digest Sha-256 of the URL of the Image*/            
+        		.append( "imgMimeType" ,  imgResult.getMime( ) )
+        		.append( "imgSrcBase64" , imgResult.getThumbnail( ) )
+        		.append( "imgDigest" , imgResult.getDigest( ) )
+        		.append("pageImages", pageImages)
+        		.append( "pageTstamp" , pageTstamp )
+        		.append( "pageURL" , pageURL ) /*The URL of the Archived page*/
+        		.append( "pageHost", pageHost)
+        		.append( "pageProtocol", pageProtocol)
+        		.append( "pageTitle" , pageTitle) /*The URL of the Archived page*/
+        		.append("pageURLTokens", pageURLTokens)                
+        		.append( "collection" , collectionName );  
+  	  	
+	  	  	if(numberofImagesWithHashKey == 0){ /*insert image it is unique in our imageIndexes collection*/                  
+		    	imageIndexes.insert(img);
+		    	System.out.println("inserted:" + imgResult.getDigest());
+		    	System.out.println("inserted ts:" + imgSQLDTO.getTstamp());		    	
+	  	  	}
+	  	  	else if (numberofImagesWithHashKey == 1){ /*check if this image tstamp is more old than the one we currently store if it is update this record in the db*/
+	  	  		DBObject currentResult = cursor.next(); /*get the record*/ 
+	  	  		String dataBaseTstamp =(String) currentResult.get("imgTstamp");  	  		
+	  	  		if(dataBaseTstamp == null) {
+	  	  			System.err.println("Empty tstamp for image with hash: " + imgDigest);
+	  	  			return;
+	  	  		}
+	  	  		Long dBTstamp = Long.parseLong(dataBaseTstamp);
+	  	  		if(imgTstampLong <= dBTstamp){ /*Found an older version of this image digest lets update the database*/
+	  	  			imageIndexes.update(whereQuery, img);
+			    	System.out.println("updated: " + imgResult.getDigest());
+			    	System.out.println("updated TS: " + imgSQLDTO.getTstamp());	  	  			
+	  	  		}
+	  	  		else{ /*There is an older version of this digest in our db so we won't insert this one*/
+	  	  			return;
+	  	  		} 	  		
+	  	  	}
+  	  	}  	
+  	  	else{
+  	  		/*This should never happen because imgDigest is unique in our DB*/
+  	  		System.err.println("Multiple records with hash key: " + imgDigest);
+  	  	}
+    }    
+    
+    
+    
     public byte[] readImgContentFromGridFS(String imgContentHash, Configuration conf) throws IOException{
     	GridFSDBFile imageForOutput = gfsPhoto.findOne(imgContentHash);
     	System.out.println("ImageHash: " + imgContentHash);

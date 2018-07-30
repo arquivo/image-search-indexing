@@ -76,7 +76,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
     public static String collectionName;
 	private MongoClient mongoClient;
 	private DB database;
-	private DBCollection MongoCollection;      
+	private DBCollection MongoCollection;     
 
     @Override
     public void setup(Context context) {
@@ -167,12 +167,15 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
                     .append("safe", -1)
                     .append("content_hash", content_hash);
 	    	MongoCollection.insert(img);
-	    	GridFS gfsPhoto = new GridFS(database, collection+"/img/"); /*Create namespace*/
+	    	
+	    	
+	    	System.out.println("Saving in GRIDFS." );
+	    	GridFS gfsPhoto = new GridFS(database, "gridfsimages" ); /*Create namespace*/ /*collection+"/img/"*/
 	    	GridFSInputFile gfsFile = gfsPhoto.createFile(contentBytes);
 	    	gfsFile.setFilename(content_hash);
 	    	gfsFile.save();
 	    	
-	    	System.out.println("GRIDFS: File Saved in: "+ collection+"/img/"+content_hash);
+	    	System.out.println("GRIDFS: File Saved in: "+content_hash);
 	    	
 	    	/*write image in hdfs a file with name content_hash*/
 		    //FileSystem fs = FileSystem.get(conf);

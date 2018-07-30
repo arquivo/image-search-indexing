@@ -207,6 +207,12 @@ public class ImageParse {
 			type = imgSQLDTO.getMimeType();
 			int width          	= bimg.getWidth( null );
 			int height         	= bimg.getHeight( null );
+			
+			if(width<51 || height<51){
+				/*Do not index very small images*/
+				return null;
+			}
+			
 			img.setMime( type );
 			img.setHeight( Double.toString( height ) );
 			img.setWidth( Double.toString( width ) );
