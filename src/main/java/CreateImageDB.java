@@ -3,13 +3,12 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
 import com.mongodb.ServerAddress;
-import com.mongodb.gridfs.GridFS;
-import com.mongodb.gridfs.GridFSInputFile;
 import com.sun.tools.javadoc.JavaScriptScanner.Reporter;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBObject;
 import com.mongodb.DBCollection;
+
 
 
 import org.apache.hadoop.conf.Configuration;
@@ -33,6 +32,8 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+
+import org.apache.commons.codec.binary.Base64;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -87,7 +88,10 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
      	options.socketKeepAlive(true);        
     	MongoClient mongoClient = new MongoClient( Arrays.asList(
        		   new ServerAddress("p12.arquivo.pt", 27020),
-       		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+       		   new ServerAddress("p39.arquivo.pt", 27020),
+       		   new ServerAddress("p52.arquivo.pt", 27020),
+       		   new ServerAddress("p53.arquivo.pt", 27020),
+       		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
     	database = mongoClient.getDB("hadoop_images");
     	MongoCollection = database.getCollection("images");        
     }
@@ -165,17 +169,17 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
                     .append("mime", mime)
                     .append("collection", collection)
                     .append("safe", -1)
-                    .append("content_hash", content_hash);
+                    .append("content_hash", content_hash)
+                    .append("bytes64string", Base64.encodeBase64String(contentBytes));
 	    	MongoCollection.insert(img);
 	    	
 	    	
-	    	System.out.println("Saving in GRIDFS." );
-	    	GridFS gfsPhoto = new GridFS(database, "gridfsimages" ); /*Create namespace*/ /*collection+"/img/"*/
-	    	GridFSInputFile gfsFile = gfsPhoto.createFile(contentBytes);
-	    	gfsFile.setFilename(content_hash);
-	    	gfsFile.save();
-	    	
-	    	System.out.println("GRIDFS: File Saved in: "+content_hash);
+//	    	System.out.println("Saving in GRIDFS." );
+//	    	GridFS gfsPhoto = new GridFS(database, "gridfsimages" ); /*Create namespace*/ /*collection+"/img/"*/
+//	    	GridFSInputFile gfsFile = gfsPhoto.createFile(contentBytes);
+//	    	gfsFile.setFilename(content_hash);
+//	    	gfsFile.save();
+	    	System.out.println("File Inserted: "+content_hash);
 	    	
 	    	/*write image in hdfs a file with name content_hash*/
 		    //FileSystem fs = FileSystem.get(conf);
@@ -249,12 +253,16 @@ class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
      	     	
     	MongoClient mongoClient = new MongoClient( Arrays.asList(
       		   new ServerAddress("p12.arquivo.pt", 27020),
-      		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+      		   new ServerAddress("p39.arquivo.pt", 27020),
+      		   new ServerAddress("p52.arquivo.pt", 27020),
+      		   new ServerAddress("p53.arquivo.pt", 27020),
+      		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
     			
     	DB database = mongoClient.getDB("hadoop_images");
-    	DBCollection MongoCollection = database.getCollection("images");  		
-    	MongoCollection.createIndex(new BasicDBObject("_id.image_hash_key", 1)); /*Need to create index for this field to be fast to search in the next step*/
-    	mongoClient.close();
+    	DBCollection mongoCollection = database.getCollection("imageIndexes");
+    	
+    	//mongoCollection.remove(new BasicDBObject()); /*Remove all documents in imageIndexes*/
+
     	System.out.println("Created Index");
 	}
 }

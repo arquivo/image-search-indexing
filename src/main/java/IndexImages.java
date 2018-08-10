@@ -11,6 +11,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.kerby.util.Base64;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import java.io.FileNotFoundException;
@@ -80,8 +81,11 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
      	MongoClientOptions.Builder options = MongoClientOptions.builder();
      	options.socketKeepAlive(true);
     	MongoClient mongoClient = new MongoClient( Arrays.asList(
-        		   new ServerAddress("p12.arquivo.pt", 27020),
-        		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+       		   new ServerAddress("p12.arquivo.pt", 27020),
+       		   new ServerAddress("p39.arquivo.pt", 27020),
+       		   new ServerAddress("p52.arquivo.pt", 27020),
+       		   new ServerAddress("p53.arquivo.pt", 27020),
+       		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
      	database = mongoClient.getDB("hadoop_images");
      	collection = database.getCollection("images");	
      	imageIndexes = database.getCollection("imageIndexes");
@@ -251,6 +255,7 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
         long currentTstamp = -1;
         String mime ="";
         String imgContentHash = null;
+        byte[] retrievedImgBytes = null;
   	  	  	  	
   	  	while (cursor.hasNext()) {
   	  		DBObject currentResult = cursor.next();
@@ -265,17 +270,12 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
     			imgContentHash = (String)  currentResult.get("content_hash");
     			mime = (String) currentResult.get("mime");
     			tstampDiff = currentTstamp - pageTstamp;
+    			retrievedImgBytes = Base64.decodeBase64((String) currentResult.get("bytes64string"));
     			if(tstampDiff == 0){break;} /*No need to continue the cycle if the imgtstamp is the same as the pagetstamp*/
     		}  	  		
   	  	}
         
-        try {
-			return imgTstamp == -1 ?  null : new ImageSQLDTO(readImgContentFromGridFS(imgContentHash, conf), mime, String.valueOf(imgTstamp));
-		} catch (IOException e) {
-			System.err.println("Error retrievImageFromDB");
-			e.printStackTrace();
-			return null;
-		}
+			return imgTstamp == -1 ?  null : new ImageSQLDTO(retrievedImgBytes, mime, String.valueOf(imgTstamp));
         
     }
 
@@ -293,7 +293,8 @@ class Map extends Mapper<LongWritable, Text, Text, Text> {
   	  	int numberofImagesWithHashKey =cursor.size();
   	  	if(numberofImagesWithHashKey <=1){ /*Create object to insert or update the DB*/
   			img = new BasicDBObject()
-    			.append("imgDigest", imgResult.getDigest())
+  				.append("_id", imgResult.getDigest())
+  				.append("imgDigest", imgResult.getDigest()) /*Intentionally repeated field*/ 
     			.append("imgTitle", imgTitle)
     			.append("imgAlt", imgAlt)
     			.append("imgWidth", imgResult.getWidth())
