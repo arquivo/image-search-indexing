@@ -244,6 +244,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
 	public void reduce(Text key, Iterator<IntWritable> values,
+	//TODO:: remove reducer in this indexing phase
 			OutputCollector<Text, DoubleWritable> output,
 			Reporter reporter)
 					throws IOException {
@@ -258,9 +259,8 @@ class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
       		   new ServerAddress("p53.arquivo.pt", 27020),
       		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
     			
-    	DB database = mongoClient.getDB("hadoop_images");
-    	DBCollection mongoCollection = database.getCollection("imageIndexes");
-    	
+    	//DB database = mongoClient.getDB("hadoop_images");
+    	//DBCollection mongoCollection = database.getCollection("imageIndexes");
     	//mongoCollection.remove(new BasicDBObject()); /*Remove all documents in imageIndexes*/
 
     	System.out.println("Created Index");
