@@ -87,11 +87,9 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
      	MongoClientOptions.Builder options = MongoClientOptions.builder();
      	options.socketKeepAlive(true);        
     	MongoClient mongoClient = new MongoClient( Arrays.asList(
-       		   new ServerAddress("p12.arquivo.pt", 27020),
-       		   new ServerAddress("p39.arquivo.pt", 27020),
-       		   new ServerAddress("p52.arquivo.pt", 27020),
-       		   new ServerAddress("p53.arquivo.pt", 27020),
-       		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
+       		   new ServerAddress("p37.arquivo.pt", 27020),
+       		   new ServerAddress("p38.arquivo.pt", 27020),
+       		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
     	database = mongoClient.getDB("hadoop_images");
     	MongoCollection = database.getCollection("images");        
     }
@@ -253,11 +251,9 @@ class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
      	options.socketKeepAlive(true);        
      	     	
     	MongoClient mongoClient = new MongoClient( Arrays.asList(
-      		   new ServerAddress("p12.arquivo.pt", 27020),
-      		   new ServerAddress("p39.arquivo.pt", 27020),
-      		   new ServerAddress("p52.arquivo.pt", 27020),
-      		   new ServerAddress("p53.arquivo.pt", 27020),
-      		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
+      		   new ServerAddress("p37.arquivo.pt", 27020),
+      		   new ServerAddress("p38.arquivo.pt", 27020),
+      		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
     			
     	//DB database = mongoClient.getDB("hadoop_images");
     	//DBCollection mongoCollection = database.getCollection("imageIndexes");

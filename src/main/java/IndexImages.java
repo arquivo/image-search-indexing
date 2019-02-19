@@ -92,11 +92,9 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 	     	MongoClientOptions.Builder options = MongoClientOptions.builder();
 	     	options.socketKeepAlive(true);
 	    	MongoClient mongoClient = new MongoClient( Arrays.asList(
-	       		   new ServerAddress("p12.arquivo.pt", 27020),
-	       		   new ServerAddress("p39.arquivo.pt", 27020),
-	       		   new ServerAddress("p52.arquivo.pt", 27020),
-	       		   new ServerAddress("p53.arquivo.pt", 27020),
-	       		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
+	       		   new ServerAddress("p37.arquivo.pt", 27020),
+	       		   new ServerAddress("p38.arquivo.pt", 27020),
+	       		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
 	     	database = mongoClient.getDB("hadoop_images");
 	     	collection = database.getCollection("images");	
 	     	imageIndexes = database.getCollection("imageIndexes");
@@ -439,48 +437,35 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 public static class IndexReducer extends Reducer<LongWritable, NullWritable, LongWritable, NullWritable> {
 	private Logger logger = Logger.getLogger(IndexReducer.class);
 	
+	 public static String collectionName;
+	 private MongoClient mongoClient;
+ 	 private DB database;
+ 	 private DBCollection images;
+ 	 private DBCollection imageIndexes;	
+	
+	
+    @Override
+    public void setup(Context context) {
+        Configuration config = context.getConfiguration();
+        collectionName = config.get("collection");
+        System.out.println("collection: " + collectionName);
+     	MongoClientOptions.Builder options = MongoClientOptions.builder();
+     	options.socketKeepAlive(true);
+    	MongoClient mongoClient = new MongoClient( Arrays.asList(
+       		   new ServerAddress("p37.arquivo.pt", 27020),
+       		   new ServerAddress("p38.arquivo.pt", 27020),
+       		   new ServerAddress("p39.arquivo.pt", 27020)), options.build());
+     	database = mongoClient.getDB("hadoop_images");
+     	images = database.getCollection("images");	
+    }	
+	
     public void reduce(LongWritable key, Iterable<NullWritable> values,
             Context context
             ) throws IOException, InterruptedException {
     	System.out.println("Reduce IndexImages");
-		logger.info("Creating Index for image hash key!");
-     	MongoClientOptions.Builder options = MongoClientOptions.builder();
-     	options.socketKeepAlive(true);        
-     	     	
-    	MongoClient mongoClient = new MongoClient( Arrays.asList(
-      		   new ServerAddress("p12.arquivo.pt", 27020),
-      		   new ServerAddress("p39.arquivo.pt", 27020),
-      		   new ServerAddress("p52.arquivo.pt", 27020),
-      		   new ServerAddress("p53.arquivo.pt", 27020),
-      		   new ServerAddress("p54.arquivo.pt", 27020)), options.build());
-    			
-    	DB database = mongoClient.getDB("hadoop_images");
-    	DBCollection mongoCollection = database.getCollection("images");
-    	
-    	
-    	
-    	mongoCollection.drop(); /*Remove all documents in imageIndexes*/
-    	mongoCollection = database.getCollection("images"); /*recreates the collection if not exist.*/
-    	logger.info("Dropped images from step 1 . hadoop_images/images");
-    	
-    	/*Recreating indexes for images db*/
-    	mongoCollection.createIndex( (DBObject) JSON.parse("{'collection': 1}"));
-    	mongoCollection.createIndex( (DBObject) JSON.parse("{'_id.image_hash_key':'hashed'}"));
-    	logger.info("Created indexes for images DB");
-    	
-    	/*Sharding collection*/
-    	CommandResult result=null; 
-    	// The only way to shard this is via executing a command. If this is not
-    	// done the collection will becreated but it will not be 
-    	// sharded. The first arg is the key and the second one is the logic to be used
-    	final BasicDBObject shardKey = new BasicDBObject("_id.image_hash_key", "hashed"); 
-    	final BasicDBObject cmd = new BasicDBObject("shardCollection", "hadoop_images.images");  	
-    	cmd.put("key", shardKey); 
-    	// RUnning the command to create the sharded collection
-    	result = mongoClient.getDB("admin").command(cmd);  	
-    	if (!result.ok()) {
-    			retryShardCollection(10, 120, mongoClient,cmd, logger);
-    	}
+    	BasicDBObject query = new BasicDBObject();
+    	query.append("collection", collectionName+"_Images");		
+    	images.remove(query);
     	
     	context.write(new LongWritable(0L), NullWritable.get()); //dumb code write 0 , NULLWritable to finish reduce phase
     	
