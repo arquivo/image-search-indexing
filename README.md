@@ -10,3 +10,6 @@ An experimental hadoop image indexer for Web archiving
 
 ```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" 90```  
 
+## Requirements
+- Hadoop 3 cluster
+- MongoDB server or MongoDB sharded cluster
