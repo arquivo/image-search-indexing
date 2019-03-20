@@ -1,10 +1,12 @@
 # ImageSearch
 An experimental hadoop image indexer for Web archiving 
 
-```javac -classpath lib/*:/opt/hadoop-1.2.1/hadoop-core-1.2.1.jar: -d .  ImageParse.java ImageSearchResult.java``` 
+## Compile
+```mvn clean install``` 
 
-```javac -classpath lib/*:/opt/hadoop-1.2.1/hadoop-core-1.2.1.jar: -d . IndexImages.java ```
+## Run
 
-``` /usr/lib/jdk1.7.0_71/bin/jar -cvf /opt/indexImages.jar -C /github/ImageSearch/ .```  
+```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" 125 ```
 
-```/opt/hadoop-1.2.1/bin/hadoop jar /opt/indexImages.jar IndexImages /user/root/FAWP10.txt /user/root/output/FAWP10``` 
+```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" 90```  
+
