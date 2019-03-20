@@ -1,3 +1,5 @@
 *.class
 /lib/*
 /target/*
+/.classpath
+/.project
