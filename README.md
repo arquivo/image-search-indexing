@@ -6,9 +6,9 @@ An experimental hadoop image indexer for Web archiving - supports ARC/WARC files
 
 ## Run
 
-```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" 125 ```
+```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line 125 ```
 
-```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" 90```  
+```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/$line_ARCS.txt /user/root/$line_db $line 90```  
 
 ```mongoexport --host $mongoserverlocation:$mongoport --db hadoop_images --collection imageIndexes --out /data/images/$line_uniq.jsonl  --query "{'collection':'$line'}"```  
 
