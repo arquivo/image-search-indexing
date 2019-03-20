@@ -20,6 +20,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper.Context;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -44,6 +45,9 @@ import java.util.regex.Matcher;
 import org.archive.io.arc.ARCReader;
 import org.archive.io.arc.ARCReaderFactory;
 import org.archive.io.arc.ARCRecord;
+import org.archive.io.warc.WARCReaderFactory;
+import org.archive.io.warc.WARCRecord;
+import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 
 import org.jsoup.Jsoup;
@@ -152,11 +156,11 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 	    }
 
 
-	    public  void parseImagesFromHtmlRecord(ARCRecord record, Context context){
+	    public  void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String pageTstamp){
 	        try{
 	        	System.out.println("Parsing Images from ARCrecord");
 	        	logger.info("Parsing Images from ARCrecord" );
-	            byte[] arcRecordBytes = getRecordContentBytes(record);
+	            //byte[] arcRecordBytes = getRecordContentBytes(record);
 	            logger.info("Read Content Bytes from ARCrecord" );
 	            System.out.println("Read Content Bytes from ARCrecord" );
 	            String recordEncoding = guessEncoding(arcRecordBytes); 
@@ -167,8 +171,7 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 
 	            Elements imgs = doc.getElementsByTag("img");
 	            int pageImages = imgs.size();
-	            String pageURL = record.getHeader().getUrl();
-	            //String pageURLDigest = ImageParse.hash256(pageURL);
+	            //String pageURL = record.getHeader().getUrl();
 	            String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
 	            pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
 	            String pageURLTokens = parseURL(pageURLCleaned); /*split the URL*/
@@ -177,7 +180,7 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 	            URL uri = new URL(pageURL);
 	            String pageHost = uri.getHost();
 	            String pageProtocol = uri.getProtocol();   
-	            String pageTstamp = record.getMetaData().getDate();
+	            //String pageTstamp = record.getMetaData().getDate();
 	            if (pageTstamp == null || pageTstamp.equals("")){
 	                System.err.println("Null pageTstamp");                
 	            }
@@ -217,9 +220,6 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 	                    logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
 	                    continue;
 	                }
-
-	               
-	                
 	                
 	                String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
 	                imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
@@ -229,9 +229,7 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 	                if(imgTitle.length() > 9999){imgTitle =  imgTitle.substring(0, 10000); }
 	                String imgAlt = el.attr("alt");
 	                if(imgAlt.length() > 9999){imgAlt =  imgAlt.substring(0, 10000); }                
-
-	                
-	                
+	                                
 	                insertImageIndexes(imgResult, imgSrc,imgSQLDTO, imgSrcTokens,imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol,  pageTitle, pageURLTokens);
 	                
 	                logger.info("Written to file - successfully indexed image record" );
@@ -379,40 +377,21 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
-			logger.info("Map Started for ARCNAME: " + value.toString());
-	        ARCReader reader = null;
-	        try {
-	            int records = 0;
-	            int errors = 0;
-	            
-	            System.out.println("ARCNAME: " + value.toString());
-	            
-	            
-	            logger.info("Started Reading ARCNAME: " + value.toString());
-	            reader = ARCReaderFactory.get(value.toString());
-	            logger.info("Ended Reading ARCNAME: " + value.toString());
+			logger.info("Map Started for (W)ARCNAME: " + value.toString());
+						
+			try{					         
+	            System.out.println("(W)ARCNAME: " + value.toString());
 
-	            for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
-	            	 	logger.info("Reading record number " + records+1);
-	                    ARCRecord record = (ARCRecord)ii.next();
-	                    if(record.getMetaData().getMimetype().contains("html"))
-	                        parseImagesFromHtmlRecord(record, context);
-	                    ++records;
-	                    if (record.hasErrors()) {
-	                        errors += record.getErrors().size();
-	                    }                        
-	            }
-	            System.out.println("--------------");
-	            System.out.println("       Records: " + records);
-	            System.out.println("        Errors: " + errors);
-	            
+	            if(value.toString().endsWith("warc.gz") || value.toString().endsWith("warc")){
+	            	System.out.println("READING WARC");
+	            	readWarcRecords(value.toString(), context);
+	            }else{
+	            	System.out.println("READING ARC");
+	            	readArcRecords(value.toString(), context);
+	            }	            
+	            	            
 	            context.write(new LongWritable(0L), NullWritable.get()); //dumb code write 0 , NULLWritable to send to the reducer phase
 	            
-	        }
-	        catch (FileNotFoundException e) {
-	            // TODO Auto-generated catch block
-	            System.err.println("ARCNAME: " + value.toString());
-	            e.printStackTrace();
 	        }
 	        catch (IOException e) {
 	            // TODO Auto-generated catch block
@@ -424,15 +403,103 @@ public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWri
 			    e.printStackTrace();
 			}
 	        finally{
-	            if(reader!=null){
-	                reader.close();
-	            }
 	            if(mongoClient != null){
 	            	mongoClient.close(); /*Close connection to MongoDB*/
 	            }
 	        }				
 		}
-	}	
+
+		private void readArcRecords(String value,
+				Context context) {
+			ARCReader reader = null;
+			try {
+				int records = 0;
+				int errors = 0;
+				reader = ARCReaderFactory.get(value);
+
+				for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
+					logger.info("Reading record number " + records+1);
+					ARCRecord record = (ARCRecord)ii.next();
+					if(record.getMetaData().getMimetype().contains("html"))
+						parseImagesFromHtmlRecord(context, getRecordContentBytes(record), record.getHeader().getUrl(), record.getMetaData().getDate());
+					++records;
+					if (record.hasErrors()) {
+						errors += record.getErrors().size();
+					}                        
+				}
+				System.out.println("--------------");
+				System.out.println("       Records: " + records);
+				System.out.println("        Errors: " + errors);			
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				System.err.println("ARCNAME: " + value);
+				e.printStackTrace();
+			}
+			catch (IOException e) {
+				// TODO Auto-generated catch block
+				System.err.println("ARCNAME: " + value);
+				e.printStackTrace();
+			}
+			catch(Exception e){
+				System.err.println("Unhandled exception?");
+				e.printStackTrace();
+			} finally{  
+				if(reader!=null){
+					try {
+						reader.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+
+		}
+
+		private void readWarcRecords(String warcURL, Context context) {
+			int records= 0;
+			int errors = 0;
+			ArchiveReader reader = null;
+			try{				
+				reader = WARCReaderFactory.get(warcURL);
+				for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
+						WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated((WARCRecord) ii.next());
+						if(record.getContentMimetype().contains("html")){ /*only processing images*/
+							parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getWARCRecord().getHeader().getDate());						
+						}
+						++records;
+						if (record.hasErrors()) {
+						  errors += record.getErrors().size();
+						} 
+				}
+			}catch (FileNotFoundException e) {
+				System.err.println("WARCNAME: " + warcURL);
+				e.printStackTrace();
+			}
+			catch (IOException e) {
+				System.err.println("WARCNAME: " + warcURL);
+				e.printStackTrace();
+			}
+			catch(Exception e){
+				System.err.println("Unhandled exception?");
+				e.printStackTrace();
+			} finally{
+				System.out.println("records: " + records);
+				System.out.println("errors: " + errors);
+				if(reader!=null){
+					try {
+						reader.close();
+					} catch (IOException e) {
+						System.err.println("error closing ArchiveReader"+ e);
+						e.printStackTrace();
+					}
+				}
+			}
+
+		}
+
+
+		}	
 	
 public static class IndexReducer extends Reducer<LongWritable, NullWritable, LongWritable, NullWritable> {
 	private Logger logger = Logger.getLogger(IndexReducer.class);

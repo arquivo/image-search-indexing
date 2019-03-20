@@ -1,8 +1,10 @@
 /home/fmelo/ImageSearch/src/main/java/ImageSQLDTO.java
+/home/fmelo/ImageSearch/src/main/java/WARCRecordResponseEncapsulated.java
 /home/fmelo/ImageSearch/src/main/java/CreateImageDB.java
 /home/fmelo/ImageSearch/src/main/java/ImageSearchResult.java
 /home/fmelo/ImageSearch/src/main/java/ImageDBOutputWritable.java
 /home/fmelo/ImageSearch/src/main/java/IndexImages.java
 /home/fmelo/ImageSearch/src/main/java/ImageParse.java
 /home/fmelo/ImageSearch/src/main/java/DBOutputWritable.java
+/home/fmelo/ImageSearch/src/main/java/InvalidWARCResponseIOException.java
 /home/fmelo/ImageSearch/src/main/java/DBInputWritable.java
