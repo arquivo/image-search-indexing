@@ -70,6 +70,7 @@ import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.util.JSON;
 import com.sun.tools.javadoc.JavaScriptScanner.Reporter;
 
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -87,6 +88,7 @@ public class IndexImages
 		private DB database;
 		private DBCollection collection;
 		private DBCollection imageIndexes;
+		private HashSet<String> nullImageHashes ;
 
 		@Override
 		public void setup(Context context) {
@@ -102,6 +104,7 @@ public class IndexImages
 			database = mongoClient.getDB("hadoop_images");
 			collection = database.getCollection("images");	
 			imageIndexes = database.getCollection("imageIndexes");
+			nullImageHashes = new HashSet<String>();
 			System.out.println(collectionName+"_Images"+"/img/");
 		}
 
@@ -158,11 +161,14 @@ public class IndexImages
 
 		public  void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String pageTstamp){
 			try{
-				System.out.println("Parsing Images from ARCrecord");
-				logger.info("Parsing Images from ARCrecord" );
-				//byte[] arcRecordBytes = getRecordContentBytes(record);
-				logger.info("Read Content Bytes from ARCrecord" );
-				System.out.println("Read Content Bytes from ARCrecord" );
+				System.out.println("Parsing Images from (W)ARCrecord");
+				System.out.println("Number of content bytes: " + arcRecordBytes.length);
+				System.out.println("URL: "+ pageURL);
+				System.out.println("Page TS: "+pageTstamp);
+				
+				logger.info("Parsing Images from (W)ARCrecord" );
+				logger.info("Read Content Bytes from (W)ARCrecord" );
+				System.out.println("Read Content Bytes from (W)ARCrecord" );
 				String recordEncoding = guessEncoding(arcRecordBytes); 
 				InputStream is = new ByteArrayInputStream(arcRecordBytes);  
 
@@ -171,7 +177,9 @@ public class IndexImages
 
 				Elements imgs = doc.getElementsByTag("img");
 				int pageImages = imgs.size();
-				//String pageURL = record.getHeader().getUrl();
+				
+				System.out.println("Page contains: "+ pageImages + " images");
+				
 				String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
 				pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
 				String pageURLTokens = parseURL(pageURLCleaned); /*split the URL*/
@@ -210,30 +218,39 @@ public class IndexImages
 						System.out.println("Null imgSrc");
 						continue;
 					}
-					ImageSQLDTO imgSQLDTO = retreiveImageFromDB(DigestUtils.md5Hex(imgSrc), Long.parseLong(pageTstamp), context.getConfiguration());
-					if(imgSQLDTO == null){
-						System.err.println("Got null image for hash: "+ DigestUtils.md5Hex(imgSrc));
+					String imgDigest = DigestUtils.md5Hex(imgSrc);
+					
+					if(nullImageHashes.contains(imgDigest)){
+						/*Image was not retrieved in this collection skip*/
 						continue;
+					}else{
+						ImageSQLDTO imgSQLDTO = retreiveImageFromDB(imgDigest, Long.parseLong(pageTstamp), context.getConfiguration());
+						if(imgSQLDTO == null){
+							System.err.println("Got null image for hash: "+ imgDigest);
+							nullImageHashes.add(imgDigest);
+							continue;
+						}
+						ImageSearchResult imgResult = ImageParse.getPropImage(imgSQLDTO);
+						if ( imgResult == null ){
+							logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
+							continue;
+						}
+
+						String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
+						imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
+						String imgSrcTokens = parseURL(imgSrcCleaned); /*split the imgSrc URL*/                
+
+						String imgTitle = el.attr("title");
+						if(imgTitle.length() > 9999){imgTitle =  imgTitle.substring(0, 10000); }
+						String imgAlt = el.attr("alt");
+						if(imgAlt.length() > 9999){imgAlt =  imgAlt.substring(0, 10000); }                
+
+						insertImageIndexes(imgResult, imgSrc,imgSQLDTO, imgSrcTokens,imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol,  pageTitle, pageURLTokens);
+
+						logger.info("Written to file - successfully indexed image record" );
+						System.out.println("Written to file - successfully indexed image record" );
+						
 					}
-					ImageSearchResult imgResult = ImageParse.getPropImage(imgSQLDTO);
-					if ( imgResult == null ){
-						logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
-						continue;
-					}
-
-					String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
-					imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
-					String imgSrcTokens = parseURL(imgSrcCleaned); /*split the imgSrc URL*/                
-
-					String imgTitle = el.attr("title");
-					if(imgTitle.length() > 9999){imgTitle =  imgTitle.substring(0, 10000); }
-					String imgAlt = el.attr("alt");
-					if(imgAlt.length() > 9999){imgAlt =  imgAlt.substring(0, 10000); }                
-
-					insertImageIndexes(imgResult, imgSrc,imgSQLDTO, imgSrcTokens,imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol,  pageTitle, pageURLTokens);
-
-					logger.info("Written to file - successfully indexed image record" );
-					System.out.println("Written to file - successfully indexed image record" );
 				}
 			} catch (Exception e){
 				logger.error("ERROR..." + e.getMessage());
@@ -418,14 +435,19 @@ public class IndexImages
 				reader = ARCReaderFactory.get(value);
 
 				for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
-					logger.info("Reading record number " + records+1);
-					ARCRecord record = (ARCRecord)ii.next();
-					if(record.getMetaData().getMimetype().contains("html"))
-						parseImagesFromHtmlRecord(context, getRecordContentBytes(record), record.getHeader().getUrl(), record.getMetaData().getDate());
-					++records;
-					if (record.hasErrors()) {
-						errors += record.getErrors().size();
-					}                        
+					try{
+						logger.info("Reading record number " + records+1);
+						ARCRecord record = (ARCRecord)ii.next();
+						if(record.getMetaData().getMimetype().contains("html"))
+							parseImagesFromHtmlRecord(context, getRecordContentBytes(record), record.getHeader().getUrl(), record.getMetaData().getDate());
+						++records;
+						if (record.hasErrors()) {
+							errors += record.getErrors().size();
+						}
+					}catch(Exception e){
+						System.err.println("Exception reading record in ARCNAME: " + value);
+						e.printStackTrace();						
+					}
 				}
 				System.out.println("--------------");
 				System.out.println("       Records: " + records);
@@ -457,16 +479,26 @@ public class IndexImages
 		}
 
 		private void readWarcRecords(String warcURL, Context context) {
+			System.out.println("READING WARC: "+warcURL);
 			int records= 0;
 			int errors = 0;
 			ArchiveReader reader = null;
 			try{				
 				reader = WARCReaderFactory.get(warcURL);
 				for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
+					WARCRecord ar = null;
 					try{
-						WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated((WARCRecord) ii.next());
-						if(record.getContentMimetype().contains("html")){ /*only processing images*/
-							parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getWARCRecord().getHeader().getDate());						
+						 ar = (WARCRecord) ii.next();
+					}catch(RuntimeException e){
+						e.printStackTrace();
+						/*Problem getting next record in iterator close warc*/
+						break;
+					}
+					try{
+						WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated(ar);
+						if(record!= null && record.getContentMimetype() != null && record.getContentMimetype().contains("html")){ /*only processing images*/
+							System.out.println("Searching images in html record");
+							parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs());						
 						}
 						++records;
 						if (record.hasErrors()) {
@@ -474,11 +506,9 @@ public class IndexImages
 						}
 					}catch(InvalidWARCResponseIOException e){
 						/*This is not a WARCResponse; skip*/
-						continue;				
-					}
-					catch(IOException e){
-						System.err.println("WARCNAME: " + warcURL);
-						e.printStackTrace();				
+					}catch(Exception e){
+						System.err.println("Exception in for WARCNAME: " + warcURL);
+						e.printStackTrace();
 					}
 				}
 			}catch (FileNotFoundException e) {

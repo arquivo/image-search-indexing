@@ -135,7 +135,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		System.out.println("creating image DB...");
 		Configuration conf = context.getConfiguration();
 		String url = record.getWARCRecord().getHeader().getUrl();
-		String tstamp = record.getWARCRecord().getHeader().getDate();
+		String tstamp = record.getTs();
 		String mime = record.getContentMimetype();
 
 		String collection = conf.get("mapred.job.name");
@@ -217,13 +217,18 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		try{				
 			reader = ARCReaderFactory.get(arcURL);
 			for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
-				ARCRecord record = (ARCRecord)ii.next();
-				if(record.getMetaData().getMimetype().contains("image"))
-					createImageDB(record, context);
-				++records;
-				if (record.hasErrors()) {
-					errors += record.getErrors().size();
-				}                        
+				 try{
+					ARCRecord record = (ARCRecord)ii.next();
+					if(record.getMetaData().getMimetype().contains("image"))
+						createImageDB(record, context);
+					++records;
+					if (record.hasErrors()) {
+						errors += record.getErrors().size();
+					}
+				 }catch(Exception e){
+						System.err.println("exception reading ARC record");
+						e.printStackTrace();
+				 }
 			}
 		}catch (FileNotFoundException e) {
 			System.err.println("ARCNAME: " + arcURL);
@@ -253,6 +258,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 
 	private void readWarcRecords(String warcURL, Context context) {
+		System.out.println("Reading WARC reciords");
 		int records= 0;
 		int errors = 0;
 		ArchiveReader reader = null;
@@ -261,7 +267,9 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
 				try{
 					WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated((WARCRecord) ii.next());
+					System.out.println("WARC Response");
 					if(record.getContentMimetype().contains("image")){ /*only processing images*/
+						System.out.println("Found image in WARC record");
 						createImageDB(record, context);			
 					}
 					++records;
@@ -269,12 +277,14 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 						errors += record.getErrors().size();
 					}
 				}catch(InvalidWARCResponseIOException e){
-					/*This is not a WARCResponse; skip*/
-					continue;				
+					/*This is not a WARCResponse; skip*/	
 				}
 				catch(IOException e){
-					System.err.println("WARCNAME: " + warcURL);
+					System.err.println("IO Exception reading WARCrecord WARCNAME: " + warcURL);
 					e.printStackTrace();				
+				}catch (Exception e){
+					System.err.println("Exception reading WARCrecord WARCNAME: " + warcURL);
+					e.printStackTrace();
 				}
 			}
 		}catch (FileNotFoundException e) {

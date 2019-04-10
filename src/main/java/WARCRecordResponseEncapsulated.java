@@ -14,6 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Calendar;
+import java.text.SimpleDateFormat;
+import java.util.Locale;
 
 public class WARCRecordResponseEncapsulated {
 
@@ -149,7 +152,8 @@ public class WARCRecordResponseEncapsulated {
         	String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
         	if(transferEncoding!=null && transferEncoding.toLowerCase().contains(CHUNKED)){
         		/*Deal with chunked Record*/
-        		getByteArrayFromInputStreamChunked(warcrecord);
+        		System.out.println("Chunked Bytes");
+        		return getByteArrayFromInputStreamChunked(warcrecord);
         	}
         	/*Default case convert to byte array*/
             return IOUtils.toByteArray(warcrecord);
@@ -197,6 +201,41 @@ public class WARCRecordResponseEncapsulated {
         }
         return unchunkedData;
     }
+
+    public String getTs(){
+        /*dateWarc in Format 2018-04-03T12:53:43Z */
+    	String dateWarc = warcrecord.getHeader().getDate();
+        String year = "";
+        String month = "";
+        String day = "";
+        String hour = "";
+        String minute = "";
+        String second = "";
+
+        try{
+            SimpleDateFormat thedate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", new Locale("pt", "PT"));
+            thedate.parse(dateWarc);
+            Calendar mydate = thedate.getCalendar();
+
+            year +=  mydate.get(Calendar.YEAR);
+            int monthInt = mydate.get(Calendar.MONTH) + 1;
+            int dayInt = mydate.get(Calendar.DAY_OF_MONTH);
+            int hourInt = mydate.get(Calendar.HOUR_OF_DAY);
+            int minuteInt = mydate.get(Calendar.MINUTE);
+            int secondInt = mydate.get(Calendar.SECOND);
+            month = monthInt < 10 ? "0" + monthInt : ""+monthInt;
+            day = dayInt < 10 ? "0" + dayInt : ""+dayInt;
+            hour = hourInt < 10 ? "0" + hourInt : ""+hourInt;
+            minute = minuteInt < 10 ? "0" + minuteInt : ""+minuteInt;
+            second = secondInt < 10 ? "0" + secondInt : ""+secondInt;
+
+        } catch (Exception e ){
+            LOG.error("WARC getTS: error parsing date");
+            return null;
+        }
+        return year + month + day + hour + minute + second;
+    }    
+    
     
     
 }
