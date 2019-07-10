@@ -252,7 +252,6 @@ public class IndexImages
 				}
 			} catch (Exception e){
 				logger.error("Something failed JSOUP parsing " + e.getMessage() );       	
-				e.printStackTrace();
 			}
 
 		}
@@ -390,6 +389,7 @@ public class IndexImages
 
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
+			System.out.println("(W)ARCNAME: " + value.toString());
 			logger.info("Map Started for (W)ARCNAME: " + value.toString());
 
 			try{					         
@@ -409,11 +409,9 @@ public class IndexImages
 			catch (IOException e) {
 				// TODO Auto-generated catch block
 				logger.error("ARCNAME: " + value.toString()+ " "+e.getMessage());
-				e.printStackTrace();
 			}
 			catch(Exception e){
 				logger.error("Unhandled exception? " + e.getMessage());
-				e.printStackTrace();
 			}
 			finally{
 				if(mongoClient != null){
@@ -450,23 +448,20 @@ public class IndexImages
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				logger.error("ARCNAME: " + value + " " + e.getMessage());
-				e.printStackTrace();
 			}
 			catch (IOException e) {
 				// TODO Auto-generated catch block
 				logger.error("ARCNAME: " + value+ " " + e.getMessage());
-				e.printStackTrace();
 			}
 			catch(Exception e){
 				logger.error("Unhandled exception?" + e.getMessage());
-				e.printStackTrace();
 			} finally{  
 				if(reader!=null){
 					try {
 						reader.close();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
-						e.printStackTrace();
+						logger.error("ARCNAME: " + value+ " " + e.getMessage());
 					}
 				}
 			}
@@ -485,7 +480,7 @@ public class IndexImages
 					try{
 						 ar = (WARCRecord) ii.next();
 					}catch(RuntimeException e){
-						e.printStackTrace();
+						logger.error("RuntimeExcpetion: "+ e.getMessage());
 						/*Problem getting next record in iterator close warc*/
 						break;
 					}

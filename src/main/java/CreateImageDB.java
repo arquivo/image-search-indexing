@@ -192,7 +192,6 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			}
 		}catch(Exception e){
 			logger.error("Error Reading ARC/WARC" + e.getMessage());
-			e.printStackTrace();
 		}finally{
 			if(mongoClient!=null){
 				mongoClient.close();
@@ -218,20 +217,16 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 					}
 				 }catch(Exception e){
 					 logger.error("exception reading ARC record" + e.getMessage());
-						e.printStackTrace();
 				 }
 			}
 		}catch (FileNotFoundException e) {
 			logger.error("ARCNAME: " + arcURL + " "+e.getMessage());
-			e.printStackTrace();
 		}
 		catch (IOException e) {
 			logger.error("ARCNAME: " + arcURL+ " "+e.getMessage());
-			e.printStackTrace();
 		}
 		catch(Exception e){
 			logger.error("Unhandled exception? "+ e.getMessage());
-			e.printStackTrace();
 		} finally{
 			logger.debug("records: " + records);
 			logger.debug("errors: " + errors);
@@ -240,7 +235,6 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 					reader.close();
 				} catch (IOException e) {
 					logger.error("error closing ArchiveReader"+ e.getMessage());
-					e.printStackTrace();
 				}
 			}
 		}
@@ -278,15 +272,12 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			}
 		}catch (FileNotFoundException e) {
 			logger.error("WARCNAME: " + warcURL+ " " + e.getMessage());
-			e.printStackTrace();
 		}
 		catch (IOException e) {
 			logger.error("WARCNAME: " + warcURL+ " " + e.getMessage());
-			e.printStackTrace();
 		}
 		catch(Exception e){
 			logger.error("Unhandled exception?" + e.getMessage());
-			e.printStackTrace();
 		} finally{
 			logger.debug("records: " + records);
 			logger.debug("errors: " + errors);
