@@ -105,7 +105,7 @@ public class IndexImages
 			collection = database.getCollection("images");	
 			imageIndexes = database.getCollection("imageIndexes");
 			nullImageHashes = new HashSet<String>();
-			System.out.println(collectionName+"_Images"+"/img/");
+			logger.debug(collectionName+"_Images"+"/img/");
 		}
 
 		private byte[] getRecordContentBytes(ARCRecord record) throws IOException {
@@ -161,14 +161,13 @@ public class IndexImages
 
 		public  void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String pageTstamp){
 			try{
-				System.out.println("Parsing Images from (W)ARCrecord");
-				System.out.println("Number of content bytes: " + arcRecordBytes.length);
-				System.out.println("URL: "+ pageURL);
-				System.out.println("Page TS: "+pageTstamp);
+				logger.debug("Parsing Images from (W)ARCrecord");
+				logger.debug("Number of content bytes: " + arcRecordBytes.length);
+				logger.debug("URL: "+ pageURL);
+				logger.debug("Page TS: "+pageTstamp);
 				
 				logger.info("Parsing Images from (W)ARCrecord" );
-				logger.info("Read Content Bytes from (W)ARCrecord" );
-				System.out.println("Read Content Bytes from (W)ARCrecord" );
+				logger.info("Read Content Bytes from (W)ARCrecord" );				
 				String recordEncoding = guessEncoding(arcRecordBytes); 
 				InputStream is = new ByteArrayInputStream(arcRecordBytes);  
 
@@ -178,7 +177,7 @@ public class IndexImages
 				Elements imgs = doc.getElementsByTag("img");
 				int pageImages = imgs.size();
 				
-				System.out.println("Page contains: "+ pageImages + " images");
+				logger.debug("Page contains: "+ pageImages + " images");
 				
 				String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
 				pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
@@ -190,9 +189,9 @@ public class IndexImages
 				String pageProtocol = uri.getProtocol();   
 				//String pageTstamp = record.getMetaData().getDate();
 				if (pageTstamp == null || pageTstamp.equals("")){
-					System.err.println("Null pageTstamp");                
+					logger.error("Null pageTstamp");                
 				}
-				System.out.println("pageTstamp:" + pageTstamp);
+				logger.debug("pageTstamp:" + pageTstamp);
 
 
 				for(Element el: imgs){
@@ -210,12 +209,12 @@ public class IndexImages
 						}
 					}
 					if(imgSrc.length() > 10000 || pageURL.length() > 10000){
-						System.err.println("URL of image too big ");
-						System.err.println(pageURL.substring(0,500) + "...");
+						logger.error("URL of image too big ");
+						logger.error(pageURL.substring(0,500) + "...");
 						continue;
 					}/*Maximum size for SOLR index is 10 000*/                
 					if (imgSrc == null || imgSrc.equals("")){
-						System.out.println("Null imgSrc");
+						logger.debug("Null imgSrc");
 						continue;
 					}
 					String imgDigest = DigestUtils.md5Hex(imgSrc);
@@ -226,7 +225,7 @@ public class IndexImages
 					}else{
 						ImageSQLDTO imgSQLDTO = retreiveImageFromDB(imgDigest, Long.parseLong(pageTstamp), context.getConfiguration());
 						if(imgSQLDTO == null){
-							System.err.println("Got null image for hash: "+ imgDigest);
+							logger.error("Got null image for hash: "+ imgDigest);
 							nullImageHashes.add(imgDigest);
 							continue;
 						}
@@ -247,15 +246,12 @@ public class IndexImages
 
 						insertImageIndexes(imgResult, imgSrc,imgSQLDTO, imgSrcTokens,imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol,  pageTitle, pageURLTokens);
 
-						logger.info("Written to file - successfully indexed image record" );
-						System.out.println("Written to file - successfully indexed image record" );
+						logger.debug("Written to file - successfully indexed image record" );
 						
 					}
 				}
 			} catch (Exception e){
-				logger.error("ERROR..." + e.getMessage());
-				System.err.println("Something failed JSOUP parsing");
-				System.out.println("Something failed JSOUP parsing");       	
+				logger.error("Something failed JSOUP parsing " + e.getMessage() );       	
 				e.printStackTrace();
 			}
 
@@ -282,7 +278,7 @@ public class IndexImages
 				DBObject currentResult = cursor.next();
 				String ctstamp =(String) currentResult.get("tstamp");
 				if(ctstamp == null) {
-					System.err.println("Empty tstamp for image with hash: " + imgHashKey);
+					logger.error("Empty tstamp for image with hash: " + imgHashKey);
 					return null;
 				};
 				currentTstamp = Long.parseLong(ctstamp);
@@ -339,21 +335,21 @@ public class IndexImages
 
 				if(numberofImagesWithHashKey == 0){ /*insert image it is unique in our imageIndexes collection*/                  
 					imageIndexes.insert(img);
-					System.out.println("inserted:" + imgResult.getDigest());
-					System.out.println("inserted ts:" + imgSQLDTO.getTstamp());		    	
+					logger.debug("inserted:" + imgResult.getDigest());
+					logger.debug("inserted ts:" + imgSQLDTO.getTstamp());		    	
 				}
 				else if (numberofImagesWithHashKey == 1){ /*check if this image tstamp is more old than the one we currently store if it is update this record in the db*/
 					DBObject currentResult = cursor.next(); /*get the record*/ 
 					String dataBaseTstamp =(String) currentResult.get("imgTstamp");  	  		
 					if(dataBaseTstamp == null) {
-						System.err.println("Empty tstamp for image with hash: " + imgDigest);
+						logger.error("Empty tstamp for image with hash: " + imgDigest);
 						return;
 					}
 					Long dBTstamp = Long.parseLong(dataBaseTstamp);
 					if(imgTstampLong <= dBTstamp){ /*Found an older version of this image digest lets update the database*/
 						imageIndexes.update(whereQuery, img);
-						System.out.println("updated: " + imgResult.getDigest());
-						System.out.println("updated TS: " + imgSQLDTO.getTstamp());	  	  			
+						logger.debug("updated: " + imgResult.getDigest());
+						logger.debug("updated TS: " + imgSQLDTO.getTstamp());	  	  			
 					}
 					else{ /*There is an older version of this digest in our db so we won't insert this one*/
 						return;
@@ -362,7 +358,7 @@ public class IndexImages
 			}  	
 			else{
 				/*This should never happen because imgDigest is unique in our DB*/
-				System.err.println("Multiple records with hash key: " + imgDigest);
+				logger.error("Multiple records with hash key: " + imgDigest);
 			}
 		}    
 
@@ -397,13 +393,13 @@ public class IndexImages
 			logger.info("Map Started for (W)ARCNAME: " + value.toString());
 
 			try{					         
-				System.out.println("(W)ARCNAME: " + value.toString());
+				logger.debug("(W)ARCNAME: " + value.toString());
 
 				if(value.toString().endsWith("warc.gz") || value.toString().endsWith("warc")){
-					System.out.println("READING WARC");
+					logger.debug("READING WARC");
 					readWarcRecords(value.toString(), context);
 				}else{
-					System.out.println("READING ARC");
+					logger.debug("READING ARC");
 					readArcRecords(value.toString(), context);
 				}	            
 
@@ -412,11 +408,11 @@ public class IndexImages
 			}
 			catch (IOException e) {
 				// TODO Auto-generated catch block
-				System.err.println("ARCNAME: " + value.toString());
+				logger.error("ARCNAME: " + value.toString()+ " "+e.getMessage());
 				e.printStackTrace();
 			}
 			catch(Exception e){
-				System.err.println("Unhandled exception?");
+				logger.error("Unhandled exception? " + e.getMessage());
 				e.printStackTrace();
 			}
 			finally{
@@ -445,25 +441,24 @@ public class IndexImages
 							errors += record.getErrors().size();
 						}
 					}catch(Exception e){
-						System.err.println("Exception reading record in ARCNAME: " + value);
-						e.printStackTrace();						
+						logger.error("Exception reading record in ARCNAME: " + value+ " "+e.getMessage());
 					}
 				}
-				System.out.println("--------------");
-				System.out.println("       Records: " + records);
-				System.out.println("        Errors: " + errors);			
+				logger.debug("--------------");
+				logger.debug("       Records: " + records);
+				logger.debug("        Errors: " + errors);			
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
-				System.err.println("ARCNAME: " + value);
+				logger.error("ARCNAME: " + value + " " + e.getMessage());
 				e.printStackTrace();
 			}
 			catch (IOException e) {
 				// TODO Auto-generated catch block
-				System.err.println("ARCNAME: " + value);
+				logger.error("ARCNAME: " + value+ " " + e.getMessage());
 				e.printStackTrace();
 			}
 			catch(Exception e){
-				System.err.println("Unhandled exception?");
+				logger.error("Unhandled exception?" + e.getMessage());
 				e.printStackTrace();
 			} finally{  
 				if(reader!=null){
@@ -479,7 +474,7 @@ public class IndexImages
 		}
 
 		private void readWarcRecords(String warcURL, Context context) {
-			System.out.println("READING WARC: "+warcURL);
+			logger.debug("READING WARC: "+warcURL);
 			int records= 0;
 			int errors = 0;
 			ArchiveReader reader = null;
@@ -497,7 +492,7 @@ public class IndexImages
 					try{
 						WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated(ar);
 						if(record!= null && record.getContentMimetype() != null && record.getContentMimetype().contains("html")){ /*only processing images*/
-							System.out.println("Searching images in html record");
+							logger.debug("Searching images in html record");
 							parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs());						
 						}
 						++records;
@@ -507,30 +502,26 @@ public class IndexImages
 					}catch(InvalidWARCResponseIOException e){
 						/*This is not a WARCResponse; skip*/
 					}catch(Exception e){
-						System.err.println("Exception in for WARCNAME: " + warcURL);
-						e.printStackTrace();
+						logger.error("Exception in for WARCNAME: " + warcURL+ " " + e.getMessage());
+
 					}
 				}
 			}catch (FileNotFoundException e) {
-				System.err.println("WARCNAME: " + warcURL);
-				e.printStackTrace();
+				logger.error("WARCNAME: " + warcURL + " " + e.getMessage());
 			}
 			catch (IOException e) {
-				System.err.println("WARCNAME: " + warcURL);
-				e.printStackTrace();
+				logger.error("WARCNAME: " + warcURL + " " + e.getMessage());
 			}
 			catch(Exception e){
-				System.err.println("Unhandled exception?");
-				e.printStackTrace();
+				logger.error("Unhandled exception? " + e.getMessage());
 			} finally{
-				System.out.println("records: " + records);
-				System.out.println("errors: " + errors);
+				logger.debug("records: " + records);
+				logger.debug("errors: " + errors);
 				if(reader!=null){
 					try {
 						reader.close();
 					} catch (IOException e) {
-						System.err.println("error closing ArchiveReader"+ e);
-						e.printStackTrace();
+						logger.error("error closing ArchiveReader"+ e.getMessage());
 					}
 				}
 			}
@@ -554,7 +545,7 @@ public class IndexImages
 		public void setup(Context context) {
 			Configuration config = context.getConfiguration();
 			collectionName = config.get("collection");
-			System.out.println("collection: " + collectionName);
+			logger.debug("collection: " + collectionName);
 			MongoClientOptions.Builder options = MongoClientOptions.builder();
 			options.socketKeepAlive(true);
 			MongoClient mongoClient = new MongoClient( Arrays.asList(
@@ -568,7 +559,7 @@ public class IndexImages
 		public void reduce(LongWritable key, Iterable<NullWritable> values,
 				Context context
 				) throws IOException, InterruptedException {
-			System.out.println("Reduce IndexImages");
+			logger.debug("Reduce IndexImages");
 			BasicDBObject query = new BasicDBObject();
 			query.append("collection", collectionName+"_Images");		
 			images.remove(query);
@@ -621,7 +612,7 @@ public class IndexImages
 
 		job.setInputFormatClass(NLineInputFormat.class);
 		NLineInputFormat.addInputPath(job, new Path(args[0]));
-		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
+		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 4);
 		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum o simultaneous maps accessing preprod for now*/
 
 

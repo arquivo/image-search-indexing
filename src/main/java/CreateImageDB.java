@@ -132,7 +132,6 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 
 	public  void createImageDB(WARCRecordResponseEncapsulated record, Context context){
-		System.out.println("creating image DB...");
 		Configuration conf = context.getConfiguration();
 		String url = record.getWARCRecord().getHeader().getUrl();
 		String tstamp = record.getTs();
@@ -153,11 +152,8 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				.append("content_hash", content_hash)
 				.append("bytes64string", Base64.encodeBase64String(contentBytes));
 		MongoCollection.insert(img);
-
-		System.out.println("File Inserted: "+content_hash); 
 	}
 	public  void createImageDB(ARCRecord record, Context context){
-		System.out.println("creating image DB...");
 		Configuration conf = context.getConfiguration();
 		String url = record.getHeader().getUrl();
 		String tstamp = record.getMetaData().getDate();
@@ -179,11 +175,8 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 					.append("bytes64string", Base64.encodeBase64String(contentBytes));
 			MongoCollection.insert(img);
 
-			System.out.println("File Inserted: "+content_hash);
-
 		}catch (IOException e) {
-			logger.error("IOException" + e.getMessage() );	
-			e.printStackTrace();
+			logger.error("IOException" + e.getMessage() );
 		} 
 	}
 
@@ -191,16 +184,14 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	public void map(LongWritable key, Text value, Context context)
 			throws IOException, InterruptedException {
 		try{
-			System.out.println("FILENAME: " + value.toString());            
+			logger.debug("FILENAME: " + value.toString());            
 			if(value.toString().endsWith("warc.gz") || value.toString().endsWith("warc")){
-				System.out.println("READING WARC");
 				readWarcRecords(value.toString(), context);
 			}else{
-				System.out.println("READING ARC");
 				readArcRecords(value.toString(), context);
 			}
 		}catch(Exception e){
-			System.err.println("Error Reading ARC/WARC" + e);
+			logger.error("Error Reading ARC/WARC" + e.getMessage());
 			e.printStackTrace();
 		}finally{
 			if(mongoClient!=null){
@@ -226,29 +217,29 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 						errors += record.getErrors().size();
 					}
 				 }catch(Exception e){
-						System.err.println("exception reading ARC record");
+					 logger.error("exception reading ARC record" + e.getMessage());
 						e.printStackTrace();
 				 }
 			}
 		}catch (FileNotFoundException e) {
-			System.err.println("ARCNAME: " + arcURL);
+			logger.error("ARCNAME: " + arcURL + " "+e.getMessage());
 			e.printStackTrace();
 		}
 		catch (IOException e) {
-			System.err.println("ARCNAME: " + arcURL);
+			logger.error("ARCNAME: " + arcURL+ " "+e.getMessage());
 			e.printStackTrace();
 		}
 		catch(Exception e){
-			System.err.println("Unhandled exception?");
+			logger.error("Unhandled exception? "+ e.getMessage());
 			e.printStackTrace();
 		} finally{
-			System.out.println("records: " + records);
-			System.out.println("errors: " + errors);
+			logger.debug("records: " + records);
+			logger.debug("errors: " + errors);
 			if(reader!=null){
 				try {
 					reader.close();
 				} catch (IOException e) {
-					System.err.println("error closing ArchiveReader"+ e);
+					logger.error("error closing ArchiveReader"+ e.getMessage());
 					e.printStackTrace();
 				}
 			}
@@ -258,7 +249,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 
 	private void readWarcRecords(String warcURL, Context context) {
-		System.out.println("Reading WARC reciords");
+		logger.debug("Reading WARC records");
 		int records= 0;
 		int errors = 0;
 		ArchiveReader reader = null;
@@ -267,9 +258,9 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
 				try{
 					WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated((WARCRecord) ii.next());
-					System.out.println("WARC Response");
+					logger.debug("WARC Response");
 					if(record.getContentMimetype().contains("image")){ /*only processing images*/
-						System.out.println("Found image in WARC record");
+						logger.debug("Found image in WARC record");
 						createImageDB(record, context);			
 					}
 					++records;
@@ -280,33 +271,30 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 					/*This is not a WARCResponse; skip*/	
 				}
 				catch(IOException e){
-					System.err.println("IO Exception reading WARCrecord WARCNAME: " + warcURL);
-					e.printStackTrace();				
+					logger.error("IO Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());				
 				}catch (Exception e){
-					System.err.println("Exception reading WARCrecord WARCNAME: " + warcURL);
-					e.printStackTrace();
+					logger.error("Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());
 				}
 			}
 		}catch (FileNotFoundException e) {
-			System.err.println("WARCNAME: " + warcURL);
+			logger.error("WARCNAME: " + warcURL+ " " + e.getMessage());
 			e.printStackTrace();
 		}
 		catch (IOException e) {
-			System.err.println("WARCNAME: " + warcURL);
+			logger.error("WARCNAME: " + warcURL+ " " + e.getMessage());
 			e.printStackTrace();
 		}
 		catch(Exception e){
-			System.err.println("Unhandled exception?");
+			logger.error("Unhandled exception?" + e.getMessage());
 			e.printStackTrace();
 		} finally{
-			System.out.println("records: " + records);
-			System.out.println("errors: " + errors);
+			logger.debug("records: " + records);
+			logger.debug("errors: " + errors);
 			if(reader!=null){
 				try {
 					reader.close();
 				} catch (IOException e) {
-					System.err.println("error closing ArchiveReader"+ e);
-					e.printStackTrace();
+					logger.error("error closing ArchiveReader"+ e.getMessage());
 				}
 			}
 		}
@@ -321,16 +309,6 @@ class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
 			OutputCollector<Text, DoubleWritable> output,
 			Reporter reporter)
 					throws IOException {
-		System.out.println("Creating Index for image hash key!");
-		MongoClientOptions.Builder options = MongoClientOptions.builder();
-		options.socketKeepAlive(true);        
-
-		MongoClient mongoClient = new MongoClient( Arrays.asList(
-				new ServerAddress("p37.arquivo.pt", 27020),
-				new ServerAddress("p38.arquivo.pt", 27020),
-				new ServerAddress("p39.arquivo.pt", 27020)), options.build());   			
-
-		System.out.println("Created Index");
 	}
 }
 
@@ -359,7 +337,7 @@ public class CreateImageDB
 		job.setInputFormatClass(NLineInputFormat.class);
 		NLineInputFormat.addInputPath(job, new Path(args[0]));
 
-		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 1);
+		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 4);
 		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum of 500 simultaneous maps accessing preprod for now*/
 
 		// Sets reducer tasks to 1

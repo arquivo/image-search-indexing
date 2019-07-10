@@ -152,7 +152,8 @@ public class WARCRecordResponseEncapsulated {
         	String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
         	if(transferEncoding!=null && transferEncoding.toLowerCase().contains(CHUNKED)){
         		/*Deal with chunked Record*/
-        		System.out.println("Chunked Bytes");
+        		
+        		LOG.debug("Chunked Bytes");
         		return getByteArrayFromInputStreamChunked(warcrecord);
         	}
         	/*Default case convert to byte array*/
