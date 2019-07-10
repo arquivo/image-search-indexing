@@ -184,7 +184,8 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	public void map(LongWritable key, Text value, Context context)
 			throws IOException, InterruptedException {
 		try{
-			logger.debug("FILENAME: " + value.toString());            
+			System.out.println("(W)ARCNAME: " + value.toString());
+			logger.info("(W)ARCNAME: " + value.toString());            
 			if(value.toString().endsWith("warc.gz") || value.toString().endsWith("warc")){
 				readWarcRecords(value.toString(), context);
 			}else{
