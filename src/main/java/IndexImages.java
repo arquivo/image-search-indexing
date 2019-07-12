@@ -78,6 +78,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.apache.log4j.Logger;
 
+/* LOGs where changed to DEBUG level due to Lack of space in hadoop machines 
+ * */
 
 public class IndexImages 
 {
@@ -189,7 +191,7 @@ public class IndexImages
 				String pageProtocol = uri.getProtocol();   
 				//String pageTstamp = record.getMetaData().getDate();
 				if (pageTstamp == null || pageTstamp.equals("")){
-					logger.error("Null pageTstamp");                
+					logger.debug("Null pageTstamp");                
 				}
 				logger.debug("pageTstamp:" + pageTstamp);
 
@@ -209,8 +211,8 @@ public class IndexImages
 						}
 					}
 					if(imgSrc.length() > 10000 || pageURL.length() > 10000){
-						logger.error("URL of image too big ");
-						logger.error(pageURL.substring(0,500) + "...");
+						logger.debug("URL of image too big ");
+						logger.debug(pageURL.substring(0,500) + "...");
 						continue;
 					}/*Maximum size for SOLR index is 10 000*/                
 					if (imgSrc == null || imgSrc.equals("")){
@@ -225,13 +227,13 @@ public class IndexImages
 					}else{
 						ImageSQLDTO imgSQLDTO = retreiveImageFromDB(imgDigest, Long.parseLong(pageTstamp), context.getConfiguration());
 						if(imgSQLDTO == null){
-							logger.error("Got null image for hash: "+ imgDigest);
+							logger.debug("Got null image for hash: "+ imgDigest);
 							nullImageHashes.add(imgDigest);
 							continue;
 						}
 						ImageSearchResult imgResult = ImageParse.getPropImage(imgSQLDTO);
 						if ( imgResult == null ){
-							logger.error("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
+							logger.debug("Failed to create thumbnail for image: "+ imgSrc + "with ts: "+imgSQLDTO.getTstamp());
 							continue;
 						}
 
@@ -251,7 +253,7 @@ public class IndexImages
 					}
 				}
 			} catch (Exception e){
-				logger.error("Something failed JSOUP parsing " + e.getMessage() );       	
+				logger.debug("Something failed JSOUP parsing " + e.getMessage() );       	
 			}
 
 		}
@@ -277,7 +279,7 @@ public class IndexImages
 				DBObject currentResult = cursor.next();
 				String ctstamp =(String) currentResult.get("tstamp");
 				if(ctstamp == null) {
-					logger.error("Empty tstamp for image with hash: " + imgHashKey);
+					logger.debug("Empty tstamp for image with hash: " + imgHashKey);
 					return null;
 				};
 				currentTstamp = Long.parseLong(ctstamp);
@@ -341,7 +343,7 @@ public class IndexImages
 					DBObject currentResult = cursor.next(); /*get the record*/ 
 					String dataBaseTstamp =(String) currentResult.get("imgTstamp");  	  		
 					if(dataBaseTstamp == null) {
-						logger.error("Empty tstamp for image with hash: " + imgDigest);
+						logger.debug("Empty tstamp for image with hash: " + imgDigest);
 						return;
 					}
 					Long dBTstamp = Long.parseLong(dataBaseTstamp);
@@ -357,7 +359,7 @@ public class IndexImages
 			}  	
 			else{
 				/*This should never happen because imgDigest is unique in our DB*/
-				logger.error("Multiple records with hash key: " + imgDigest);
+				logger.debug("Multiple records with hash key: " + imgDigest);
 			}
 		}    
 
@@ -408,10 +410,10 @@ public class IndexImages
 			}
 			catch (IOException e) {
 				// TODO Auto-generated catch block
-				logger.error("ARCNAME: " + value.toString()+ " "+e.getMessage());
+				logger.debug("ARCNAME: " + value.toString()+ " "+e.getMessage());
 			}
 			catch(Exception e){
-				logger.error("Unhandled exception? " + e.getMessage());
+				logger.debug("Unhandled exception? " + e.getMessage());
 			}
 			finally{
 				if(mongoClient != null){
@@ -439,7 +441,7 @@ public class IndexImages
 							errors += record.getErrors().size();
 						}
 					}catch(Exception e){
-						logger.error("Exception reading record in ARCNAME: " + value+ " "+e.getMessage());
+						logger.debug("Exception reading record in ARCNAME: " + value+ " "+e.getMessage());
 					}
 				}
 				logger.debug("--------------");
@@ -447,21 +449,21 @@ public class IndexImages
 				logger.debug("        Errors: " + errors);			
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
-				logger.error("ARCNAME: " + value + " " + e.getMessage());
+				logger.debug("ARCNAME: " + value + " " + e.getMessage());
 			}
 			catch (IOException e) {
 				// TODO Auto-generated catch block
-				logger.error("ARCNAME: " + value+ " " + e.getMessage());
+				logger.debug("ARCNAME: " + value+ " " + e.getMessage());
 			}
 			catch(Exception e){
-				logger.error("Unhandled exception?" + e.getMessage());
+				logger.debug("Unhandled exception?" + e.getMessage());
 			} finally{  
 				if(reader!=null){
 					try {
 						reader.close();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
-						logger.error("ARCNAME: " + value+ " " + e.getMessage());
+						logger.debug("ARCNAME: " + value+ " " + e.getMessage());
 					}
 				}
 			}
@@ -480,7 +482,7 @@ public class IndexImages
 					try{
 						 ar = (WARCRecord) ii.next();
 					}catch(RuntimeException e){
-						logger.error("RuntimeExcpetion: "+ e.getMessage());
+						logger.debug("RuntimeExcpetion: "+ e.getMessage());
 						/*Problem getting next record in iterator close warc*/
 						break;
 					}
@@ -497,18 +499,18 @@ public class IndexImages
 					}catch(InvalidWARCResponseIOException e){
 						/*This is not a WARCResponse; skip*/
 					}catch(Exception e){
-						logger.error("Exception in for WARCNAME: " + warcURL+ " " + e.getMessage());
+						logger.debug("Exception in for WARCNAME: " + warcURL+ " " + e.getMessage());
 
 					}
 				}
 			}catch (FileNotFoundException e) {
-				logger.error("WARCNAME: " + warcURL + " " + e.getMessage());
+				logger.debug("WARCNAME: " + warcURL + " " + e.getMessage());
 			}
 			catch (IOException e) {
-				logger.error("WARCNAME: " + warcURL + " " + e.getMessage());
+				logger.debug("WARCNAME: " + warcURL + " " + e.getMessage());
 			}
 			catch(Exception e){
-				logger.error("Unhandled exception? " + e.getMessage());
+				logger.debug("Unhandled exception? " + e.getMessage());
 			} finally{
 				logger.debug("records: " + records);
 				logger.debug("errors: " + errors);
@@ -516,7 +518,7 @@ public class IndexImages
 					try {
 						reader.close();
 					} catch (IOException e) {
-						logger.error("error closing ArchiveReader"+ e.getMessage());
+						logger.debug("error closing ArchiveReader"+ e.getMessage());
 					}
 				}
 			}
@@ -554,6 +556,7 @@ public class IndexImages
 		public void reduce(LongWritable key, Iterable<NullWritable> values,
 				Context context
 				) throws IOException, InterruptedException {
+			/*We are removing all records from images db within the collection we have just indexed to clean space*/
 			logger.debug("Reduce IndexImages");
 			BasicDBObject query = new BasicDBObject();
 			query.append("collection", collectionName+"_Images");		
@@ -578,7 +581,7 @@ public class IndexImages
 				return;
 			}		
 		}
-		logger.error("Error sharding collection images: "+ result.getErrorMessage());
+		logger.debug("Error sharding collection images: "+ result.getErrorMessage());
 	}
 
 
@@ -608,7 +611,7 @@ public class IndexImages
 		job.setInputFormatClass(NLineInputFormat.class);
 		NLineInputFormat.addInputPath(job, new Path(args[0]));
 		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 4);
-		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum o simultaneous maps accessing preprod for now*/
+		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
 
 		// Sets reducer tasks to 1

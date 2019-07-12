@@ -52,7 +52,9 @@ import org.archive.io.ArchiveRecord;
 import org.json.simple.JSONArray;
 import org.apache.commons.codec.digest.DigestUtils;
 
-
+/* 
+ * LOGs where changed to DEBUG level due to Lack of space in hadoop machines 
+ * */
 
 
 class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
@@ -176,7 +178,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			MongoCollection.insert(img);
 
 		}catch (IOException e) {
-			logger.error("IOException" + e.getMessage() );
+			logger.debug("IOException" + e.getMessage() );
 		} 
 	}
 
@@ -192,7 +194,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				readArcRecords(value.toString(), context);
 			}
 		}catch(Exception e){
-			logger.error("Error Reading ARC/WARC" + e.getMessage());
+			logger.debug("Error Reading ARC/WARC" + e.getMessage());
 		}finally{
 			if(mongoClient!=null){
 				mongoClient.close();
@@ -217,17 +219,17 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 						errors += record.getErrors().size();
 					}
 				 }catch(Exception e){
-					 logger.error("exception reading ARC record" + e.getMessage());
+					 logger.debug("exception reading ARC record" + e.getMessage());
 				 }
 			}
 		}catch (FileNotFoundException e) {
-			logger.error("ARCNAME: " + arcURL + " "+e.getMessage());
+			logger.debug("ARCNAME: " + arcURL + " "+e.getMessage());
 		}
 		catch (IOException e) {
-			logger.error("ARCNAME: " + arcURL+ " "+e.getMessage());
+			logger.debug("ARCNAME: " + arcURL+ " "+e.getMessage());
 		}
 		catch(Exception e){
-			logger.error("Unhandled exception? "+ e.getMessage());
+			logger.debug("Unhandled exception? "+ e.getMessage());
 		} finally{
 			logger.debug("records: " + records);
 			logger.debug("errors: " + errors);
@@ -235,7 +237,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				try {
 					reader.close();
 				} catch (IOException e) {
-					logger.error("error closing ArchiveReader"+ e.getMessage());
+					logger.debug("error closing ArchiveReader"+ e.getMessage());
 				}
 			}
 		}
@@ -266,19 +268,19 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 					/*This is not a WARCResponse; skip*/	
 				}
 				catch(IOException e){
-					logger.error("IO Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());				
+					logger.debug("IO Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());				
 				}catch (Exception e){
-					logger.error("Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());
+					logger.debug("Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());
 				}
 			}
 		}catch (FileNotFoundException e) {
-			logger.error("WARCNAME: " + warcURL+ " " + e.getMessage());
+			logger.debug("WARCNAME: " + warcURL+ " " + e.getMessage());
 		}
 		catch (IOException e) {
-			logger.error("WARCNAME: " + warcURL+ " " + e.getMessage());
+			logger.debug("WARCNAME: " + warcURL+ " " + e.getMessage());
 		}
 		catch(Exception e){
-			logger.error("Unhandled exception?" + e.getMessage());
+			logger.debug("Unhandled exception?" + e.getMessage());
 		} finally{
 			logger.debug("records: " + records);
 			logger.debug("errors: " + errors);
@@ -286,7 +288,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				try {
 					reader.close();
 				} catch (IOException e) {
-					logger.error("error closing ArchiveReader"+ e.getMessage());
+					logger.debug("error closing ArchiveReader"+ e.getMessage());
 				}
 			}
 		}
