@@ -40,8 +40,8 @@ import com.mongodb.MongoClientOptions;
 import com.mongodb.ServerAddress;
 import com.sun.tools.javadoc.JavaScriptScanner.Reporter;
 
-/* 
- * LOGs where changed to DEBUG level due to Lack of space in hadoop machines 
+/*
+ * LOGs where changed to DEBUG level due to Lack of space in hadoop machines
  * */
 
 
@@ -50,7 +50,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	public static String collectionName;
 	private MongoClient mongoClient;
 	private DB database;
-	private DBCollection MongoCollection;     
+	private DBCollection MongoCollection;
 
 	@Override
 	public void setup(Context context) {
@@ -58,13 +58,13 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		collectionName = config.get("collection");
 		System.out.println("collection: " + collectionName);
 		MongoClientOptions.Builder options = MongoClientOptions.builder();
-		options.socketKeepAlive(true);        
+		options.socketKeepAlive(true);
 		MongoClient mongoClient = new MongoClient( Arrays.asList(
 				new ServerAddress("p37.arquivo.pt", 27020),
 				new ServerAddress("p38.arquivo.pt", 27020),
 				new ServerAddress("p39.arquivo.pt", 27020)), options.build());
 		database = mongoClient.getDB("hadoop_images");
-		MongoCollection = database.getCollection("images");        
+		MongoCollection = database.getCollection("images");
 	}
 
 	public static String guessEncoding(byte[] bytes) {
@@ -106,19 +106,19 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 	private byte[] getRecordContentBytes(ARCRecord record) throws IOException {
 		record.skipHttpHeader();/*Skipping http headers to only get the content bytes*/
-		byte[] buffer = new byte[1024 * 16];    	
+		byte[] buffer = new byte[1024 * 16];
 		int len = record.read(buffer, 0, buffer.length);
 		ByteArrayOutputStream contentBuffer =
-				new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/        
+				new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/
 		contentBuffer.reset();
 		while (len != -1)
 		{
 			contentBuffer.write(buffer, 0, len);
 			len = record.read(buffer, 0, buffer.length);
 		}
-		record.close();      
+		record.close();
 		return contentBuffer.toByteArray();
-	}    
+	}
 
 
 	public  void createImageDB(WARCRecordResponseEncapsulated record, Context context){
@@ -167,19 +167,31 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 		}catch (IOException e) {
 			logger.debug("IOException" + e.getMessage() );
-		} 
+		}
 	}
-
 
 	public void map(LongWritable key, Text value, Context context)
 			throws IOException, InterruptedException {
 		try{
 			System.out.println("(W)ARCNAME: " + value.toString());
-			logger.info("(W)ARCNAME: " + value.toString());            
+			logger.info("(W)ARCNAME: " + value.toString());
 			if(value.toString().endsWith("warc.gz") || value.toString().endsWith("warc")){
-				readWarcRecords(value.toString(), context);
+				String warcURL = value.toString();
+				ImageSearchIndexingUtil.readWarcRecords(warcURL, (record) -> {
+					boolean isImage = record.getContentMimetype().contains("image");
+					if (isImage) {
+						createImageDB(record, context);
+					}
+				});
+
 			}else{
-				readArcRecords(value.toString(), context);
+				String arcURL = value.toString();
+				ImageSearchIndexingUtil.readArcRecords(arcURL, record -> {
+					boolean isImage = record.getMetaData().getMimetype().contains("image");
+					if (isImage) {
+						createImageDB(record, context);
+					}
+				});
 			}
 		}catch(Exception e){
 			logger.debug("Error Reading ARC/WARC" + e.getMessage());
@@ -187,101 +199,10 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			if(mongoClient!=null){
 				mongoClient.close();
 			}
-		}	
-
-	}
-
-	private void readArcRecords(String arcURL, Context context) {
-		int records= 0;
-		int errors = 0;
-		ArchiveReader reader = null;
-		try{				
-			reader = ARCReaderFactory.get(arcURL);
-			for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
-				 try{
-					ARCRecord record = (ARCRecord)ii.next();
-					if(record.getMetaData().getMimetype().contains("image"))
-						createImageDB(record, context);
-					++records;
-					if (record.hasErrors()) {
-						errors += record.getErrors().size();
-					}
-				 }catch(Exception e){
-					 logger.debug("exception reading ARC record" + e.getMessage());
-				 }
-			}
-		}catch (FileNotFoundException e) {
-			logger.debug("ARCNAME: " + arcURL + " "+e.getMessage());
-		}
-		catch (IOException e) {
-			logger.debug("ARCNAME: " + arcURL+ " "+e.getMessage());
-		}
-		catch(Exception e){
-			logger.debug("Unhandled exception? "+ e.getMessage());
-		} finally{
-			logger.debug("records: " + records);
-			logger.debug("errors: " + errors);
-			if(reader!=null){
-				try {
-					reader.close();
-				} catch (IOException e) {
-					logger.debug("error closing ArchiveReader"+ e.getMessage());
-				}
-			}
 		}
 
 	}
 
-
-	private void readWarcRecords(String warcURL, Context context) {
-		logger.debug("Reading WARC records");
-		int records= 0;
-		int errors = 0;
-		ArchiveReader reader = null;
-		try{				
-			reader = WARCReaderFactory.get(warcURL);
-			for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
-				try{
-					WARCRecordResponseEncapsulated record =new WARCRecordResponseEncapsulated((WARCRecord) ii.next());
-					logger.debug("WARC Response");
-					if(record.getContentMimetype().contains("image")){ /*only processing images*/
-						logger.debug("Found image in WARC record");
-						createImageDB(record, context);			
-					}
-					++records;
-					if (record.hasErrors()) {
-						errors += record.getErrors().size();
-					}
-				}catch(InvalidWARCResponseIOException e){
-					/*This is not a WARCResponse; skip*/	
-				}
-				catch(IOException e){
-					logger.debug("IO Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());				
-				}catch (Exception e){
-					logger.debug("Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());
-				}
-			}
-		}catch (FileNotFoundException e) {
-			logger.debug("WARCNAME: " + warcURL+ " " + e.getMessage());
-		}
-		catch (IOException e) {
-			logger.debug("WARCNAME: " + warcURL+ " " + e.getMessage());
-		}
-		catch(Exception e){
-			logger.debug("Unhandled exception?" + e.getMessage());
-		} finally{
-			logger.debug("records: " + records);
-			logger.debug("errors: " + errors);
-			if(reader!=null){
-				try {
-					reader.close();
-				} catch (IOException e) {
-					logger.debug("error closing ArchiveReader"+ e.getMessage());
-				}
-			}
-		}
-
-	}
 }
 
 
@@ -296,7 +217,7 @@ class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
 
 
 
-public class CreateImageDB 
+public class CreateImageDB
 {
 	public static void main( String[] args ) throws IOException, ClassNotFoundException, InterruptedException
 	{

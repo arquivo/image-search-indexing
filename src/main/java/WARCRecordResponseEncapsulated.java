@@ -24,8 +24,8 @@ public class WARCRecordResponseEncapsulated {
 
     private static final String TRANSFER_ENCODING = "transfer-encoding";
     private static final String CHUNKED = "chunked";
-    
-    
+
+
     private WARCRecord warcrecord;
     /**
      * Http status line object.
@@ -89,7 +89,7 @@ public class WARCRecordResponseEncapsulated {
         this.httpHeaders = LaxHttpParser.parseHeaders(warcrecord, WARCRecord.WARC_HEADER_ENCODING);
 
         processHttpHeaders();
-        
+
     }
 
     /*Headers Keys are all converted to lowercase to avoid inconsistencies*/
@@ -127,7 +127,7 @@ public class WARCRecordResponseEncapsulated {
     public String getStatusCode() {
     	return statusCode;
     }
-    
+
     public boolean hasErrors() {
         // TODO create hasErrors method
         return false;
@@ -152,16 +152,15 @@ public class WARCRecordResponseEncapsulated {
         	String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
         	if(transferEncoding!=null && transferEncoding.toLowerCase().contains(CHUNKED)){
         		/*Deal with chunked Record*/
-        		
+
         		LOG.debug("Chunked Bytes");
         		return getByteArrayFromInputStreamChunked(warcrecord);
         	}
         	/*Default case convert to byte array*/
             return IOUtils.toByteArray(warcrecord);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error getting content byte for WARC", e);
         }
-        return null;
     }
 
     private static byte[] getByteArrayFromInputStreamChunked(InputStream is) {
@@ -235,8 +234,8 @@ public class WARCRecordResponseEncapsulated {
             return null;
         }
         return year + month + day + hour + minute + second;
-    }    
-    
-    
-    
+    }
+
+
+
 }
