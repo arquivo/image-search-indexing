@@ -1,5 +1,16 @@
 # ImageSearch
-An experimental hadoop image indexer for Web archiving - supports ARC/WARC files.
+An hadoop image indexer for Web archiving - supports ARC/WARC files.
+
+## Algorithm 
+### Phase 1 - CreateImageDB
+- Iterate through all ARC/WARC records to find all Image records (i.e. records with mimetype that starts with image/)
+- Insert those records in a distributed mongodb database.
+
+### Hadoop Phase 2 - IndexImages
+- Iterate through all ARC/WARC records to find all HTML records (i.e. records with mimetype that starts with text/html)
+- Find all image tags in that html page i.e. ('''<img>'''...'''</img>''').
+- For each img tag -> search image in our DB created in step 1. If image found -> add new index for that image to the outputs.
+- Remove all images from Phase 1
 
 ## Compile
 ```mvn clean install``` 
