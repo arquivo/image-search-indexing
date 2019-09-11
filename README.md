@@ -17,9 +17,9 @@ An hadoop image indexer for Web archiving - supports ARC/WARC files.
 
 ## Run
 
-```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line 125 ```
+```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line $maxMaps ```
 
-```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/$line_ARCS.txt /user/root/$line_db $line 90```  
+```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" $maxMaps```  
 
 After hadoop image indexing is finished it is time to export the results
 
@@ -28,6 +28,8 @@ After hadoop image indexing is finished it is time to export the results
 
 ### Variables
 ```$line:```  Name of the collection to index (e.g. AWP10) 
+
+```$maxMaps:``` Maximum number of simultaneous running maps (suggested number 50)
 
 ``` /user/root/$line_ARCS.txt```  : hdfs path to a file where each line contains the http location of each ARC/WARC file in the collection
 
