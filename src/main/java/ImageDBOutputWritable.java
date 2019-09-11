@@ -1,9 +1,8 @@
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.sql.ResultSet;
-import java.sql.Blob;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 

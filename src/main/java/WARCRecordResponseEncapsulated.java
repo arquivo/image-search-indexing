@@ -1,3 +1,12 @@
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+
 import org.apache.commons.httpclient.ChunkedInputStream;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpException;
@@ -8,15 +17,6 @@ import org.apache.commons.logging.LogFactory;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.warc.WARCRecord;
 import org.archive.util.LaxHttpParser;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Calendar;
-import java.text.SimpleDateFormat;
-import java.util.Locale;
 
 public class WARCRecordResponseEncapsulated {
 
