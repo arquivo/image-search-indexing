@@ -1,6 +1,9 @@
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.apache.log4j.Logger;
 import org.archive.io.ArchiveReader;
@@ -10,6 +13,8 @@ import org.archive.io.arc.ARCReaderFactory;
 import org.archive.io.arc.ARCRecord;
 import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
+
+import com.mongodb.ServerAddress;
 
 /**
  * Utility methos
@@ -73,13 +78,13 @@ public class ImageSearchIndexingUtil {
 			logger.error("Exception starting reading WARC", e);
 			return;
 		}
-		int records= 0;
+		int records = 0;
 		int errors = 0;
 
 		for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext();) {
 
 			WARCRecord warcRecord;
-			try{
+			try {
 				warcRecord = (WARCRecord) ii.next();
 			} catch (RuntimeException re) {
 				errors++;
@@ -92,14 +97,14 @@ public class ImageSearchIndexingUtil {
 			try {
 				record = new WARCRecordResponseEncapsulated(warcRecord);
 				consumer.accept(record);
-			}catch(InvalidWARCResponseIOException e){
-				/*This is not a WARCResponse; skip*/
+			} catch (InvalidWARCResponseIOException e) {
+				/* This is not a WARCResponse; skip */
 				errors++;
-			}catch(IOException e){
-				logger.debug("IO Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());
+			} catch (IOException e) {
+				logger.debug("IO Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
 				errors++;
-			}catch (Exception e){
-				logger.debug("Exception reading WARCrecord WARCNAME: " + warcURL+ " " + e.getMessage());
+			} catch (Exception e) {
+				logger.debug("Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
 				errors++;
 			}
 			++records;
@@ -109,13 +114,25 @@ public class ImageSearchIndexingUtil {
 		}
 		logger.debug("records: " + records);
 		logger.debug("errors: " + errors);
-		if(reader!=null){
+		if (reader != null) {
 			try {
 				reader.close();
 			} catch (IOException e) {
-				logger.debug("error closing ArchiveReader"+ e.getMessage());
+				logger.debug("error closing ArchiveReader" + e.getMessage());
 			}
 		}
 
 	}
+
+	public static List<ServerAddress> getMongoDBServerAddresses(String mongodbServers) {
+		System.out.println("Using mongodb servers: " + mongodbServers);
+
+		return Arrays.asList(mongodbServers.split(",")).stream().map(mongoServerStr -> {
+			String[] ms = mongoServerStr.split(":");
+			String server = ms[0];
+			Integer port = Integer.valueOf(ms[1]);
+			return new ServerAddress(server, port);
+		}).collect(Collectors.toList());
+	}
+
 }

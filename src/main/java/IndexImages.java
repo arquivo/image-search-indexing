@@ -1,6 +1,5 @@
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -8,8 +7,8 @@ import java.net.URLDecoder;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,22 +29,13 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.kerby.util.Base64;
 import org.apache.log4j.Logger;
-import org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveRecord;
-import org.archive.io.arc.ARCReader;
-import org.archive.io.arc.ARCReaderFactory;
 import org.archive.io.arc.ARCRecord;
-import org.archive.io.warc.WARCReaderFactory;
-import org.archive.io.warc.WARCRecord;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.mongodb.BasicDBObject;
-import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -54,16 +44,12 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.ServerAddress;
 
-/* LOGs where changed to DEBUG level due to Lack of space in hadoop machines
- * */
-
 public class IndexImages
 {
 	public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
-		private Logger logger = Logger.getLogger(Map.class);
+		private static Logger logger = Logger.getLogger(Map.class);
 		public static String collectionName;
 		private MongoClient mongoClient;
-		private DB database;
 		private DBCollection collection;
 		private DBCollection imageIndexes;
 		private HashSet<String> nullImageHashes ;
@@ -73,17 +59,27 @@ public class IndexImages
 			Configuration config = context.getConfiguration();
 			collectionName = config.get("collection");
 			System.out.println("collection: " + collectionName);
+
+			String mongodbServers = config.get("mondodb.servers");
+			List<ServerAddress> mongodbServerSeeds = ImageSearchIndexingUtil.getMongoDBServerAddresses(mongodbServers);
+
 			MongoClientOptions.Builder options = MongoClientOptions.builder();
 			options.socketKeepAlive(true);
-			MongoClient mongoClient = new MongoClient( Arrays.asList(
-					new ServerAddress("p37.arquivo.pt", 27020),
-					new ServerAddress("p38.arquivo.pt", 27020),
-					new ServerAddress("p39.arquivo.pt", 27020)), options.build());
-			database = mongoClient.getDB("hadoop_images");
+			mongoClient = new MongoClient(mongodbServerSeeds, options.build());
+			DB database = mongoClient.getDB("hadoop_images");
 			collection = database.getCollection("images");
 			imageIndexes = database.getCollection("imageIndexes");
 			nullImageHashes = new HashSet<String>();
+
 			logger.debug(collectionName+"_Images"+"/img/");
+		}
+
+		@Override
+		protected void cleanup(Mapper<LongWritable, Text, LongWritable, NullWritable>.Context context)
+				throws IOException, InterruptedException {
+
+			mongoClient.close();
+			super.cleanup(context);
 		}
 
 		private byte[] getRecordContentBytes(ARCRecord record) {
@@ -131,16 +127,6 @@ public class IndexImages
 			return result;
 		}
 
-		private JSONArray stringToJsonArray(String content){
-			JSONArray result = new JSONArray();
-			String[] tokens = content.split("\\s+");
-			for(String current: tokens){
-				result.add(current);
-			}
-			return result;
-		}
-
-
 		public  void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String pageTstamp){
 			try{
 				logger.debug("Parsing Images from (W)ARCrecord");
@@ -177,7 +163,6 @@ public class IndexImages
 
 
 				for(Element el: imgs){
-					JSONObject obj = new JSONObject();
 					String imgSrc = el.attr("src");
 
 					if(!imgSrc.startsWith("http") && !imgSrc.startsWith("data:image")){
@@ -252,7 +237,6 @@ public class IndexImages
 			long imgTstamp = -1;
 			long currentTstamp = -1;
 			String mime ="";
-			String imgContentHash = null;
 			byte[] retrievedImgBytes = null;
 
 			while (cursor.hasNext()) {
@@ -265,7 +249,6 @@ public class IndexImages
 				currentTstamp = Long.parseLong(ctstamp);
 				if(Math.abs(currentTstamp - pageTstamp) < tstampDiff){
 					imgTstamp = currentTstamp;
-					imgContentHash = (String)  currentResult.get("content_hash");
 					mime = (String) currentResult.get("mime");
 					tstampDiff = currentTstamp - pageTstamp;
 					retrievedImgBytes = Base64.decodeBase64((String) currentResult.get("bytes64string"));
@@ -343,18 +326,6 @@ public class IndexImages
 			}
 		}
 
-
-
-		/*public byte[] readImgContentFromGridFS(String imgContentHash, Configuration conf) throws IOException{
-	    	GridFSDBFile imageForOutput = gfsPhoto.findOne(imgContentHash);
-	    	System.out.println("ImageHash: " + imgContentHash);
-	    	System.out.println(imageForOutput);
-	    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	    	imageForOutput.writeTo(baos);
-	    	return baos.toByteArray();
-	    }*/
-
-
 		public byte[] readImgContentFromHDFS(String imgContentHash, Configuration conf) throws IOException{
 			/*write image in hdfs a file with name content_hash*/
 			String collection = conf.get("mapred.job.name");
@@ -367,7 +338,6 @@ public class IndexImages
 			in.close();
 			return imgContent;
 		}
-
 
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
@@ -406,24 +376,15 @@ public class IndexImages
 			catch(Exception e){
 				logger.debug("Unhandled exception? " + e.getMessage());
 			}
-			finally{
-				if(mongoClient != null){
-					mongoClient.close(); /*Close connection to MongoDB*/
-				}
-			}
 		}
-
 	}
 
 	public static class IndexReducer extends Reducer<LongWritable, NullWritable, LongWritable, NullWritable> {
-		private Logger logger = Logger.getLogger(IndexReducer.class);
+		private static Logger logger = Logger.getLogger(IndexReducer.class);
 
-		public static String collectionName;
+		public String collectionName;
 		private MongoClient mongoClient;
-		private DB database;
 		private DBCollection images;
-		private DBCollection imageIndexes;
-
 
 		@Override
 		public void setup(Context context) {
@@ -432,11 +393,11 @@ public class IndexImages
 			logger.debug("collection: " + collectionName);
 			MongoClientOptions.Builder options = MongoClientOptions.builder();
 			options.socketKeepAlive(true);
-			MongoClient mongoClient = new MongoClient( Arrays.asList(
+			mongoClient = new MongoClient( Arrays.asList(
 					new ServerAddress("p37.arquivo.pt", 27020),
 					new ServerAddress("p38.arquivo.pt", 27020),
 					new ServerAddress("p39.arquivo.pt", 27020)), options.build());
-			database = mongoClient.getDB("hadoop_images");
+			DB database = mongoClient.getDB("hadoop_images");
 			images = database.getCollection("images");
 		}
 
@@ -450,61 +411,59 @@ public class IndexImages
 			images.remove(query);
 
 			context.write(new LongWritable(0L), NullWritable.get()); //dumb code write 0 , NULLWritable to finish reduce phase
+		}
 
+		@Override
+		protected void cleanup(Reducer<LongWritable, NullWritable, LongWritable, NullWritable>.Context context)
+				throws IOException, InterruptedException {
+
+			mongoClient.close();
+			super.cleanup(context);
 		}
 	}
 
-	public static void retryShardCollection(int numberOfRetries, int numberOfSecondsTimeout, MongoClient mongoClient, BasicDBObject cmd, Logger logger ){
-		CommandResult result=null;
-		for(int i=0; i<numberOfRetries;i++){
-			try{
-				TimeUnit.MINUTES.sleep(2); //sleep 2 minutes before attempting to shard collection again
-			}catch (InterruptedException e){
-				logger.info("Interrupted while Sleeping");
-			}
-			result = mongoClient.getDB("admin").command(cmd);
-			if (result.ok()){
-				logger.info("Successfully recreated images db");
-				return;
-			}
-		}
-		logger.debug("Error sharding collection images: "+ result.getErrorMessage());
-	}
-
-
-	public static void main( String[] args ) throws IOException, ClassNotFoundException, InterruptedException
+	public static void main( String[] args ) throws Exception
 	{
-		int maxMaps = args.length >=4 ? Integer.parseInt(args[3]) : 40;
+		assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
+		String hdfsArcsPath = args[0];
+
+		assert args.length >= 2 : "Missing collection name argument";
+		String collection = args[1];
+		String jobName = collection + "_CreateImageDB_1";
+
+		assert args.length >= 3 : "Missing mondo DB servers connection string argument";
+		String mongodbServers = args[2];
+
+		assert args.length >= 4 : "Missing argument max running map in parallel";
+		int maxMaps = Integer.parseInt(args[3]);
+
+		assert args.length >= 5 : "Missing argument max arcs per map";
+		int linespermap = Integer.parseInt(args[4]);
+
 		Configuration conf = new Configuration();
-		conf.set("collection", args[2]);
+		conf.set("collection", collection);
+		conf.set("mondodb.servers", mongodbServers);
 
 		Job job = Job.getInstance(conf, "Index Images");
-
 		job.setJarByClass(IndexImages.class);
 		job.setMapperClass(Map.class);
-
 		job.setMapOutputValueClass(NullWritable.class);
 		job.setOutputFormatClass(NullOutputFormat.class);
-
-
 		job.setOutputKeyClass(LongWritable.class);
 		job.setOutputValueClass(NullWritable.class);
-
 		job.setReducerClass(IndexReducer.class);
-
-		job.setJobName(args[2]+"_Images");
-
-
+		job.setJobName(jobName);
 		job.setInputFormatClass(NLineInputFormat.class);
-		NLineInputFormat.addInputPath(job, new Path(args[0]));
-		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 4);
-		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
+		NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+
+		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
+		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
 		// Sets reducer tasks to 1
 		job.setNumReduceTasks(1);
 
-		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		FileOutputFormat.setOutputPath(job, new Path(hdfsArcsPath));
 
 		boolean result = job.waitForCompletion(true);
 

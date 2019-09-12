@@ -1,9 +1,8 @@
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.regex.Matcher;
+import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.apache.commons.codec.binary.Base64;
@@ -23,13 +22,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.log4j.Logger;
-import  org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveRecord;
-import org.archive.io.arc.ARCReaderFactory;
 import org.archive.io.arc.ARCRecord;
-import org.archive.io.warc.WARCReaderFactory;
-import org.archive.io.warc.WARCRecord;
-import org.json.simple.JSONArray;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
@@ -40,31 +33,34 @@ import com.mongodb.MongoClientOptions;
 import com.mongodb.ServerAddress;
 import com.sun.tools.javadoc.JavaScriptScanner.Reporter;
 
-/*
- * LOGs where changed to DEBUG level due to Lack of space in hadoop machines
- * */
-
-
 class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	private Logger logger = Logger.getLogger(ImageMap.class);
 	public static String collectionName;
 	private MongoClient mongoClient;
-	private DB database;
-	private DBCollection MongoCollection;
+	private DBCollection mongoCollection;
 
 	@Override
 	public void setup(Context context) {
 		Configuration config = context.getConfiguration();
 		collectionName = config.get("collection");
 		System.out.println("collection: " + collectionName);
+
+		String mongodbServers = config.get("mondodb.servers");
+		List<ServerAddress> mongodbServerSeeds = ImageSearchIndexingUtil.getMongoDBServerAddresses(mongodbServers);
+
 		MongoClientOptions.Builder options = MongoClientOptions.builder();
 		options.socketKeepAlive(true);
-		MongoClient mongoClient = new MongoClient( Arrays.asList(
-				new ServerAddress("p37.arquivo.pt", 27020),
-				new ServerAddress("p38.arquivo.pt", 27020),
-				new ServerAddress("p39.arquivo.pt", 27020)), options.build());
-		database = mongoClient.getDB("hadoop_images");
-		MongoCollection = database.getCollection("images");
+		mongoClient = new MongoClient(mongodbServerSeeds, options.build());
+		DB database = mongoClient.getDB("hadoop_images");
+		mongoCollection = database.getCollection("images");
+	}
+
+	@Override
+	protected void cleanup(Mapper<LongWritable, Text, LongWritable, NullWritable>.Context context)
+			throws IOException, InterruptedException {
+
+		mongoClient.close();
+		super.cleanup(context);
 	}
 
 	public static String guessEncoding(byte[] bytes) {
@@ -83,23 +79,6 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 
 	private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
 
-	private String parseURL(String toParse) {
-		String result = "";
-		Matcher matcher = VALID_PATTERN.matcher(toParse);
-		while (matcher.find()) {
-			result+= matcher.group() + " ";
-		}
-		return result;
-	}
-
-	private JSONArray stringToJsonArray(String content){
-		JSONArray result = new JSONArray();
-		String[] tokens = content.split("\\s+");
-		for(String current: tokens){
-			result.add(current);
-		}
-		return result;
-	}
 	public String md5ofString(String content)  {
 		return DigestUtils.md5Hex(content);
 	}
@@ -141,7 +120,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				.append("safe", -1)
 				.append("content_hash", content_hash)
 				.append("bytes64string", Base64.encodeBase64String(contentBytes));
-		MongoCollection.insert(img);
+		mongoCollection.insert(img);
 	}
 	public  void createImageDB(ARCRecord record, Context context){
 		Configuration conf = context.getConfiguration();
@@ -163,7 +142,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 					.append("safe", -1)
 					.append("content_hash", content_hash)
 					.append("bytes64string", Base64.encodeBase64String(contentBytes));
-			MongoCollection.insert(img);
+			mongoCollection.insert(img);
 
 		}catch (IOException e) {
 			logger.debug("IOException" + e.getMessage() );
@@ -195,17 +174,14 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 			}
 		}catch(Exception e){
 			logger.debug("Error Reading ARC/WARC" + e.getMessage());
-		}finally{
-			if(mongoClient!=null){
-				mongoClient.close();
-			}
 		}
 
 	}
 
 }
 
-
+// Empty reducer
+// Improve by telling hadoop to run a job without a reducer
 class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
 	public void reduce(Text key, Iterator<IntWritable> values,
 			//TODO:: remove reducer in this indexing phase
@@ -215,32 +191,45 @@ class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
 	}
 }
 
-
-
 public class CreateImageDB
 {
-	public static void main( String[] args ) throws IOException, ClassNotFoundException, InterruptedException
+	public static void main( String[] args ) throws Exception
 	{
-		int maxMaps = args.length >=4 ? Integer.parseInt(args[3]) : 50;
+		assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
+		String hdfsArcsPath = args[0];
+
+		assert args.length >= 2 : "Missing collection name argument";
+		String collection = args[1];
+		String jobName = collection + "_CreateImageDB_1";
+
+		assert args.length >= 3 : "Missing mondo DB servers connection string argument";
+		String mongodbServers = args[2];
+
+		assert args.length >= 4 : "Missing argument max running map in parallel";
+		int maxMaps = Integer.parseInt(args[3]);
+
+		assert args.length >= 5 : "Missing argument max arcs per map";
+		int linespermap = Integer.parseInt(args[4]);
+
 		Configuration conf = new Configuration();
-		conf.set("collection", args[2]);
+		conf.set("collection", collection);
 		conf.set("mapred.job.priority", JobPriority.VERY_HIGH.toString());
+		conf.set("mondodb.servers", mongodbServers);
 
 		Job job = new Job(conf, "Mapper_Only_Job");
 		job.setJarByClass(CreateImageDB.class);
 		job.setMapperClass(ImageMap.class);
-		job.setJobName(args[2]+"_Images");
+		job.setJobName(jobName);
 		job.setMapOutputKeyClass(LongWritable.class);
 		job.setMapOutputValueClass(NullWritable.class);
 		job.setOutputFormatClass(NullOutputFormat.class);
 		job.setOutputKeyClass(LongWritable.class);
-
 		job.setReducerClass(ImageMapReducer.class);
-
 		job.setInputFormatClass(NLineInputFormat.class);
-		NLineInputFormat.addInputPath(job, new Path(args[0]));
 
-		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", 4);
+		NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+
+		job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
 		job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum of 500 simultaneous maps accessing preprod for now*/
 
 		// Sets reducer tasks to 1
