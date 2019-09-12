@@ -45,3 +45,4 @@ After hadoop image indexing is finished it is time to export the results
 ## Requirements
 - Hadoop 3 cluster
 - MongoDB server or MongoDB sharded cluster
+- Apache SOLR server version 6+
