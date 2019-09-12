@@ -16,6 +16,9 @@ An hadoop image indexer for Web archiving - supports ARC/WARC files.
 ```mvn clean install``` 
 
 ## Run
+Create a .txt file where each line contains the path to a downloadable ARC/WARC file ($line_ARCS.txt) and store it in Hadoop HDFS
+
+```hadoop dfs -copyFromLocal $line_ARCS.txt /user/root```
 
 ```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line $maxMaps ```
 
@@ -42,3 +45,4 @@ After hadoop image indexing is finished it is time to export the results
 ## Requirements
 - Hadoop 3 cluster
 - MongoDB server or MongoDB sharded cluster
+- Apache SOLR server version 6+
