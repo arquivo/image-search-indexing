@@ -16,7 +16,7 @@ An hadoop image indexer for Web archiving - supports ARC/WARC files.
 ```mvn clean install``` 
 
 ## Run
-Create a .txt file where each line contains the path to a downloadable ARC/WARC file ($line_ARCS.txt)
+Create a .txt file where each line contains the path to a downloadable ARC/WARC file ($line_ARCS.txt) and store it in Hadoop HDFS
 
 
 ```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line $maxMaps ```
