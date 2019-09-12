@@ -1,9 +1,5 @@
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
-import java.util.regex.Pattern;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -15,7 +11,6 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobPriority;
-import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -28,10 +23,10 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import com.mongodb.DuplicateKeyException;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.ServerAddress;
-import com.sun.tools.javadoc.JavaScriptScanner.Reporter;
 
 class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	private Logger logger = Logger.getLogger(ImageMap.class);
@@ -77,30 +72,11 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		return encoding;
 	}
 
-	private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
-
 	public String md5ofString(String content)  {
 		return DigestUtils.md5Hex(content);
 	}
 
-	private byte[] getRecordContentBytes(ARCRecord record) throws IOException {
-		record.skipHttpHeader();/*Skipping http headers to only get the content bytes*/
-		byte[] buffer = new byte[1024 * 16];
-		int len = record.read(buffer, 0, buffer.length);
-		ByteArrayOutputStream contentBuffer =
-				new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/
-		contentBuffer.reset();
-		while (len != -1)
-		{
-			contentBuffer.write(buffer, 0, len);
-			len = record.read(buffer, 0, buffer.length);
-		}
-		record.close();
-		return contentBuffer.toByteArray();
-	}
-
-
-	public  void createImageDB(WARCRecordResponseEncapsulated record, Context context){
+	public  void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Context context){
 		Configuration conf = context.getConfiguration();
 		String url = record.getWARCRecord().getHeader().getUrl();
 		String tstamp = record.getTs();
@@ -122,7 +98,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				.append("bytes64string", Base64.encodeBase64String(contentBytes));
 		mongoCollection.insert(img);
 	}
-	public  void createImageDB(ARCRecord record, Context context){
+	public  void createImageDB(String arcURL, ARCRecord record, Context context){
 		Configuration conf = context.getConfiguration();
 		String url = record.getHeader().getUrl();
 		String tstamp = record.getMetaData().getDate();
@@ -130,50 +106,49 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		String collection = conf.get("mapred.job.name");
 		String image_hash_key = md5ofString(url);
 		String content_hash = md5ofString(tstamp+"/"+url);
-		byte[] contentBytes = null;
+		byte[] contentBytes;
 		try {
-			contentBytes = getRecordContentBytes(record);
-
-			DBObject img = new BasicDBObject("_id", new BasicDBObject("image_hash_key", image_hash_key).append("tstamp", tstamp))
-					.append("url", url)
-					.append("tstamp", tstamp)
-					.append("mime", mime)
-					.append("collection", collection)
-					.append("safe", -1)
-					.append("content_hash", content_hash)
-					.append("bytes64string", Base64.encodeBase64String(contentBytes));
+			contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
+		} catch (IOException e) {
+			logger.error(String.format("Error getting record content bytes for image url: %s on offset %d with error message %s", url, record.getBodyOffset(), e.getMessage()));
+			return;
+		}
+		DBObject img = new BasicDBObject("_id", new BasicDBObject("image_hash_key", image_hash_key).append("tstamp", tstamp))
+				.append("url", url)
+				.append("tstamp", tstamp)
+				.append("mime", mime)
+				.append("collection", collection)
+				.append("safe", -1)
+				.append("content_hash", content_hash)
+				.append("bytes64string", Base64.encodeBase64String(contentBytes));
+		try {
 			mongoCollection.insert(img);
-
-		}catch (IOException e) {
-			logger.debug("IOException" + e.getMessage() );
+		} catch (DuplicateKeyException e) {
+			logger.debug("Image already exists " + e.getMessage());
 		}
 	}
 
 	public void map(LongWritable key, Text value, Context context)
 			throws IOException, InterruptedException {
-		try{
-			System.out.println("(W)ARCNAME: " + value.toString());
-			logger.info("(W)ARCNAME: " + value.toString());
-			if(value.toString().endsWith("warc.gz") || value.toString().endsWith("warc")){
-				String warcURL = value.toString();
-				ImageSearchIndexingUtil.readWarcRecords(warcURL, (record) -> {
-					boolean isImage = record.getContentMimetype().contains("image");
-					if (isImage) {
-						createImageDB(record, context);
-					}
-				});
+		String arcURL = value.toString();
 
-			}else{
-				String arcURL = value.toString();
-				ImageSearchIndexingUtil.readArcRecords(arcURL, record -> {
-					boolean isImage = record.getMetaData().getMimetype().contains("image");
-					if (isImage) {
-						createImageDB(record, context);
-					}
-				});
-			}
-		}catch(Exception e){
-			logger.debug("Error Reading ARC/WARC" + e.getMessage());
+		System.out.println("(W)ARCNAME: " + arcURL);
+		logger.info("(W)ARCNAME: " + arcURL);
+
+		if(arcURL.endsWith("warc.gz") || arcURL.endsWith("warc")){
+			ImageSearchIndexingUtil.readWarcRecords(arcURL, (record) -> {
+				boolean isImage = record.getContentMimetype().contains("image");
+				if (isImage) {
+					createImageDB(arcURL, record, context);
+				}
+			});
+		}else{
+			ImageSearchIndexingUtil.readArcRecords(arcURL, record -> {
+				boolean isImage = record.getMetaData().getMimetype().contains("image");
+				if (isImage) {
+					createImageDB(arcURL, record, context);
+				}
+			});
 		}
 
 	}
@@ -183,12 +158,6 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 // Empty reducer
 // Improve by telling hadoop to run a job without a reducer
 class ImageMapReducer extends Reducer<Text, IntWritable, Text,DoubleWritable> {
-	public void reduce(Text key, Iterator<IntWritable> values,
-			//TODO:: remove reducer in this indexing phase
-			OutputCollector<Text, DoubleWritable> output,
-			Reporter reporter)
-					throws IOException {
-	}
 }
 
 public class CreateImageDB

@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -133,6 +134,22 @@ public class ImageSearchIndexingUtil {
 			Integer port = Integer.valueOf(ms[1]);
 			return new ServerAddress(server, port);
 		}).collect(Collectors.toList());
+	}
+
+	public static byte[] getRecordContentBytes(ARCRecord record) throws IOException {
+		record.skipHttpHeader();/*Skipping http headers to only get the content bytes*/
+		byte[] buffer = new byte[1024 * 16];
+		int len = record.read(buffer, 0, buffer.length);
+		ByteArrayOutputStream contentBuffer =
+				new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/
+		contentBuffer.reset();
+		while (len != -1)
+		{
+			contentBuffer.write(buffer, 0, len);
+			len = record.read(buffer, 0, buffer.length);
+		}
+		record.close();
+		return contentBuffer.toByteArray();
 	}
 
 }

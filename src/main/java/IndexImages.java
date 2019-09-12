@@ -82,26 +82,6 @@ public class IndexImages
 			super.cleanup(context);
 		}
 
-		private byte[] getRecordContentBytes(ARCRecord record) {
-			try {
-				record.skipHttpHeader();/*Skipping http headers to only get the content bytes*/
-				byte[] buffer = new byte[1024 * 16];
-				int len = record.read(buffer, 0, buffer.length);
-				ByteArrayOutputStream contentBuffer =
-						new ByteArrayOutputStream(1024 * 16* 1000); /*Max record size: 16Mb*/
-				contentBuffer.reset();
-				while (len != -1)
-				{
-					contentBuffer.write(buffer, 0, len);
-					len = record.read(buffer, 0, buffer.length);
-				}
-				record.close();
-				return contentBuffer.toByteArray();
-			} catch (IOException ioe) {
-				throw new RuntimeException("Error getting record content bytes", ioe);
-			}
-		}
-
 		public static String guessEncoding(byte[] bytes) {
 			String DEFAULT_ENCODING = "UTF-8";
 			org.mozilla.universalchardet.UniversalDetector detector =
@@ -361,7 +341,14 @@ public class IndexImages
 
 					ImageSearchIndexingUtil.readArcRecords(warcURL, record -> {
 						if(record.getMetaData().getMimetype().contains("html")) {
-							parseImagesFromHtmlRecord(context, getRecordContentBytes(record), record.getHeader().getUrl(), record.getMetaData().getDate());
+							byte[] recordContentBytes;
+							try {
+								recordContentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
+							} catch (IOException e) {
+								logger.error(String.format("Error getting record content bytes for (w)arc: %s on offset %d with error message %s", warcURL, record.getBodyOffset(), e.getMessage()));
+								return;
+							}
+							parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate());
 						}
 					});
 				}
