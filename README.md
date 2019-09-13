@@ -1,4 +1,4 @@
-# ImageSearch
+# ImageSearchIndexing
 An hadoop image indexer for Web archiving - supports ARC/WARC files.
 
 ## Algorithm 
