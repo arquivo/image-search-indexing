@@ -416,7 +416,7 @@ public class IndexImages
 
 		assert args.length >= 2 : "Missing collection name argument";
 		String collection = args[1];
-		String jobName = collection + "_CreateImageDB_1";
+		String jobName = collection + "_IndexImages_2";
 
 		assert args.length >= 3 : "Missing mondo DB servers connection string argument";
 		String mongodbServers = args[2];
