@@ -30,15 +30,16 @@ import com.mongodb.ServerAddress;
 
 class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	private Logger logger = Logger.getLogger(ImageMap.class);
-	public static String collectionName;
+	public String collection;
+
 	private MongoClient mongoClient;
-	private DBCollection mongoCollection;
+	private DBCollection imagesMongoDB;
 
 	@Override
 	public void setup(Context context) {
 		Configuration config = context.getConfiguration();
-		collectionName = config.get("collection");
-		System.out.println("collection: " + collectionName);
+		this.collection = config.get("collection");
+		System.out.println("collection: " + this.collection);
 
 		String mongodbServers = config.get("mondodb.servers");
 		List<ServerAddress> mongodbServerSeeds = ImageSearchIndexingUtil.getMongoDBServerAddresses(mongodbServers);
@@ -47,7 +48,7 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		options.socketKeepAlive(true);
 		mongoClient = new MongoClient(mongodbServerSeeds, options.build());
 		DB database = mongoClient.getDB("hadoop_images");
-		mongoCollection = database.getCollection("images");
+		imagesMongoDB = database.getCollection("images");
 	}
 
 	@Override
@@ -77,12 +78,10 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 	}
 
 	public  void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Context context){
-		Configuration conf = context.getConfiguration();
 		String url = record.getWARCRecord().getHeader().getUrl();
 		String tstamp = record.getTs();
 		String mime = record.getContentMimetype();
 
-		String collection = conf.get("mapred.job.name");
 		String image_hash_key = md5ofString(url);
 		String content_hash = md5ofString(tstamp+"/"+url);
 		byte[] contentBytes = null;
@@ -92,18 +91,16 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				.append("url", url)
 				.append("tstamp", tstamp)
 				.append("mime", mime)
-				.append("collection", collection)
+				.append("collection", this.collection)
 				.append("safe", -1)
 				.append("content_hash", content_hash)
 				.append("bytes64string", Base64.encodeBase64String(contentBytes));
-		mongoCollection.insert(img);
+		imagesMongoDB.insert(img);
 	}
 	public  void createImageDB(String arcURL, ARCRecord record, Context context){
-		Configuration conf = context.getConfiguration();
 		String url = record.getHeader().getUrl();
 		String tstamp = record.getMetaData().getDate();
 		String mime = record.getMetaData().getMimetype();
-		String collection = conf.get("mapred.job.name");
 		String image_hash_key = md5ofString(url);
 		String content_hash = md5ofString(tstamp+"/"+url);
 		byte[] contentBytes;
@@ -117,12 +114,12 @@ class ImageMap extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 				.append("url", url)
 				.append("tstamp", tstamp)
 				.append("mime", mime)
-				.append("collection", collection)
+				.append("collection", this.collection)
 				.append("safe", -1)
 				.append("content_hash", content_hash)
 				.append("bytes64string", Base64.encodeBase64String(contentBytes));
 		try {
-			mongoCollection.insert(img);
+			imagesMongoDB.insert(img);
 		} catch (DuplicateKeyException e) {
 			logger.debug("Image already exists " + e.getMessage());
 		}

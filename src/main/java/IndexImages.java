@@ -48,17 +48,18 @@ public class IndexImages
 {
 	public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
 		private static Logger logger = Logger.getLogger(Map.class);
-		public static String collectionName;
+		public static String collection;
+
 		private MongoClient mongoClient;
-		private DBCollection collection;
-		private DBCollection imageIndexes;
+		private DBCollection imagesMongoDB;
+		private DBCollection imageIndexesMongoDB;
 		private HashSet<String> nullImageHashes ;
 
 		@Override
 		public void setup(Context context) {
 			Configuration config = context.getConfiguration();
-			collectionName = config.get("collection");
-			System.out.println("collection: " + collectionName);
+			collection = config.get("collection");
+			System.out.println("collection: " + collection);
 
 			String mongodbServers = config.get("mondodb.servers");
 			List<ServerAddress> mongodbServerSeeds = ImageSearchIndexingUtil.getMongoDBServerAddresses(mongodbServers);
@@ -67,11 +68,11 @@ public class IndexImages
 			options.socketKeepAlive(true);
 			mongoClient = new MongoClient(mongodbServerSeeds, options.build());
 			DB database = mongoClient.getDB("hadoop_images");
-			collection = database.getCollection("images");
-			imageIndexes = database.getCollection("imageIndexes");
+			imagesMongoDB = database.getCollection("images");
+			imageIndexesMongoDB = database.getCollection("imageIndexes");
 			nullImageHashes = new HashSet<String>();
 
-			logger.debug(collectionName+"_Images"+"/img/");
+			logger.debug(collection+"_Images"+"/img/");
 		}
 
 		@Override
@@ -211,7 +212,7 @@ public class IndexImages
 		public ImageSQLDTO retreiveImageFromDB(String imgHashKey, long pageTstamp, Configuration conf) {
 			BasicDBObject whereQuery = new BasicDBObject();
 			whereQuery.put("_id.image_hash_key", imgHashKey);
-			DBCursor cursor = collection.find(whereQuery);
+			DBCursor cursor = imagesMongoDB.find(whereQuery);
 
 			long tstampDiff = 99999999999999L; /*Difference between pageStamp and imgTstamp, we want the closest possible*/
 			long imgTstamp = -1;
@@ -250,7 +251,7 @@ public class IndexImages
 
 			BasicDBObject whereQuery = new BasicDBObject();
 			whereQuery.put("imgDigest", imgDigest);
-			DBCursor cursor = imageIndexes.find(whereQuery);
+			DBCursor cursor = imageIndexesMongoDB.find(whereQuery);
 			int numberofImagesWithHashKey =cursor.size();
 			if(numberofImagesWithHashKey <=1){ /*Create object to insert or update the DB*/
 				img = new BasicDBObject()
@@ -275,10 +276,10 @@ public class IndexImages
 						.append( "pageProtocol", pageProtocol)
 						.append( "pageTitle" , pageTitle) /*The URL of the Archived page*/
 						.append("pageURLTokens", pageURLTokens)
-						.append( "collection" , collectionName );
+						.append( "collection" , collection );
 
 				if(numberofImagesWithHashKey == 0){ /*insert image it is unique in our imageIndexes collection*/
-					imageIndexes.insert(img);
+					imageIndexesMongoDB.insert(img);
 					logger.debug("inserted:" + imgResult.getDigest());
 					logger.debug("inserted ts:" + imgSQLDTO.getTstamp());
 				}
@@ -291,7 +292,7 @@ public class IndexImages
 					}
 					Long dBTstamp = Long.parseLong(dataBaseTstamp);
 					if(imgTstampLong <= dBTstamp){ /*Found an older version of this image digest lets update the database*/
-						imageIndexes.update(whereQuery, img);
+						imageIndexesMongoDB.update(whereQuery, img);
 						logger.debug("updated: " + imgResult.getDigest());
 						logger.debug("updated TS: " + imgSQLDTO.getTstamp());
 					}
@@ -308,7 +309,6 @@ public class IndexImages
 
 		public byte[] readImgContentFromHDFS(String imgContentHash, Configuration conf) throws IOException{
 			/*write image in hdfs a file with name content_hash*/
-			String collection = conf.get("mapred.job.name");
 			FileSystem fs = FileSystem.get(conf);
 			String s = fs.getHomeDirectory()+"/"+ collection+ "/img/"+ imgContentHash;
 			Path path = new Path(s);
