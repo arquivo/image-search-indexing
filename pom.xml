@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>groupId</groupId>
-    <artifactId>ImageSearch</artifactId>
+    <artifactId>ImageSearchIndexing</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -17,6 +17,8 @@
     </properties>
 
     <build>
+    	<!-- Make output jar without version name so it's more easylly managed on dev ops. -->
+    	<finalName>${artifactId}</finalName>
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
