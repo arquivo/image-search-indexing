@@ -20,9 +20,9 @@ Create a .txt file where each line contains the path to a downloadable ARC/WARC 
 
 ```hadoop dfs -copyFromLocal $line_ARCS.txt /user/root```
 
-```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line $maxMaps ```
+```hadoop jar ImageSearchIndexing-jar-with-dependencies.jar CreateImageDB /user/root/$line_ARCS.txt /user/root/$line_db $line $maxMaps ```
 
-```hadoop jar ImageSearch-1.0-SNAPSHOT-jar-with-dependencies.jar IndexImages /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" $maxMaps```  
+```hadoop jar ImageSearchIndexing-jar-with-dependencies.jar IndexImages /user/root/"$line"_ARCS.txt /user/root/"$line"_db "$line" $maxMaps```  
 
 After hadoop image indexing is finished it is time to export the results
 
