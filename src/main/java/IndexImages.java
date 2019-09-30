@@ -394,7 +394,7 @@ public class IndexImages
 			/*We are removing all records from images db within the collection we have just indexed to clean space*/
 			logger.debug("Reduce IndexImages");
 			BasicDBObject query = new BasicDBObject();
-			query.append("collection", collectionName+"_Images");
+			query.append("collection", collectionName);
 			images.remove(query);
 
 			context.write(new LongWritable(0L), NullWritable.get()); //dumb code write 0 , NULLWritable to finish reduce phase
