@@ -113,9 +113,10 @@ public class WARCRecordResponseEncapsulated {
     }
 
 
-    public WARCRecord getWARCRecord(){
-    	return warcrecord;
+    public WARCRecord getWARCRecord() {
+        return warcrecord;
     }
+
     /**
      * @return mimetype The mimetype that is in the WARC metaline -- NOT the http
      * content-type content.
@@ -125,7 +126,7 @@ public class WARCRecordResponseEncapsulated {
     }
 
     public String getStatusCode() {
-    	return statusCode;
+        return statusCode;
     }
 
     public boolean hasErrors() {
@@ -149,14 +150,14 @@ public class WARCRecordResponseEncapsulated {
 
     public byte[] getContentBytes() {
         try {
-        	String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
-        	if(transferEncoding!=null && transferEncoding.toLowerCase().contains(CHUNKED)){
-        		/*Deal with chunked Record*/
+            String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
+            if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
+                /*Deal with chunked Record*/
 
-        		LOG.debug("Chunked Bytes");
-        		return getByteArrayFromInputStreamChunked(warcrecord);
-        	}
-        	/*Default case convert to byte array*/
+                LOG.debug("Chunked Bytes");
+                return getByteArrayFromInputStreamChunked(warcrecord);
+            }
+            /*Default case convert to byte array*/
             return IOUtils.toByteArray(warcrecord);
         } catch (IOException e) {
             throw new RuntimeException("Error getting content byte for WARC", e);
@@ -174,37 +175,37 @@ public class WARCRecordResponseEncapsulated {
             cis = new ChunkedInputStream(is);
 
             // read till the end of the stream
-            while((currentChar = cis.read(buffer))!= -1) {
+            while ((currentChar = cis.read(buffer)) != -1) {
                 bos.write(buffer, 0, currentChar);
             }
             unchunkedData = bos.toByteArray();
             bos.close();
-        } catch(IOException e) {
+        } catch (IOException e) {
             // if any I/O error occurs
             e.printStackTrace();
         } finally {
             // releases any system resources associated with the stream
-            if(is!=null){
-                try{
+            if (is != null) {
+                try {
                     is.close();
-                } catch (IOException e){
-                	e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
-            if(cis!=null){
-                try{
+            if (cis != null) {
+                try {
                     cis.close();
-                } catch (IOException e){
-                   e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
         return unchunkedData;
     }
 
-    public String getTs(){
+    public String getTs() {
         /*dateWarc in Format 2018-04-03T12:53:43Z */
-    	String dateWarc = warcrecord.getHeader().getDate();
+        String dateWarc = warcrecord.getHeader().getDate();
         String year = "";
         String month = "";
         String day = "";
@@ -212,30 +213,29 @@ public class WARCRecordResponseEncapsulated {
         String minute = "";
         String second = "";
 
-        try{
+        try {
             SimpleDateFormat thedate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", new Locale("pt", "PT"));
             thedate.parse(dateWarc);
             Calendar mydate = thedate.getCalendar();
 
-            year +=  mydate.get(Calendar.YEAR);
+            year += mydate.get(Calendar.YEAR);
             int monthInt = mydate.get(Calendar.MONTH) + 1;
             int dayInt = mydate.get(Calendar.DAY_OF_MONTH);
             int hourInt = mydate.get(Calendar.HOUR_OF_DAY);
             int minuteInt = mydate.get(Calendar.MINUTE);
             int secondInt = mydate.get(Calendar.SECOND);
-            month = monthInt < 10 ? "0" + monthInt : ""+monthInt;
-            day = dayInt < 10 ? "0" + dayInt : ""+dayInt;
-            hour = hourInt < 10 ? "0" + hourInt : ""+hourInt;
-            minute = minuteInt < 10 ? "0" + minuteInt : ""+minuteInt;
-            second = secondInt < 10 ? "0" + secondInt : ""+secondInt;
+            month = monthInt < 10 ? "0" + monthInt : "" + monthInt;
+            day = dayInt < 10 ? "0" + dayInt : "" + dayInt;
+            hour = hourInt < 10 ? "0" + hourInt : "" + hourInt;
+            minute = minuteInt < 10 ? "0" + minuteInt : "" + minuteInt;
+            second = secondInt < 10 ? "0" + secondInt : "" + secondInt;
 
-        } catch (Exception e ){
+        } catch (Exception e) {
             LOG.error("WARC getTS: error parsing date");
             return null;
         }
         return year + month + day + hour + minute + second;
     }
-
 
 
 }

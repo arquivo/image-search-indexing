@@ -83,31 +83,6 @@ public class IndexImages
 			super.cleanup(context);
 		}
 
-		public static String guessEncoding(byte[] bytes) {
-			String DEFAULT_ENCODING = "UTF-8";
-			org.mozilla.universalchardet.UniversalDetector detector =
-					new org.mozilla.universalchardet.UniversalDetector(null);
-			detector.handleData(bytes, 0, bytes.length);
-			detector.dataEnd();
-			String encoding = detector.getDetectedCharset();
-			detector.reset();
-			if (encoding == null) {
-				encoding = DEFAULT_ENCODING;
-			}
-			return encoding;
-		}
-
-		private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
-
-		private String parseURL(String toParse) {
-			String result = "";
-			Matcher matcher = VALID_PATTERN.matcher(toParse);
-			while (matcher.find()) {
-				result+= matcher.group() + " ";
-			}
-			return result;
-		}
-
 		public  void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String pageTstamp){
 			try{
 				logger.debug("Parsing Images from (W)ARCrecord");
@@ -117,7 +92,7 @@ public class IndexImages
 
 				logger.info("Parsing Images from (W)ARCrecord" );
 				logger.info("Read Content Bytes from (W)ARCrecord" );
-				String recordEncoding = guessEncoding(arcRecordBytes);
+				String recordEncoding = ImageSearchIndexingUtil.guessEncoding(arcRecordBytes);
 				InputStream is = new ByteArrayInputStream(arcRecordBytes);
 
 				Document doc = Jsoup.parse(is, recordEncoding, "");
@@ -130,7 +105,7 @@ public class IndexImages
 
 				String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
 				pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
-				String pageURLTokens = parseURL(pageURLCleaned); /*split the URL*/
+				String pageURLTokens = ImageSearchIndexingUtil.parseURL(pageURLCleaned); /*split the URL*/
 
 
 				URL uri = new URL(pageURL);
@@ -185,7 +160,7 @@ public class IndexImages
 
 						String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
 						imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
-						String imgSrcTokens = parseURL(imgSrcCleaned); /*split the imgSrc URL*/
+						String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
 
 						String imgTitle = el.attr("title");
 						if(imgTitle.length() > 9999){imgTitle =  imgTitle.substring(0, 10000); }
@@ -305,18 +280,6 @@ public class IndexImages
 				/*This should never happen because imgDigest is unique in our DB*/
 				logger.debug("Multiple records with hash key: " + imgDigest);
 			}
-		}
-
-		public byte[] readImgContentFromHDFS(String imgContentHash, Configuration conf) throws IOException{
-			/*write image in hdfs a file with name content_hash*/
-			FileSystem fs = FileSystem.get(conf);
-			String s = fs.getHomeDirectory()+"/"+ collection+ "/img/"+ imgContentHash;
-			Path path = new Path(s);
-			FSDataInputStream in = fs.open(path);
-			byte[] imgContent = new byte[in.available()];
-			in.read(imgContent);
-			in.close();
-			return imgContent;
 		}
 
 		public void map(LongWritable key, Text value, Context context)
