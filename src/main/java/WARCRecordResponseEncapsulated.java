@@ -73,6 +73,12 @@ public class WARCRecordResponseEncapsulated {
         }
     }
 
+    public WARCRecordResponseEncapsulated(WARCRecord warcrecord, Map<String, Object> headerFields)
+            throws IOException {
+        this.warcrecord = warcrecord;
+        this.headerFields = headerFields;
+    }
+
 
     private void readHttpHeader() throws IOException {
         String statusLinestr = LaxHttpParser.readLine(warcrecord, WARCRecord.WARC_HEADER_ENCODING);

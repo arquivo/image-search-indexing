@@ -1,8 +1,6 @@
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -10,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.log4j.Logger;
+import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.arc.ARCReader;
@@ -100,10 +99,23 @@ public class ImageSearchIndexingUtil {
                 break;
             }
 
+            String warcRecordType = (String) warcRecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
+            String warcRecordMimetype = warcRecord.getHeader().getMimetype();
             WARCRecordResponseEncapsulated record = null;
+
             try {
-                record = new WARCRecordResponseEncapsulated(warcRecord);
-                consumer.accept(record);
+                if (warcRecordType.equalsIgnoreCase(WARCConstants.WARCRecordType.resource.toString())) {
+                    Map<String, Object> headers = new HashMap<>();
+                    headers.put(WARCConstants.CONTENT_LENGTH.toLowerCase(), String.valueOf(warcRecord.getHeader().getContentLength()));
+                    headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
+                    headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
+
+                    record = new WARCRecordResponseEncapsulated(warcRecord, headers);
+                    consumer.accept(record);
+                } else {
+                    record = new WARCRecordResponseEncapsulated(warcRecord);
+                    consumer.accept(record);
+                }
             } catch (InvalidWARCResponseIOException e) {
                 /* This is not a WARCResponse; skip */
                 errors++;
