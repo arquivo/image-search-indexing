@@ -95,8 +95,10 @@ public class IndexImages {
                 InputStream is = new ByteArrayInputStream(arcRecordBytes);
 
                 Document doc = Jsoup.parse(is, recordEncoding, "");
-                String pageTitle = doc.title(); /*returns empty string if no title in html document*/
 
+                doc.setBaseUri(pageURL);
+
+                String pageTitle = doc.title(); /*returns empty string if no title in html document*/
                 Elements imgs = doc.getElementsByTag("img");
                 int pageImages = imgs.size();
 
@@ -118,23 +120,8 @@ public class IndexImages {
 
 
                 for (Element el : imgs) {
-                    String imgSrc = el.attr("src");
+                    String imgSrc = el.attr("abs:src");
 
-                    if (!imgSrc.startsWith("http") && !imgSrc.startsWith("data:image")) {
-                        /*Relative Path lets reconstruct full path*/
-                        /*TODO: check how to reconstruct relative paths*/
-                        if (imgSrc.startsWith("/")) { /* Relative path starting in the host*/
-                            imgSrc = pageProtocol + "://" + pageHost + imgSrc;
-                        } else {
-                            // WIP: attempt at getting relative paths correctly
-                            if (pageURL.endsWith("/"))
-                                pageURL += " ";
-                            String[] pageURLTokensA = pageURL.split("/");
-                            pageURLTokensA[pageURLTokensA.length - 1] = imgSrc;
-
-                            imgSrc = String.join("/", pageURLTokensA);
-                        }
-                    }
                     if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                         logger.debug("URL of image too big ");
                         logger.debug(pageURL.substring(0, 500) + "...");
