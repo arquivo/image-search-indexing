@@ -28,6 +28,7 @@ import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.kerby.util.Base64;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.archive.io.arc.ARCRecord;
 import org.jsoup.Jsoup;
@@ -47,6 +48,8 @@ import com.mongodb.ServerAddress;
 public class IndexImages {
     public static class Map extends Mapper<LongWritable, Text, LongWritable, NullWritable> {
         private static Logger logger = Logger.getLogger(Map.class);
+
+
         public static String collection;
 
         private MongoClient mongoClient;
@@ -56,6 +59,7 @@ public class IndexImages {
 
         @Override
         public void setup(Context context) {
+            logger.setLevel(Level.DEBUG);
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
             System.out.println("collection: " + collection);
@@ -118,10 +122,10 @@ public class IndexImages {
                 }
                 logger.debug("pageTstamp:" + pageTstamp);
 
-
+                long startTime, timeElapsed = System.currentTimeMillis();
                 for (Element el : imgs) {
                     String imgSrc = el.attr("abs:src");
-
+                    logger.debug("Getting information for: " + imgSrc);
                     if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                         logger.debug("URL of image too big ");
                         logger.debug(pageURL.substring(0, 500) + "...");
@@ -134,10 +138,15 @@ public class IndexImages {
                     String imgDigest = DigestUtils.md5Hex(imgSrc);
 
                     if (nullImageHashes.contains(imgDigest)) {
+                        logger.debug("Image already found in collection");
                         /*Image was not retrieved in this collection skip*/
                         continue;
                     } else {
+                        logger.debug("Getting info from MongoDB");
+                        startTime = System.currentTimeMillis();
                         ImageSQLDTO imgSQLDTO = retreiveImageFromDB(imgDigest, Long.parseLong(pageTstamp), context.getConfiguration());
+                        timeElapsed = System.currentTimeMillis() - startTime;
+                        logger.debug("MongoDB time (ms): " + timeElapsed);
                         if (imgSQLDTO == null) {
                             logger.debug("Got null image for hash: " + imgDigest);
                             nullImageHashes.add(imgDigest);
@@ -323,46 +332,7 @@ public class IndexImages {
     }
 
     public static class IndexReducer extends Reducer<LongWritable, NullWritable, LongWritable, NullWritable> {
-        private static Logger logger = Logger.getLogger(IndexReducer.class);
 
-        public String collectionName;
-        private MongoClient mongoClient;
-        private DBCollection images;
-
-        @Override
-        public void setup(Context context) {
-            Configuration config = context.getConfiguration();
-            collectionName = config.get("collection");
-            logger.debug("collection: " + collectionName);
-            MongoClientOptions.Builder options = MongoClientOptions.builder();
-            options.socketKeepAlive(true);
-            mongoClient = new MongoClient(Arrays.asList(
-                    new ServerAddress("p37.arquivo.pt", 27020),
-                    new ServerAddress("p38.arquivo.pt", 27020),
-                    new ServerAddress("p39.arquivo.pt", 27020)), options.build());
-            DB database = mongoClient.getDB("hadoop_images");
-            images = database.getCollection("images");
-        }
-
-        public void reduce(LongWritable key, Iterable<NullWritable> values,
-                           Context context
-        ) throws IOException, InterruptedException {
-            /*We are removing all records from images db within the collection we have just indexed to clean space*/
-            logger.debug("Reduce IndexImages");
-            BasicDBObject query = new BasicDBObject();
-            query.append("collection", collectionName);
-            images.remove(query);
-
-            context.write(new LongWritable(0L), NullWritable.get()); //dumb code write 0 , NULLWritable to finish reduce phase
-        }
-
-        @Override
-        protected void cleanup(Reducer<LongWritable, NullWritable, LongWritable, NullWritable>.Context context)
-                throws IOException, InterruptedException {
-
-            mongoClient.close();
-            super.cleanup(context);
-        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -382,6 +352,8 @@ public class IndexImages {
         assert args.length >= 5 : "Missing argument max arcs per map";
         int linespermap = Integer.parseInt(args[4]);
 
+
+
         Configuration conf = new Configuration();
         conf.set("collection", collection);
         conf.set("mondodb.servers", mongodbServers);
@@ -390,10 +362,11 @@ public class IndexImages {
         job.setJarByClass(IndexImages.class);
         job.setMapperClass(Map.class);
         job.setMapOutputValueClass(NullWritable.class);
+
         job.setOutputFormatClass(NullOutputFormat.class);
         job.setOutputKeyClass(LongWritable.class);
-        job.setOutputValueClass(NullWritable.class);
         job.setReducerClass(IndexReducer.class);
+
         job.setJobName(jobName);
         job.setInputFormatClass(NLineInputFormat.class);
 
