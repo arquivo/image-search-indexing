@@ -1,5 +1,8 @@
-import com.mongodb.*;
-import org.apache.commons.codec.binary.Base64;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+
+import data.ImageData;
+import data.PageImageData;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -10,6 +13,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.kerby.util.Base64;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.archive.io.arc.ARCRecord;
@@ -40,13 +44,10 @@ public class FullImageIndexer {
             collection = config.get("collection");
             System.out.println("collection: " + collection);
 
-            MongoClientOptions.Builder options = MongoClientOptions.builder();
-            options.socketKeepAlive(true);
 
             logger.debug(collection + "_Images" + "/img/");
             this.collection = config.get("collection");
             System.out.println("collection: " + this.collection);
-            options.socketKeepAlive(true);
 
         }
 
@@ -59,18 +60,14 @@ public class FullImageIndexer {
 
         public void saveImageMetadata(String url, String image_hash_key, String tstamp, String mime, String content_hash, byte[] contentBytes, Context context) {
             String imgSurtSrc = SURT.toSURT(url);
-            DBObject img = new BasicDBObject("_id", new BasicDBObject("image_hash_key", image_hash_key).append("tstamp", tstamp))
-                    .append("url", url)
-                    .append("surt", imgSurtSrc)
-                    .append("tstamp", tstamp)
-                    .append("mime", mime)
-                    .append("collection", this.collection)
-                    .append("safe", -1)
-                    .append("content_hash", content_hash)
-                    .append("bytes64string", Base64.encodeBase64String(contentBytes));
+
+
+            ImageData imageData = new ImageData(image_hash_key, tstamp, url, imgSurtSrc, mime, this.collection, content_hash, Base64.encodeBase64String(contentBytes));
+            Gson gson = new Gson();
+
 
             try {
-                context.write(new Text(imgSurtSrc), new Text(img.toString()));
+                context.write(new Text(imgSurtSrc), new Text(gson.toJson(imageData)));
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -188,23 +185,10 @@ public class FullImageIndexer {
         private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String pageTitle, String pageURLTokens, Mapper<LongWritable, Text, Text, Text>.Context context) {
             try {
                 String imgSurtSrc = SURT.toSURT(imgSrc);
-                BasicDBObject img = new BasicDBObject()
-                        .append("_id", imgSurtSrc)
-                        .append("imgTitle", imgTitle)
-                        .append("imgAlt", imgAlt)
-                        .append("safe", -1)
-                        .append("imgSrc", imgSrc) /*The URL of the Image*/
-                        .append("imgSrcTokens", imgSrcTokens)
-                        .append("pageImages", pageImages)
-                        .append("pageTstamp", pageTstamp)
-                        .append("pageURL", pageURL) /*The URL of the Archived page*/
-                        .append("pageHost", pageHost)
-                        .append("pageProtocol", pageProtocol)
-                        .append("pageTitle", pageTitle) /*The URL of the Archived page*/
-                        .append("pageURLTokens", pageURLTokens)
-                        .append("collection", collection);
 
-                context.write(new Text(imgSurtSrc), new Text(img.toString()));
+                PageImageData pageImageData = new PageImageData(imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
+                Gson gson = new Gson();
+                context.write(new Text(imgSurtSrc), new Text(gson.toJson(pageImageData)));
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -260,10 +244,17 @@ public class FullImageIndexer {
     public static class Reduce extends Reducer<Text, Text, Text, Text> {
 
         public void reduce(Text key, Iterable<Text> values, Context context) {
-
+            Gson gson = new Gson();
             int i = 0;
             for (Text val : values) {
-                System.out.println(val);
+                try {
+                    PageImageData page = gson.fromJson(val.toString(), PageImageData.class);
+                    //WIP: do stuff
+                } catch (JsonSyntaxException e){
+                    ImageData page = gson.fromJson(val.toString(), ImageData.class);
+                    //WIP: do stuff
+                }
+
                 i++;
             }
 
