@@ -358,7 +358,7 @@ public class IndexImages {
         conf.set("collection", collection);
         conf.set("mondodb.servers", mongodbServers);
 
-        Job job = Job.getInstance(conf, "Index Images");
+        Job job = new Job(conf);
         job.setJarByClass(IndexImages.class);
         job.setMapperClass(Map.class);
         job.setMapOutputValueClass(NullWritable.class);

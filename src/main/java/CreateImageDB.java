@@ -163,7 +163,7 @@ public class CreateImageDB {
         conf.set("mapred.job.priority", JobPriority.VERY_HIGH.toString());
         conf.set("mondodb.servers", mongodbServers);
 
-        Job job = new Job(conf, "Mapper_Only_Job");
+        Job job = new Job(conf);
         job.setJarByClass(CreateImageDB.class);
         job.setMapperClass(ImageMap.class);
         job.setJobName(jobName);
