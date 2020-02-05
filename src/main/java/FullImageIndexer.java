@@ -1,18 +1,24 @@
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 
+import data.FullImageMetadata;
 import data.ImageData;
 import data.PageImageData;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.kerby.util.Base64;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -23,12 +29,17 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import utils.WARCInformationParser;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import static utils.WARCInformationParser.getClosest;
 
 
 public class FullImageIndexer {
@@ -39,15 +50,12 @@ public class FullImageIndexer {
 
         @Override
         public void setup(Context context) {
-            logger.setLevel(Level.DEBUG);
+            //logger.setLevel(Level.DEBUG);
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
-            System.out.println("collection: " + collection);
-
 
             logger.debug(collection + "_Images" + "/img/");
             this.collection = config.get("collection");
-            System.out.println("collection: " + this.collection);
 
         }
 
@@ -59,7 +67,7 @@ public class FullImageIndexer {
         }
 
         public void saveImageMetadata(String url, String image_hash_key, String tstamp, String mime, String content_hash, byte[] contentBytes, Context context) {
-            String imgSurtSrc = SURT.toSURT(url);
+            String imgSurtSrc = WARCInformationParser.toSURT(url);
 
 
             ImageData imageData = new ImageData(image_hash_key, tstamp, url, imgSurtSrc, mime, this.collection, content_hash, Base64.encodeBase64String(contentBytes));
@@ -184,9 +192,9 @@ public class FullImageIndexer {
 
         private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String pageTitle, String pageURLTokens, Mapper<LongWritable, Text, Text, Text>.Context context) {
             try {
-                String imgSurtSrc = SURT.toSURT(imgSrc);
+                String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-                PageImageData pageImageData = new PageImageData(imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
+                PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
                 Gson gson = new Gson();
                 context.write(new Text(imgSurtSrc), new Text(gson.toJson(pageImageData)));
             } catch (IOException e) {
@@ -203,7 +211,6 @@ public class FullImageIndexer {
                 throws IOException, InterruptedException {
             String arcURL = value.toString();
 
-            System.out.println("(W)ARCNAME: " + arcURL);
             logger.info("(W)ARCNAME: " + arcURL);
 
             if (arcURL.endsWith("warc.gz") || arcURL.endsWith("warc")) {
@@ -241,30 +248,58 @@ public class FullImageIndexer {
 
     }
 
-    public static class Reduce extends Reducer<Text, Text, Text, Text> {
+    public static class Reduce extends Reducer<Text, Text, NullWritable, Text> {
+
+        private Logger logger = Logger.getLogger(ImageMap.class);
+        public String collection;
+
+        @Override
+        public void setup(Reducer.Context context) {
+            //logger.setLevel(Level.DEBUG);
+            Configuration config = context.getConfiguration();
+            collection = config.get("collection");
+
+            logger.debug(collection + "_Images" + "/img/");
+            this.collection = config.get("collection");
+
+        }
+
 
         public void reduce(Text key, Iterable<Text> values, Context context) {
             Gson gson = new Gson();
             int i = 0;
+            List<PageImageData> pages = new LinkedList<>();
+            List<ImageData> images = new LinkedList<>();
             for (Text val : values) {
                 try {
                     PageImageData page = gson.fromJson(val.toString(), PageImageData.class);
-                    //WIP: do stuff
-                } catch (JsonSyntaxException e){
-                    ImageData page = gson.fromJson(val.toString(), ImageData.class);
-                    //WIP: do stuff
+                    if (page.getType() == null || !page.getType().equals("page"))
+                        throw new JsonSyntaxException("");
+                    pages.add(page);
+                } catch (JsonSyntaxException e) {
+                    ImageData image = gson.fromJson(val.toString(), ImageData.class);
+                    images.add(image);
                 }
+            }
+            if (images.size() != 0 && pages.size() != 0) {
+                logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
+                ImageData image = images.get(0);
 
-                i++;
+                LocalDateTime timekey = image.getTimestamp();
+
+                PageImageData closestPage = getClosest(pages, timekey);
+
+                FullImageMetadata allMetadata = new FullImageMetadata(image, closestPage);
+
+                try {
+                    context.write(NullWritable.get(), new Text(gson.toJson(allMetadata)));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
 
-            try {
-                context.write(key, new Text("" + i));
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         }
 
 
@@ -276,30 +311,23 @@ public class FullImageIndexer {
 
         assert args.length >= 2 : "Missing collection name argument";
         String collection = args[1];
-        String jobName = collection + "_IndexImages_2";
-
-        assert args.length >= 3 : "Missing argument max running map in parallel";
-        int maxMaps = Integer.parseInt(args[2]);
-
-        assert args.length >= 4 : "Missing argument max arcs per map";
-        int linespermap = Integer.parseInt(args[3]);
-
+        String jobName = collection + "_FullIndexer";
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
 
         Job job = Job.getInstance(conf, "Index Images");
         job.setJarByClass(FullImageIndexer.class);
-
         job.setInputFormatClass(NLineInputFormat.class);
-        job.setMapperClass(FullImageIndexer.Map.class);
 
+        job.setMapperClass(FullImageIndexer.Map.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(Text.class);
 
         job.setReducerClass(FullImageIndexer.Reduce.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(NullWritable.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
 
 
         job.setJobName(jobName);
@@ -307,13 +335,17 @@ public class FullImageIndexer {
 
         NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
 
-        job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
-        job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
-
+        //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
+        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks((int) (112 * 1.25));
 
-        FileOutputFormat.setOutputPath(job, new Path("/user/amourao/output/" + collection));
+        String outputDir = "/user/amourao/output/" + collection;
+        FileOutputFormat.setOutputPath(job, new Path(outputDir));
+
+        FileSystem hdfs = FileSystem.get(conf);
+        if (hdfs.exists(new Path(outputDir)))
+            hdfs.delete(new Path(outputDir), true);
 
         boolean result = job.waitForCompletion(true);
 
