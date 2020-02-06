@@ -31,7 +31,8 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
 import static utils.WARCInformationParser.getClosest;
 
@@ -205,7 +206,7 @@ public class FullImageIndexer {
                         continue;
                     }
                     if (imgSrc.startsWith("data:image")) {
-                        logger.debug("Base64 image ");
+                        logger.debug("Base64 image");
                         context.getCounter(STATS_COUNTER.IMAGES_IN_HTML_BASE64).increment(1);
                         continue;
                     }/*Maximum size for SOLR index is 10 000*/
@@ -315,20 +316,37 @@ public class FullImageIndexer {
 
         public void reduce(Text key, Iterable<Text> values, Context context) {
             Gson gson = new Gson();
-            int i = 0;
+            int pagesCount = 0;
+            int imagesCount = 0;
             List<PageImageData> pages = new LinkedList<>();
             List<ImageData> images = new LinkedList<>();
+
+            //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
+            logger.info("Reducing: " + key);
             for (Text val : values) {
                 try {
                     PageImageData page = gson.fromJson(val.toString(), PageImageData.class);
                     if (page.getType() == null || !page.getType().equals("page"))
                         throw new JsonSyntaxException("");
                     pages.add(page);
+                    pagesCount++;
+
                 } catch (JsonSyntaxException e) {
                     ImageData image = gson.fromJson(val.toString(), ImageData.class);
                     images.add(image);
+                    imagesCount++;
                 }
+                if ( (pagesCount+imagesCount) % 100 == 0){
+                    logger.info(String.format("Still iterating: %d pages and %d images", pagesCount, imagesCount));
+                }
+
+                if ((pagesCount+imagesCount) >= 1000){
+                    logger.info(String.format("Broke iterating: %d pages and %d images", pagesCount, imagesCount));
+                    break;
+                }
+
             }
+            logger.info(String.format("Found %d pages and %d images", pagesCount, imagesCount));
             if (images.size() != 0 && pages.size() != 0) {
 
                 context.getCounter(STATS_COUNTER.PAGES_WITH_MATCHING_IMAGES).increment(pages.size());
