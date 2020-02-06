@@ -2,7 +2,6 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
@@ -163,7 +162,7 @@ public class CreateImageDB {
         conf.set("mapred.job.priority", JobPriority.VERY_HIGH.toString());
         conf.set("mondodb.servers", mongodbServers);
 
-        Job job = new Job(conf);
+        Job job = Job.getInstance(conf);
         job.setJarByClass(CreateImageDB.class);
         job.setMapperClass(ImageMap.class);
         job.setJobName(jobName);

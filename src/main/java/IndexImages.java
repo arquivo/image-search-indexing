@@ -1,22 +1,15 @@
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -30,7 +23,6 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.kerby.util.Base64;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.archive.io.arc.ARCRecord;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -358,7 +350,7 @@ public class IndexImages {
         conf.set("collection", collection);
         conf.set("mondodb.servers", mongodbServers);
 
-        Job job = new Job(conf);
+        Job job = Job.getInstance(conf);
         job.setJarByClass(IndexImages.class);
         job.setMapperClass(Map.class);
         job.setMapOutputValueClass(NullWritable.class);

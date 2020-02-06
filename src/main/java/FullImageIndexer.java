@@ -376,7 +376,7 @@ public class FullImageIndexer {
         Configuration conf = new Configuration();
         conf.set("collection", collection);
 
-        Job job = new Job(conf);
+        Job job = Job.getInstance(conf);
         job.setJarByClass(FullImageIndexer.class);
         job.setInputFormatClass(NLineInputFormat.class);
 
@@ -396,7 +396,7 @@ public class FullImageIndexer {
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
-        job.setNumReduceTasks((int) (112 * 1.25));
+        job.setNumReduceTasks((int) (112 * 1.25 * 2));
 
         String outputDir = "/user/amourao/output/" + collection;
         FileOutputFormat.setOutputPath(job, new Path(outputDir));
