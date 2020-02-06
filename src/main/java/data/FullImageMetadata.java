@@ -1,30 +1,42 @@
 package data;
 
 public class FullImageMetadata {
-    private String imageHashKey;
-    private String tstamp;
-    private String url;
 
-    private String surt;
-    private String mime;
     private String collection;
-    private String contentHash;
-    private String bytes64String;
-    private String imgTitle;
-    private String imgAlt;
-    private String imgSrcTokens;
-    private String pageTitle;
-    private String pageURLTokens;
-    private String imgSrc;
 
-    private String imageSurt;
-    private int pageImages;
-    private int safe;
-    private int spam;
-    private String pageTstamp;
-    private String pageURL;
+    //TODO: what to do when more than one image per image url (different timestamps/collections)
+    //TODO: what to do when more than one page per image url
+
+    // Info extracted from the image bytes
+    private String imgTimestamp;
+    private String imgSurt;
+    private String imgUrl;
+
+    private String mime;
+    private String imgSrcBase64;
+    private String imgDigest;
+
+    private int imgWidth;
+    private int imgHeight;
+    private String imgSrcTokens;
+
+    // Info extracted from the associated page HTML
+    private String pageTimestamp;
+    private String pageUrl;
     private String pageHost;
     private String pageProtocol;
+    private int pageImages;
+
+    // searchable tokens
+    private String pageTitle;
+    private String pageURLTokens;
+    private String imgTitle;
+    private String imgAlt;
+
+    // Externally computed placeholders
+    private int safe;
+    private int spam;
+
 
     public FullImageMetadata(ImageData image, PageImageData page) {
         this.imgTitle = page.getImgTitle();
@@ -32,25 +44,23 @@ public class FullImageMetadata {
         this.imgSrcTokens = page.getImgSrcTokens();
         this.pageTitle = page.getPageTitle();
         this.pageURLTokens = page.getPageURLTokens();
-        this.imgSrc = page.getImgSrc();
-        this.imageSurt = page.getImageSurt();
+        this.imgSurt = image.getSurt();
         this.pageImages = page.getPageImages();
-        //this.pageTstamp = page.getPageTstamp();
-        this.pageURL = page.getPageURL();
+        this.pageUrl = page.getPageURL();
         this.pageHost = page.getPageHost();
         this.pageProtocol = page.getPageProtocol();
 
-        this.imageHashKey = image.getImageHashKey();
-        this.tstamp = image.getTstamp();
-        this.url = image.getUrl();
-        this.surt = image.getSurt();
+        this.imgUrl = image.getUrl();
         this.mime = image.getMime();
         this.collection = image.getCollection();
-        this.contentHash = image.getContentHash();
-        this.bytes64String = image.getBytes64String();
+        this.imgDigest = image.getContentHash();
+        this.imgSrcBase64 = image.getBytesBase64();
 
-        this.pageTstamp = page.getTimestamp().toString();
-        this.tstamp = image.getTimestamp().toString();
+        this.pageTimestamp = page.getTimestamp().toString();
+        this.imgTimestamp = image.getTimestamp().toString();
+
+        this.imgWidth = image.getWidth();
+        this.imgHeight = image.getHeight();
 
         this.safe = -1;
         this.spam = 0;

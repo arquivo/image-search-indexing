@@ -1,3 +1,4 @@
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -9,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 
 import javax.imageio.ImageIO;
 
+import data.ImageData;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Method;
 
@@ -16,17 +18,22 @@ import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 
 public class ImageParse {
-	
-	public ImageParse( ) { }
 
-	/**
-	 * 
-	 * @param img
-	 * @param widthThumbnail 
-	 * @param heightThumbnail
-	 * @return
-	 * @throws InterruptedException 
-	 */
+	//TODO: extract this variables to config files
+    public static final int THUMB_HEIGHT = 200;
+    public static final int THUMB_WIDTH = 200;
+    public static final int MIN_WIDTH = 51;
+    public static final int MIN_HEIGHT = 51;
+    public static final String DIGEST_ALGORITHM = "SHA-256";
+
+    /**
+     *
+     * @param img
+     * @param widthThumbnail
+     * @param heightThumbnail
+     * @return
+     * @throws InterruptedException
+     */
 //	public static ImageSearchResult getPropImage( String imageURL ) throws InterruptedException {
 //		ImageSearchResult img = new ImageSearchResult( );
 //		BufferedImage bimg;
@@ -129,153 +136,243 @@ public class ImageParse {
 //		}
 //		
 //	}
-	
-	/**
-	 * get sha-256 digest string of a given string data
-	 * @param data
-	 * @return
-	 */
+
+    /**
+     * get sha-256 digest string of a given string data
+     *
+     * @param data
+     * @return
+     */
     public static String hash256(String data) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
         md.update(data.getBytes());
         return convertByteArrayToHexString(md.digest());
-    }	
+    }
 
 
-	/**
-	 * convert the byte to hex format method (digest imgge)
-	 * @param arrayBytes
-	 * @return
-	 */
-	private static String convertByteArrayToHexString( byte[ ] byteData ) {
-        StringBuffer hexString = new StringBuffer( );
-    	for ( int i = 0 ; i < byteData.length ; i++ ) {
-    		String hex = Integer.toHexString( 0xff & byteData[ i ] );
-   	     	if( hex.length( ) == 1 ) hexString.append( '0' );
-   	     	hexString.append( hex );
-    	}
-    	
-    	return hexString.toString( );
-	}
-	
-	/**
-	 * Get mimetype from url
-	 * @param uc
-	 * @return
-	 * @throws java.io.IOException
-	 * @throws MalformedURLException
-	 */
+    /**
+     * convert the byte to hex format method (digest imgge)
+     *
+     * @param byteData
+     * @return
+     */
+    private static String convertByteArrayToHexString(byte[] byteData) {
+        StringBuffer hexString = new StringBuffer();
+        for (int i = 0; i < byteData.length; i++) {
+            String hex = Integer.toHexString(0xff & byteData[i]);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+
+        return hexString.toString();
+    }
+
+    /**
+     * Get mimetype from url
+     *
+     * @param imgSQLDTO
+     * @return
+     * @throws java.io.IOException
+     * @throws MalformedURLException
+     */
 //	public static String getMimeType( URLConnection uc ) throws java.io.IOException, MalformedURLException {
 //		return uc.getContentType( );
 //    }
+    public static ImageSearchResult getPropImage(ImageSQLDTO imgSQLDTO) {
+        ImageSearchResult img = new ImageSearchResult();
+        BufferedImage bimg;
+        String base64String,
+                base64StringOriginal;
+        String type = null;
+        MessageDigest digest = null;
+        BufferedImage scaledImg = null;
+        ByteArrayOutputStream bao = new ByteArrayOutputStream();
+        try {
+            int thumbWidth = THUMB_WIDTH, thumbHeight = THUMB_HEIGHT;
 
-	public static ImageSearchResult getPropImage(ImageSQLDTO imgSQLDTO) {
-		ImageSearchResult img = new ImageSearchResult( );
-		BufferedImage bimg;
-		String base64String, 
-			base64StringOriginal;	
-		String type = null;
-		MessageDigest digest = null;
-		BufferedImage scaledImg = null;
-		ByteArrayOutputStream bao = new ByteArrayOutputStream( );
-		try {
-			int thumbWidth 	= 200, thumbHeight = 200;
+            digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
+            InputStream inImg = new ByteArrayInputStream(imgSQLDTO.getContent());
+            bimg = ImageIO.read(inImg);
+            type = imgSQLDTO.getMimeType();
+            int width = bimg.getWidth(null);
+            int height = bimg.getHeight(null);
 
-			digest = MessageDigest.getInstance( "SHA-256" );
-			InputStream inImg =  new ByteArrayInputStream(imgSQLDTO.getContent());
-			bimg = ImageIO.read( inImg );
-			type = imgSQLDTO.getMimeType();
-			int width          	= bimg.getWidth( null );
-			int height         	= bimg.getHeight( null );
-			
-			if(width<51 || height<51){
-				/*Do not index very small images*/
-				return null;
-			}
-			
-			img.setMime( type );
-			img.setHeight( Double.toString( height ) );
-			img.setWidth( Double.toString( width ) );
-			/*img.setUrl( imageURL );*/
+            if (width < MIN_WIDTH || height < MIN_HEIGHT) {
+                /*Do not index very small images*/
+                return null;
+            }
 
-			byte[ ] bytesImgOriginal = imgSQLDTO.getContent();
-			//calculate digest
-			digest.update( bytesImgOriginal );
-			byte byteDigest[ ] = digest.digest();
-			img.setDigest( convertByteArrayToHexString( byteDigest ) );
+            img.setMime(type);
+            img.setHeight(Double.toString(height));
+            img.setWidth(Double.toString(width));
+            /*img.setUrl( imageURL );*/
 
-			if( width < thumbWidth || height < thumbHeight )
-				scaledImg = bimg;
-			else {
-				
-				if( type.equals( "image/gif" )  ) {
-					
-					//byte[] output = getThumbnailGif( inImg , thumbWidth , thumbHeight );
-					// Create a byte array output stream.
+            byte[] bytesImgOriginal = imgSQLDTO.getContent();
+            //calculate digest
+            digest.update(bytesImgOriginal);
+            byte byteDigest[] = digest.digest();
+            img.setDigest(convertByteArrayToHexString(byteDigest));
+
+            if (width < thumbWidth || height < thumbHeight)
+                scaledImg = bimg;
+            else {
+
+                if (type.equals("image/gif")) {
+
+                    //byte[] output = getThumbnailGif( inImg , thumbWidth , thumbHeight );
+                    // Create a byte array output stream.
 					/*if( imageURL == null )
 						return null;*/
-			        
-					base64StringOriginal = Base64.encode( bytesImgOriginal );
-					bao.close( );
-					img.setThumbnail( base64StringOriginal );
-					return img;
 
-				} else {
-					double thumbRatio = (double) thumbWidth / (double) thumbHeight;
-					double imageRatio = (double) width / (double) height;
-					if ( thumbRatio < imageRatio ) 
-						thumbHeight = (int)( thumbWidth / imageRatio );
-					else 
-						thumbWidth = (int)( thumbHeight * imageRatio );
-					
-					if( width < thumbWidth && height < thumbHeight ) {
-						thumbWidth  = width;
-						thumbHeight = height;
-					} else if( width < thumbWidth )
-						thumbWidth = width;
-					else if( height < thumbHeight )
-						thumbHeight = height;
-					
-					scaledImg = Scalr.resize( bimg, 
-												Method.QUALITY, 
-												Scalr.Mode.AUTOMATIC, 
-												thumbWidth, 
-												thumbHeight, 
-												Scalr.OP_ANTIALIAS ); //create thumbnail				
-				}
-			}
+                    base64StringOriginal = Base64.encode(bytesImgOriginal);
+                    bao.close();
+                    img.setThumbnail(base64StringOriginal);
+                    return img;
+
+                } else {
+                    double thumbRatio = (double) thumbWidth / (double) thumbHeight;
+                    double imageRatio = (double) width / (double) height;
+                    if (thumbRatio < imageRatio)
+                        thumbHeight = (int) (thumbWidth / imageRatio);
+                    else
+                        thumbWidth = (int) (thumbHeight * imageRatio);
+
+                    if (width < thumbWidth && height < thumbHeight) {
+                        thumbWidth = width;
+                        thumbHeight = height;
+                    } else if (width < thumbWidth)
+                        thumbWidth = width;
+                    else if (height < thumbHeight)
+                        thumbHeight = height;
+
+                    scaledImg = Scalr.resize(bimg,
+                            Method.QUALITY,
+                            Scalr.Mode.AUTOMATIC,
+                            thumbWidth,
+                            thumbHeight,
+                            Scalr.OP_ANTIALIAS); //create thumbnail
+                }
+            }
 
 
-			// Write to output stream
-	        ImageIO.write( scaledImg , type.substring( 6 ) , bao );
-	        bao.flush( );
-	        
-	        // Create a byte array output stream.
-	        base64String = Base64.encode( bao.toByteArray( ) );
-	        bao.close( );
-	        img.setThumbnail( base64String );
-	
-			return img;
+            // Write to output stream
+            ImageIO.write(scaledImg, type.substring(6), bao);
+            bao.flush();
 
-		} catch ( MalformedURLException e ) {
-			e.printStackTrace( );
-			return null;
-		} catch ( IOException e ) {
-			e.printStackTrace( );
-			return null;
-		} catch( IllegalArgumentException e ) {
-			e.printStackTrace( );
-			return null;
-		} catch ( Exception e ) {
-			 e.printStackTrace();
-			 return null;
-		}
-		
-	}
+            // Create a byte array output stream.
+            base64String = Base64.encode(bao.toByteArray());
+            bao.close();
+            img.setThumbnail(base64String);
 
-	
-	
-	
+            return img;
 
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+    }
+
+
+    public static ImageData getPropImage(ImageData img) {
+        BufferedImage bimg;
+        String base64String;
+        String type = null;
+        MessageDigest digest = null;
+        BufferedImage scaledImg = null;
+        ByteArrayOutputStream bao = new ByteArrayOutputStream();
+        try {
+            int thumbWidth = THUMB_WIDTH, thumbHeight = THUMB_HEIGHT;
+
+            digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
+            InputStream inImg = new ByteArrayInputStream(img.getBytes());
+            bimg = ImageIO.read(inImg);
+
+            int width = bimg.getWidth(null);
+            int height = bimg.getHeight(null);
+
+			img.setHeight(height);
+			img.setWidth(width);
+
+			//To not do further processing, it will be ignored at the next stage
+			//This is only returning a correct value to collect statistics in the map job
+            if (width < MIN_WIDTH || height < MIN_HEIGHT) {
+                return img;
+            }
+
+            byte[] bytesImgOriginal = img.getBytes();
+            //calculate digest
+            digest.update(bytesImgOriginal);
+            byte byteDigest[] = digest.digest();
+            img.setContentHash(convertByteArrayToHexString(byteDigest));
+
+            if (width < thumbWidth || height < thumbHeight)
+                scaledImg = bimg;
+            else {
+
+                if (type.equals("image/gif")) {
+
+                    //byte[] output = getThumbnailGif( inImg , thumbWidth , thumbHeight );
+                    // Create a byte array output stream.
+					/*if( imageURL == null )
+						return null;*/
+					bao.close();
+                    img.setBytes(bytesImgOriginal);
+                    return img;
+
+                } else {
+                    double thumbRatio = (double) thumbWidth / (double) thumbHeight;
+                    double imageRatio = (double) width / (double) height;
+                    if (thumbRatio < imageRatio)
+                        thumbHeight = (int) (thumbWidth / imageRatio);
+                    else
+                        thumbWidth = (int) (thumbHeight * imageRatio);
+
+                    if (width < thumbWidth && height < thumbHeight) {
+                        thumbWidth = width;
+                        thumbHeight = height;
+                    } else if (width < thumbWidth)
+                        thumbWidth = width;
+                    else if (height < thumbHeight)
+                        thumbHeight = height;
+
+                    scaledImg = Scalr.resize(bimg,
+                            Method.QUALITY,
+                            Scalr.Mode.AUTOMATIC,
+                            thumbWidth,
+                            thumbHeight,
+                            Scalr.OP_ANTIALIAS); //create thumbnail
+                }
+            }
+
+
+            // Write to output stream
+            //TODO: check if writing in the "original" format (type.substring(6)) works or whether everything should be converted to PNG
+            ImageIO.write(scaledImg, type.substring(6), bao);
+            bao.flush();
+
+            // Create a byte array output stream.
+            base64String = Base64.encode(bao.toByteArray());
+            bao.close();
+            img.setBytes(base64String);
+
+            return img;
+
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
 }

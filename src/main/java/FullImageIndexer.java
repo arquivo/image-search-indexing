@@ -4,6 +4,8 @@ import com.google.gson.JsonSyntaxException;
 import data.FullImageMetadata;
 import data.ImageData;
 import data.PageImageData;
+import org.apache.commons.codec.cli.Digest;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,7 +45,7 @@ public class FullImageIndexer {
         WARCS,
         PAGES,
         PAGES_WITH_IMAGES,
-        PAGES_WITH_MATCHING_IMAGES,
+        PAGES_WITH_MATCHING_IMAGES_DUPS,
 
         IMAGES_IN_HTML_TOTAL,
         IMAGES_IN_HTML_FAILED,
@@ -54,6 +56,7 @@ public class FullImageIndexer {
         IMAGES_IN_WARC_TOTAL,
         IMAGES_IN_WARC_FAILED,
         IMAGES_IN_WARC_PARSED,
+        IMAGES_IN_WARC_TOO_SMALL,
 
         IMAGES_WITH_MATCHING_PAGES,
         IMAGES_WITH_MATCHING_PAGES_DUPS,
@@ -79,24 +82,33 @@ public class FullImageIndexer {
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
 
-            logger.debug(collection + "_Images" + "/img/");
+            logger.debug(collection + "_Images/img/");
             this.collection = config.get("collection");
 
         }
 
-        public void saveImageMetadata(String url, String image_hash_key, String tstamp, String mime, String content_hash, byte[] contentBytes, Context context) {
+        public void saveImageMetadata(String url, String imageHashKey, String timestamp, String mime, byte[] contentBytes, Context context) {
 
-            context.getCounter(STATS_COUNTER.IMAGES_IN_WARC_PARSED).increment(1);
+            String imgSurt = WARCInformationParser.toSURT(url);
 
-            String imgSurtSrc = WARCInformationParser.toSURT(url);
-            ImageData imageData = new ImageData(image_hash_key, tstamp, url, imgSurtSrc, mime, this.collection, content_hash, Base64.encodeBase64String(contentBytes));
-            Gson gson = new Gson();
-            try {
-                context.write(new Text(imgSurtSrc), new Text(gson.toJson(imageData)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            ImageData img = new ImageData(imageHashKey, timestamp, url, imgSurt, mime, this.collection, contentBytes);
+
+            img = ImageParse.getPropImage(img);
+
+            if (img == null) {
+                context.getCounter(STATS_COUNTER.IMAGES_IN_WARC_FAILED).increment(1);
+            } else if (img.getWidth() < ImageParse.MIN_WIDTH || img.getWidth() < ImageParse.MIN_HEIGHT) {
+                context.getCounter(STATS_COUNTER.IMAGES_IN_WARC_TOO_SMALL).increment(1);
+            } else {
+                context.getCounter(STATS_COUNTER.IMAGES_IN_WARC_PARSED).increment(1);
+                Gson gson = new Gson();
+                try {
+                    context.write(new Text(imgSurt), new Text(gson.toJson(img)));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -105,8 +117,7 @@ public class FullImageIndexer {
             String timestamp = record.getTs();
             String mime = record.getContentMimetype();
 
-            String image_hash_key = ImageSearchIndexingUtil.md5ofString(url);
-            String content_hash = ImageSearchIndexingUtil.md5ofString(timestamp + "/" + url);
+            String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
             byte[] contentBytes = null;
 
             context.getCounter(STATS_COUNTER.IMAGES_IN_WARC_TOTAL).increment(1);
@@ -119,17 +130,15 @@ public class FullImageIndexer {
                 return;
             }
 
-            saveImageMetadata(url, image_hash_key, timestamp, mime, content_hash, contentBytes, context);
-
-
+            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
         }
 
         public void createImageDB(String arcURL, ARCRecord record, Context context) {
             String url = record.getHeader().getUrl();
-            String tstamp = record.getMetaData().getDate();
+            String timestamp = record.getMetaData().getDate();
             String mime = record.getMetaData().getMimetype();
-            String image_hash_key = ImageSearchIndexingUtil.md5ofString(url);
-            String content_hash = ImageSearchIndexingUtil.md5ofString(tstamp + "/" + url);
+            String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
+
             byte[] contentBytes;
 
             context.getCounter(STATS_COUNTER.IMAGES_IN_WARC_TOTAL).increment(1);
@@ -142,7 +151,7 @@ public class FullImageIndexer {
                 return;
             }
 
-            saveImageMetadata(url, image_hash_key, tstamp, mime, content_hash, contentBytes, context);
+            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
         }
 
         public void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String
@@ -336,11 +345,11 @@ public class FullImageIndexer {
                     images.add(image);
                     imagesCount++;
                 }
-                if ( (pagesCount+imagesCount) % 100 == 0){
+                if ((pagesCount + imagesCount) % 100 == 0) {
                     logger.info(String.format("Still iterating: %d pages and %d images", pagesCount, imagesCount));
                 }
 
-                if ((pagesCount+imagesCount) >= 1000){
+                if ((pagesCount + imagesCount) >= 1000) {
                     logger.info(String.format("Broke iterating: %d pages and %d images", pagesCount, imagesCount));
                     break;
                 }
@@ -349,7 +358,7 @@ public class FullImageIndexer {
             logger.info(String.format("Found %d pages and %d images", pagesCount, imagesCount));
             if (images.size() != 0 && pages.size() != 0) {
 
-                context.getCounter(STATS_COUNTER.PAGES_WITH_MATCHING_IMAGES).increment(pages.size());
+                context.getCounter(STATS_COUNTER.PAGES_WITH_MATCHING_IMAGES_DUPS).increment(pages.size());
                 context.getCounter(STATS_COUNTER.IMAGES_WITH_MATCHING_PAGES_DUPS).increment(images.size());
 
                 context.getCounter(STATS_COUNTER.IMAGES_WITH_MATCHING_PAGES).increment(1);
