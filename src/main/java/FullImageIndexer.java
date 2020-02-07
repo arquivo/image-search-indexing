@@ -1,6 +1,8 @@
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
+import com.j256.simplemagic.ContentInfo;
+import com.j256.simplemagic.ContentInfoUtil;
 import data.FullImageMetadata;
 import data.ImageData;
 import data.PageImageData;
@@ -41,6 +43,8 @@ public class FullImageIndexer {
         IMAGES_IN_WARC_FAILED,
         IMAGES_IN_WARC_PARSED,
         IMAGES_IN_WARC_TOO_SMALL,
+        IMAGES_IN_WARC_MIME_INVALID,
+        IMAGES_IN_WARC_MIME_WRONG,
     }
 
     public enum PAGE_COUNTERS {
@@ -55,13 +59,14 @@ public class FullImageIndexer {
     }
 
     public enum REDUCE_COUNTERS {
-        IMAGES_WITH_MATCHING_PAGES,
-        IMAGES_WITH_MATCHING_PAGES_DUPS,
-        IMAGES_WITHOUT_MATCHING_PAGES,
-        IMAGES_WITHOUT_MATCHING_PAGES_DUPS,
-        PAGES_WITHOUT_MATCHING_IMAGES,
-        PAGES_WITH_MATCHING_IMAGES_DUPS,
-        PAGES_WITHOUT_MATCHING_IMAGES_DUPS
+        URL_IMAGES_PAGES,
+        URL_IMAGES_PAGESALL,
+        URL_IMAGESALL_PAGES,
+        URL_IMAGES_NPAGES,
+        URL_IMAGESALL_NPAGES,
+        URL_NIMAGES_PAGES,
+        URL_NIMAGES_PAGES_ALL,
+        IMAGES_PAGES_EXCEEDED
     }
 
     public static class Map extends Mapper<LongWritable, Text, Text, Text> {
@@ -80,13 +85,39 @@ public class FullImageIndexer {
 
         }
 
-        public void saveImageMetadata(String url, String imageHashKey, String timestamp, String mime, byte[] contentBytes, Context context) {
+        public void saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Context context) {
 
             String imgSurt = WARCInformationParser.toSURT(url);
 
-            ImageData img = new ImageData(imageHashKey, timestamp, url, imgSurt, mime, this.collection, contentBytes);
+            String detectedMimeType = "";
 
-            img = ImageParse.getPropImage(img);
+            try {
+                ContentInfoUtil util = new ContentInfoUtil();
+                ContentInfo info = util.findMatch(contentBytes);
+
+                if (info == null) {
+                    context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
+                } else {
+                    detectedMimeType = info.getMimeType();
+                }
+
+                if (!detectedMimeType.isEmpty() && !detectedMimeType.equals(reportedMimeType)) {
+                    logger.debug(String.format("MimeType for http://arquivo.pt/wayback/%s/%s", timestamp, url));
+                    logger.debug(String.format("reported: \"%s\" ; detected: \"%s\"", reportedMimeType, detectedMimeType));
+                    context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_WRONG).increment(1);
+                }
+            } catch (Exception e) {
+                context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
+            }
+
+            ImageData img = new ImageData(imageHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes);
+
+            try {
+                img = ImageParse.getPropImage(img);
+            } catch (Exception e) {
+                context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+                return;
+            }
 
             if (img == null) {
                 context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
@@ -106,24 +137,31 @@ public class FullImageIndexer {
         }
 
         public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Context context) {
-            String url = record.getWARCRecord().getHeader().getUrl();
-            String timestamp = record.getTs();
-            String mime = record.getContentMimetype();
-
-            String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
-            byte[] contentBytes = null;
-
-            context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
-
             try {
-                contentBytes = record.getContentBytes();
-            } catch (RuntimeException e) {
-                logger.error(String.format("Error getting record content bytes for image url: %s with error message %s", url, e.getMessage()));
+                String url = record.getWARCRecord().getHeader().getUrl();
+                String timestamp = record.getTs();
+                String mime = record.getContentMimetype();
+
+                String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
+                byte[] contentBytes = null;
+
+                context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
+
+                try {
+                    contentBytes = record.getContentBytes();
+                } catch (RuntimeException e) {
+                    logger.error(String.format("Error getting record content bytes for image url: %s with error message %s", url, e.getMessage()));
+                    context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+                    return;
+                }
+
+                saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
+
+            } catch (Exception e) {
+                logger.error(String.format("Error parsing image url: %s with error message %s", arcURL, e.getMessage()));
                 context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
                 return;
             }
-
-            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
         }
 
         public void createImageDB(String arcURL, ARCRecord record, Context context) {
@@ -150,8 +188,8 @@ public class FullImageIndexer {
         public void parseImagesFromHtmlRecord(Context context, byte[] arcRecordBytes, String pageURL, String
                 pageTstamp) {
             try {
-                logger.info("Parsing Images from HTML in (W)ARCrecord");
-                logger.info("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
+                logger.debug("Parsing Images from HTML in (W)ARCrecord");
+                logger.debug("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
                 logger.debug("URL: " + pageURL);
                 logger.debug("Page TS: " + pageTstamp);
 
@@ -187,10 +225,10 @@ public class FullImageIndexer {
 
                 if (pageTstamp == null || pageTstamp.equals("")) {
                     logger.debug("Null pageTstamp");
+                    pageTstamp = "";
                 }
                 logger.debug("pageTstamp:" + pageTstamp);
 
-                long startTime, timeElapsed = System.currentTimeMillis();
                 for (Element el : imgs) {
                     String imgSrc = el.attr("abs:src");
 
@@ -258,8 +296,7 @@ public class FullImageIndexer {
         }
 
 
-        public void map(LongWritable key, Text value, Context context)
-                throws IOException, InterruptedException {
+        public void map(LongWritable key, Text value, Context context) {
             String arcURL = value.toString();
 
             logger.info("(W)ARCNAME: " + arcURL);
@@ -324,7 +361,7 @@ public class FullImageIndexer {
             List<ImageData> images = new LinkedList<>();
 
             //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
-            logger.info("Reducing: " + key);
+            logger.debug("Reducing: " + key);
             for (Text val : values) {
                 try {
                     PageImageData page = gson.fromJson(val.toString(), PageImageData.class);
@@ -338,25 +375,25 @@ public class FullImageIndexer {
                     images.add(image);
                     imagesCount++;
                 }
-                if ( (pagesCount + imagesCount) > 0 && (pagesCount + imagesCount) % 100 == 0) {
+                if ((pagesCount + imagesCount) > 0 && (pagesCount + imagesCount) % 100 == 0) {
                     logger.info(String.format("Still iterating: %d pages and %d images", pagesCount, imagesCount));
                 }
 
                 if ((pagesCount + imagesCount) >= 1000) {
                     logger.info(String.format("Broke iterating: %d pages and %d images", pagesCount, imagesCount));
+                    context.getCounter(REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
 
             }
-            logger.info(String.format("Found %d pages and %d images", pagesCount, imagesCount));
+            logger.debug(String.format("Found %d pages and %d images", pagesCount, imagesCount));
             if (images.size() != 0 && pages.size() != 0) {
 
-                context.getCounter(REDUCE_COUNTERS.PAGES_WITH_MATCHING_IMAGES_DUPS).increment(pages.size());
-                context.getCounter(REDUCE_COUNTERS.IMAGES_WITH_MATCHING_PAGES_DUPS).increment(images.size());
+                context.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(pages.size());
+                context.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(images.size());
+                context.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
-                context.getCounter(REDUCE_COUNTERS.IMAGES_WITH_MATCHING_PAGES).increment(1);
-
-                logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
+                //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
                 ImageData image = images.get(0);
 
                 LocalDateTime timekey = image.getTimestamp();
@@ -373,11 +410,11 @@ public class FullImageIndexer {
                     e.printStackTrace();
                 }
             } else if (images.size() != 0) {
-                context.getCounter(REDUCE_COUNTERS.IMAGES_WITHOUT_MATCHING_PAGES).increment(1);
-                context.getCounter(REDUCE_COUNTERS.IMAGES_WITHOUT_MATCHING_PAGES_DUPS).increment(images.size());
+                context.getCounter(REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                context.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(images.size());
             } else if (pages.size() != 0) {
-                context.getCounter(REDUCE_COUNTERS.PAGES_WITHOUT_MATCHING_IMAGES).increment(1);
-                context.getCounter(REDUCE_COUNTERS.PAGES_WITHOUT_MATCHING_IMAGES_DUPS).increment(pages.size());
+                context.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                context.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES_ALL).increment(pages.size());
             }
 
         }
@@ -414,10 +451,13 @@ public class FullImageIndexer {
 
         NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
 
+
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
+        //TODO: fix setting this number here
         job.setNumReduceTasks((int) (112 * 1.25 * 2));
+        //job.setNumReduceTasks(1);
 
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/

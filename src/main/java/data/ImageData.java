@@ -12,7 +12,8 @@ public class ImageData implements Comparable<LocalDateTime> {
 
     private String url;
     private String surt;
-    private String mime;
+    private String mimeReported;
+    private String mimeDetected;
     private String collection;
     private String contentHash;
     private String bytes;
@@ -21,27 +22,12 @@ public class ImageData implements Comparable<LocalDateTime> {
     private int height;
 
 
-    public ImageData(String imageHashKey, String timestamp, String url, String surt, String mime, String collection, String contentHash, byte[] bytes, int width, int height) {
+    public ImageData(String imageHashKey, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes) {
         this.imageHashKey = imageHashKey;
         this.url = url;
         this.surt = surt;
-        this.mime = mime;
-        this.collection = collection;
-        this.contentHash = contentHash;
-        this.bytes = Base64.encode(bytes);
-
-        this.width = width;
-        this.height = height;
-
-        this.timestamp = WARCInformationParser.parseLocalDateTime(timestamp);
-
-    }
-
-    public ImageData(String imageHashKey, String timestamp, String url, String surt, String mime, String collection, byte[] bytes) {
-        this.imageHashKey = imageHashKey;
-        this.url = url;
-        this.surt = surt;
-        this.mime = mime;
+        this.mimeReported = mimeReported;
+        this.mimeDetected = mimeDetected;
         this.collection = collection;
         this.bytes = Base64.encode(bytes);
 
@@ -50,7 +36,7 @@ public class ImageData implements Comparable<LocalDateTime> {
 
     @Override
     public String toString() {
-        return String.format("\"%s\": %s", mime, url);
+        return String.format("\"%s\": %s", mimeReported, url);
     }
 
     @Override
@@ -58,91 +44,100 @@ public class ImageData implements Comparable<LocalDateTime> {
         return this.timestamp.compareTo(timestamp);
     }
 
+
     public String getImageHashKey() {
         return imageHashKey;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public String getSurt() {
-        return surt;
-    }
-
-    public String getMime() {
-        return mime;
-    }
-
-    public String getCollection() {
-        return collection;
-    }
-
-    public String getContentHash() {
-        return contentHash;
-    }
-
-    public byte[] getBytes() {
-        return Base64.decode(bytes);
-    }
-
-    public String getBytesBase64() {
-        return bytes;
-    }
-
-    public void setHeight(int height) {
-        this.height = height;
-    }
-
-    public void setWidth(int width) {
-        this.width = width;
     }
 
     public void setImageHashKey(String imageHashKey) {
         this.imageHashKey = imageHashKey;
     }
 
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getUrl() {
+        return url;
     }
 
     public void setUrl(String url) {
         this.url = url;
     }
 
+    public String getSurt() {
+        return surt;
+    }
+
     public void setSurt(String surt) {
         this.surt = surt;
     }
 
-    public void setMime(String mime) {
-        this.mime = mime;
+    public String getMimeReported() {
+        return mimeReported;
+    }
+
+    public void setMimeReported(String mimeReported) {
+        this.mimeReported = mimeReported;
+    }
+
+    public String getMimeDetected() {
+        return mimeDetected;
+    }
+
+    public void setMimeDetected(String mimeDetected) {
+        this.mimeDetected = mimeDetected;
+    }
+
+    public String getCollection() {
+        return collection;
     }
 
     public void setCollection(String collection) {
         this.collection = collection;
     }
 
+    public String getContentHash() {
+        return contentHash;
+    }
+
     public void setContentHash(String contentHash) {
         this.contentHash = contentHash;
     }
 
-    public void setBytes(byte[] bytes) {
-        this.bytes = Base64.encode(bytes);
+    public String getBytes() {
+        return bytes;
     }
 
     public void setBytes(String bytes) {
         this.bytes = bytes;
     }
 
+    public void setBytes(byte[] bytes) {
+        this.bytes = Base64.encode(bytes);
+    }
+
     public int getWidth() {
         return width;
     }
 
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
     public int getHeight() {
         return height;
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+    }
+
+    public byte[] getBytesArray() {
+        return Base64.decode(this.bytes);
     }
 }

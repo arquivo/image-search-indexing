@@ -51,10 +51,10 @@ public class FullImageMetadata {
         this.pageProtocol = page.getPageProtocol();
 
         this.imgUrl = image.getUrl();
-        this.mime = image.getMime();
+        this.mime = image.getMimeDetected();
         this.collection = image.getCollection();
         this.imgDigest = image.getContentHash();
-        this.imgSrcBase64 = image.getBytesBase64();
+        this.imgSrcBase64 = image.getBytes();
 
         this.pageTimestamp = page.getTimestamp().toString();
         this.imgTimestamp = image.getTimestamp().toString();
