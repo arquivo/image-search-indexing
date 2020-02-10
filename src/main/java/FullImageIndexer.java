@@ -121,7 +121,7 @@ public class FullImageIndexer {
 
             if (img == null) {
                 context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
-            } else if (img.getWidth() < ImageParse.MIN_WIDTH || img.getWidth() < ImageParse.MIN_HEIGHT) {
+            } else if (img.getWidth() < ImageParse.MIN_WIDTH || img.getHeight() < ImageParse.MIN_HEIGHT) {
                 context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL).increment(1);
             } else {
                 context.getCounter(IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
@@ -211,8 +211,10 @@ public class FullImageIndexer {
 
                 context.getCounter(PAGE_COUNTERS.PAGES).increment(1);
 
-                if (imgs.size() > 0)
-                    context.getCounter(PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
+                if (imgs.size() == 0)
+                    return;
+
+                context.getCounter(PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
 
                 String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
                 pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
@@ -231,26 +233,25 @@ public class FullImageIndexer {
 
                 for (Element el : imgs) {
                     String imgSrc = el.attr("abs:src");
+                    String imgRelSrc = el.attr("src");
 
                     logger.debug("Getting information for: " + imgSrc);
+                    if (imgRelSrc.startsWith("data:image")) {
+                        logger.debug("Base64 image");
+                        context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
+                        continue;
+                    }
                     if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                         logger.debug("URL of image too big ");
                         logger.debug(pageURL.substring(0, 500) + "...");
                         context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
                         continue;
                     }/*Maximum size for SOLR index is 10 000*/
-
                     if (imgSrc == null || imgSrc.equals("")) {
                         logger.debug("Null imgSrc");
                         context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                         continue;
                     }
-                    if (imgSrc.startsWith("data:image")) {
-                        logger.debug("Base64 image");
-                        context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                        continue;
-                    }/*Maximum size for SOLR index is 10 000*/
-
 
                     context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
 
@@ -326,6 +327,7 @@ public class FullImageIndexer {
                             logger.error(String.format("Error getting record content bytes for (w)arc: %s on offset %d with error message %s", arcURL, record.getBodyOffset(), e.getMessage()));
                             return;
                         }
+                        logger.debug("Searching images in html record");
                         parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate());
                     }
                 });
