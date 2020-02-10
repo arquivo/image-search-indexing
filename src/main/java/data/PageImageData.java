@@ -4,6 +4,7 @@ package data;
 import utils.WARCInformationParser;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 
 public class PageImageData implements Comparable<LocalDateTime> {
 
@@ -112,4 +113,8 @@ public class PageImageData implements Comparable<LocalDateTime> {
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
+
+
+
 }
+

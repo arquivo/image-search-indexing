@@ -32,8 +32,9 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.time.LocalDateTime;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+
+import data.PageImageDataComparator;
 
 public class FullImageIndexer {
 
@@ -45,6 +46,7 @@ public class FullImageIndexer {
         IMAGES_IN_WARC_TOO_SMALL,
         IMAGES_IN_WARC_MIME_INVALID,
         IMAGES_IN_WARC_MIME_WRONG,
+
     }
 
     public enum PAGE_COUNTERS {
@@ -54,7 +56,10 @@ public class FullImageIndexer {
         IMAGES_IN_HTML_MATCHING,
         IMAGES_IN_HTML_BASE64,
         PAGES,
-        PAGES_WITH_IMAGES
+        PAGES_WITH_IMAGES,
+
+        IMAGES_IN_HTML_SENT,
+        IMAGES_IN_HTML_SENT_IGNORED,
 
     }
 
@@ -73,6 +78,7 @@ public class FullImageIndexer {
 
         private Logger logger = Logger.getLogger(ImageMap.class);
         public String collection;
+        private HashMap<String, PriorityQueue<PageImageData>> duplicateImageEntries;
 
         @Override
         public void setup(Context context) {
@@ -82,6 +88,7 @@ public class FullImageIndexer {
 
             logger.debug(collection + "_Images/img/");
             this.collection = config.get("collection");
+            duplicateImageEntries = new HashMap<>();
 
         }
 
@@ -281,6 +288,7 @@ public class FullImageIndexer {
         private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                         int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
                                                 pageTitle, String pageURLTokens, Mapper<LongWritable, Text, Text, Text>.Context context) {
+            /*
             try {
                 String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
@@ -292,7 +300,23 @@ public class FullImageIndexer {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            */
 
+
+            String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
+
+            PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
+            if (duplicateImageEntries.get(pageImageData.getImageSurt()) == null)
+                //If timespam is the same, use the page with the shortest URL
+                //TODO: related to the multiple pages per image issue
+                duplicateImageEntries.put(pageImageData.getImageSurt(), new PriorityQueue<>((t1, t2) -> {
+                    if (t1.getTimestamp().equals(t2.getTimestamp())) {
+                        return t1.getPageURL().length() - t2.getPageURL().length();
+                    } else {
+                        return t1.getTimestamp().compareTo(t2.getTimestamp());
+                    }
+                }));
+            duplicateImageEntries.get(pageImageData.getImageSurt()).add(pageImageData);
 
         }
 
@@ -335,7 +359,19 @@ public class FullImageIndexer {
 
         }
 
-
+        @Override
+        protected void cleanup(Context context) throws IOException, InterruptedException {
+            super.cleanup(context);
+            Gson gson = new Gson();
+            for (java.util.Map.Entry<String, PriorityQueue<PageImageData>> entry : duplicateImageEntries.entrySet()) {
+                String surt = entry.getKey();
+                PriorityQueue<PageImageData> pages = entry.getValue();
+                PageImageData pageImageData = (PageImageData) pages.toArray()[0];
+                context.write(new Text(surt), new Text(gson.toJson(pageImageData)));
+                context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
+                context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_SENT_IGNORED).increment(entry.getValue().size() - 1);
+            }
+        }
     }
 
     public static class Reduce extends Reducer<Text, Text, NullWritable, Text> {
@@ -377,6 +413,7 @@ public class FullImageIndexer {
                     images.add(image);
                     imagesCount++;
                 }
+
                 if ((pagesCount + imagesCount) > 0 && (pagesCount + imagesCount) % 100 == 0) {
                     logger.info(String.format("Still iterating: %d pages and %d images", pagesCount, imagesCount));
                 }
@@ -432,6 +469,12 @@ public class FullImageIndexer {
         String collection = args[1];
         String jobName = collection + "_FullIndexer";
 
+        assert args.length >= 3 : "Missing number of warcs per map";
+        int linesPerMap = Integer.parseInt(args[2]);
+
+        assert args.length >= 4 : "Missing number of reduces";
+        int reducesCount = Integer.parseInt(args[3]);
+
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
@@ -454,11 +497,11 @@ public class FullImageIndexer {
         NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
 
 
-        //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
+        job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
         //TODO: fix setting this number here
-        job.setNumReduceTasks((int) (112 * 1.25 * 2));
+        job.setNumReduceTasks(reducesCount);
         //job.setNumReduceTasks(1);
 
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
