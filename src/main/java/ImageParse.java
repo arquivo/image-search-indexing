@@ -397,7 +397,7 @@ public class ImageParse {
         at java.base/java.lang.Thread.run(Thread.java:834)
 
              */
-
+            System.err.println(String.format("%s %s %s", img.getUrl(), img.getMimeReported(), img.getMimeDetected()));
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
