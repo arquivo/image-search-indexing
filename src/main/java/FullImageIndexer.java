@@ -78,7 +78,8 @@ public class FullImageIndexer {
 
         private Logger logger = Logger.getLogger(ImageMap.class);
         public String collection;
-        private HashMap<String, PriorityQueue<PageImageData>> duplicateImageEntries;
+        private HashMap<String, PageImageData> duplicateImageEntries;
+        private PageImageDataComparator comparator;
 
         @Override
         public void setup(Context context) {
@@ -89,6 +90,7 @@ public class FullImageIndexer {
             logger.debug(collection + "_Images/img/");
             this.collection = config.get("collection");
             duplicateImageEntries = new HashMap<>();
+            comparator =  new PageImageDataComparator();
 
         }
 
@@ -288,35 +290,21 @@ public class FullImageIndexer {
         private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                         int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
                                                 pageTitle, String pageURLTokens, Mapper<LongWritable, Text, Text, Text>.Context context) {
-            /*
-            try {
-                String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
-
-                PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
-                Gson gson = new Gson();
-                context.write(new Text(imgSurtSrc), new Text(gson.toJson(pageImageData)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            */
-
-
             String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
             PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
-            if (duplicateImageEntries.get(pageImageData.getImageSurt()) == null)
-                //If timespam is the same, use the page with the shortest URL
-                //TODO: related to the multiple pages per image issue
-                duplicateImageEntries.put(pageImageData.getImageSurt(), new PriorityQueue<>((t1, t2) -> {
-                    if (t1.getTimestamp().equals(t2.getTimestamp())) {
-                        return t1.getPageURL().length() - t2.getPageURL().length();
-                    } else {
-                        return t1.getTimestamp().compareTo(t2.getTimestamp());
-                    }
-                }));
-            duplicateImageEntries.get(pageImageData.getImageSurt()).add(pageImageData);
+            PageImageData pageImageDataOld = null;
+
+            context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_SENT_IGNORED).increment(1);
+            if ((pageImageDataOld = duplicateImageEntries.get(pageImageData.getImageSurt())) == null){
+                context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
+                duplicateImageEntries.put(pageImageData.getImageSurt(), pageImageData);
+            } else {
+                int compResult = comparator.compare(pageImageDataOld, pageImageData);
+                if (compResult < 0)
+                    duplicateImageEntries.put(pageImageData.getImageSurt(), pageImageData);
+
+            }
 
         }
 
@@ -363,13 +351,9 @@ public class FullImageIndexer {
         protected void cleanup(Context context) throws IOException, InterruptedException {
             super.cleanup(context);
             Gson gson = new Gson();
-            for (java.util.Map.Entry<String, PriorityQueue<PageImageData>> entry : duplicateImageEntries.entrySet()) {
+            for (java.util.Map.Entry<String, PageImageData> entry : duplicateImageEntries.entrySet()) {
                 String surt = entry.getKey();
-                PriorityQueue<PageImageData> pages = entry.getValue();
-                PageImageData pageImageData = (PageImageData) pages.toArray()[0];
-                context.write(new Text(surt), new Text(gson.toJson(pageImageData)));
-                context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
-                context.getCounter(PAGE_COUNTERS.IMAGES_IN_HTML_SENT_IGNORED).increment(entry.getValue().size() - 1);
+                context.write(new Text(surt), new Text(gson.toJson(entry)));
             }
         }
     }
