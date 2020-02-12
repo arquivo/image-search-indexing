@@ -202,14 +202,13 @@ public class FullImageIndexer {
         job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
-        //TODO: fix setting this number here
         job.setNumReduceTasks(reducesCount);
         //job.setNumReduceTasks(1);
 
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
-        String outputDir = "/user/amourao/output/" + collection;
+        String outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis();
         FileOutputFormat.setOutputPath(job, new Path(outputDir));
 
         FileSystem hdfs = FileSystem.get(conf);
