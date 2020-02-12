@@ -18,6 +18,8 @@ public class ImageData implements Comparable<LocalDateTime> {
     private String contentHash;
     private String bytes;
 
+    private String timestampOriginalFormat;
+
     private int width;
     private int height;
 
@@ -31,6 +33,7 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.collection = collection;
         this.bytes = Base64.encode(bytes);
 
+        this.timestampOriginalFormat = timestamp;
         this.timestamp = WARCInformationParser.parseLocalDateTime(timestamp);
     }
 
@@ -140,4 +143,8 @@ public class ImageData implements Comparable<LocalDateTime> {
     public byte[] getBytesArray() {
         return Base64.decode(this.bytes);
     }
+
+    public String getTimestampOriginalFormat() { return timestampOriginalFormat; }
+
+    public String getURLWithTimestamp() { return timestampOriginalFormat + "/" + this.url; }
 }
