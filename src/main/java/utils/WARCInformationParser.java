@@ -1,14 +1,31 @@
 package utils;
 
+import com.j256.simplemagic.ContentInfo;
+import com.j256.simplemagic.ContentInfoUtil;
+import data.ImageData;
 import data.PageImageData;
+import org.apache.log4j.Logger;
 import org.archive.url.SURT;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.FileImageInputStream;
+import javax.imageio.stream.ImageInputStream;
+import java.awt.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
 
 public class WARCInformationParser {
     public static final String PATTERN = "yyyyMMddHHmmss";
+
+    public static Logger logger = Logger.getLogger(WARCInformationParser.class);
+
+    public static ContentInfoUtil util = new ContentInfoUtil();
 
     public static LocalDateTime parseLocalDateTime(String timestamp) {
         if (timestamp.length() == WARCInformationParser.PATTERN.length() - 2)
@@ -49,6 +66,53 @@ public class WARCInformationParser {
         return timekey.compareTo(pages.get(idx - 1).getTimestamp()) < timekey.compareTo(pages.get(idx).getTimestamp()) ? pages.get(idx - 1) : pages.get(idx);
     }
 
+    public static Dimension getImageDimensions(ImageData img) {
+        Dimension result = null;
+
+        Iterator<ImageReader> iter = ImageIO.getImageReadersByMIMEType(img.getMimeDetected());
+
+        if (!iter.hasNext()) {
+            iter = ImageIO.getImageReadersByMIMEType(img.getMimeReported());
+        }
+
+        if (!iter.hasNext()) {
+            logger.info("No reader found for given format: " + img.getMimeReported() + " " + img.getMimeDetected() + " " + img.getURLWithTimestamp());
+            return null;
+        }
+
+        while (iter.hasNext()) {
+            ImageReader reader = iter.next();
+            try {
+                ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(img.getBytesArray()));
+                reader.setInput(stream);
+                int width = reader.getWidth(reader.getMinIndex());
+                int height = reader.getHeight(reader.getMinIndex());
+                result = new Dimension(width, height);
+            } catch (Exception e) {
+                logger.error(e.getMessage() + " reader: " + reader.toString() + " " + img.getURLWithTimestamp());
+            } finally {
+                reader.dispose();
+            }
+        }
+        return result;
+    }
+
+    public static String getMimeType(byte[] contentBytes) {
+
+        ContentInfo info = util.findMatch(contentBytes);
+        if (info == null)
+            return null;
+
+        String detectedMimeType = info.getMimeType();
+
+        //Image IO is dumb and does not recognize 'image/x-ms-bmp' as 'bmp'
+        if (detectedMimeType.equals("image/x-ms-bmp"))
+            detectedMimeType = "image/bmp";
+
+
+        return detectedMimeType;
+    }
+
     public static void main(String[] args) {
 
         //TODO: check SURT and abs:src transforms
@@ -58,7 +122,7 @@ public class WARCInformationParser {
                 "http://www.archive.org/goo/?a=2&b&a=1",
                 "ftp://www.archive.org/goo/?a=2&b&a=1",
         };
-        for(String url: urls)
+        for (String url : urls)
             System.out.println(WARCInformationParser.toSURT(url));
     }
 }

@@ -111,20 +111,17 @@ public class ImageInformationExtractor {
 
         String imgSurt = WARCInformationParser.toSURT(url);
 
+
         String detectedMimeType = "";
 
-
         try {
-            ContentInfoUtil util = new ContentInfoUtil();
-            ContentInfo info = util.findMatch(contentBytes);
 
-            if (info == null) {
+            detectedMimeType = WARCInformationParser.getMimeType(contentBytes);
+
+            if (detectedMimeType == null) {
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
-            } else {
-                detectedMimeType = info.getMimeType();
-            }
-
-            if (!detectedMimeType.isEmpty() && !detectedMimeType.equals(reportedMimeType)) {
+                detectedMimeType = "";
+            } else if (!detectedMimeType.isEmpty() && !detectedMimeType.equals(reportedMimeType)) {
                 logger.debug(String.format("MimeType for http://arquivo.pt/wayback/%s/%s", timestamp, url));
                 logger.debug(String.format("reported: \"%s\" ; detected: \"%s\"", reportedMimeType, detectedMimeType));
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_WRONG).increment(1);
@@ -168,9 +165,11 @@ public class ImageInformationExtractor {
     }
 
     public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Mapper.Context context) {
+        String url = "";
+        String timestamp = "";
         try {
-            String url = record.getWARCRecord().getHeader().getUrl();
-            String timestamp = record.getTs();
+            url = record.getWARCRecord().getHeader().getUrl();
+            timestamp = record.getTs();
             String mime = record.getContentMimetype();
 
             String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
@@ -181,7 +180,7 @@ public class ImageInformationExtractor {
             try {
                 contentBytes = record.getContentBytes();
             } catch (RuntimeException e) {
-                logger.error(String.format("Error getting record content bytes for image url: %s with error message %s", url, e.getMessage()));
+                logger.error(String.format("Error getting record content bytes for image url: %s/%s with error message %s", timestamp, url, e.getMessage()));
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
                 return;
             }
@@ -189,7 +188,7 @@ public class ImageInformationExtractor {
             saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
 
         } catch (Exception e) {
-            logger.error(String.format("Error parsing image url: %s with error message %s", arcURL, e.getMessage()));
+            logger.error(String.format("Error parsing image url: %s/%s with error message %s", timestamp, url, e.getMessage()));
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return;
         }
@@ -208,7 +207,7 @@ public class ImageInformationExtractor {
         try {
             contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
         } catch (IOException e) {
-            logger.error(String.format("Error getting record content bytes for image url: %s on offset %d with error message %s", url, record.getBodyOffset(), e.getMessage()));
+            logger.error(String.format("Error getting record content bytes for image url: %s/%s on offset %d with error message %s", timestamp, url, record.getBodyOffset(), e.getMessage()));
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return;
         }
