@@ -76,7 +76,7 @@ public class WARCInformationParser {
         }
 
         if (!iter.hasNext()) {
-            logger.info("No reader found for given format: " + img.getMimeReported() + " " + img.getMimeDetected() + " " + img.getURLWithTimestamp());
+            logger.debug("No reader found for given format: " + img.getMimeReported() + " " + img.getMimeDetected() + " " + img.getURLWithTimestamp());
             return null;
         }
 
