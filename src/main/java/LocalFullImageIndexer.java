@@ -118,7 +118,8 @@ public class LocalFullImageIndexer {
 
         try (BufferedReader br = new BufferedReader(new FileReader(hdfsArcsPath))) {
             for (String line; (line = br.readLine()) != null; ) {
-                map.map(line);
+                if (!line.trim().isEmpty())
+                    map.map(line);
             }
         } catch (IOException e) {
             e.printStackTrace();
