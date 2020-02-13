@@ -144,6 +144,8 @@ public class ImageInformationExtractor {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
         } else if (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL).increment(1);
+        } else if (imageData.getWidth() * imageData.getHeight() > ImageParse.MAX_HEIGHT * ImageParse.MAX_HEIGHT) {
+            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_LARGE).increment(1);
         } else {
 
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
