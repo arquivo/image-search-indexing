@@ -76,9 +76,11 @@ public class FullImageIndexer {
 
         public void map(LongWritable key, Text value, Context context) {
             String arcURL = value.toString();
-            logger.info("(W)ARCNAME: " + arcURL);
-            context.getCounter(IMAGE_COUNTERS.WARCS).increment(1);
-            indexer.parseRecord(arcURL);
+            if (!arcURL.isEmpty()) {
+                logger.info("(W)ARCNAME: " + arcURL);
+                context.getCounter(IMAGE_COUNTERS.WARCS).increment(1);
+                indexer.parseRecord(arcURL);
+            }
         }
 
         @Override
@@ -102,6 +104,7 @@ public class FullImageIndexer {
         private Logger logger = Logger.getLogger(ImageMap.class);
         public String collection;
         ImageInformationMerger merger;
+
         @Override
         public void setup(Reducer.Context context) {
             //logger.setLevel(Level.DEBUG);
@@ -127,7 +130,7 @@ public class FullImageIndexer {
                 merger.add(val);
                 counter++;
                 if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: %d pages and %d images",  merger.getPages().size(), merger.getImages().size()));
+                    logger.info(String.format("Broke iterating: %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
                     merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
