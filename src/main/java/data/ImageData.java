@@ -16,12 +16,13 @@ public class ImageData implements Comparable<LocalDateTime> {
     private String mimeDetected;
     private String collection;
     private String contentHash;
-    private String bytes;
+    private byte[] bytes;
 
     private String timestampOriginalFormat;
 
     private int width;
     private int height;
+    private int size;
 
 
     public ImageData(String imageHashKey, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes) {
@@ -31,7 +32,8 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.mimeReported = mimeReported;
         this.mimeDetected = mimeDetected;
         this.collection = collection;
-        this.bytes = Base64.encode(bytes);
+        this.bytes = bytes;
+        this.size = bytes.length;
 
         this.timestampOriginalFormat = timestamp;
         this.timestamp = WARCInformationParser.parseLocalDateTime(timestamp);
@@ -112,18 +114,6 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.contentHash = contentHash;
     }
 
-    public String getBytes() {
-        return bytes;
-    }
-
-    public void setBytes(String bytes) {
-        this.bytes = bytes;
-    }
-
-    public void setBytes(byte[] bytes) {
-        this.bytes = Base64.encode(bytes);
-    }
-
     public int getWidth() {
         return width;
     }
@@ -140,11 +130,19 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.height = height;
     }
 
-    public byte[] getBytesArray() {
-        return Base64.decode(this.bytes);
+    public byte[] getBytes() {
+        return this.bytes;
+    }
+
+    public void setBytes(byte[] bytes) {
+        this.bytes = bytes;
     }
 
     public String getTimestampOriginalFormat() { return timestampOriginalFormat; }
 
     public String getURLWithTimestamp() { return timestampOriginalFormat + "/" + this.url; }
+
+    public int getSize() {
+        return size;
+    }
 }

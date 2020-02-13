@@ -8,7 +8,6 @@ import java.net.MalformedURLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
 
 import data.ImageData;
@@ -297,7 +296,7 @@ public class ImageParse {
 
         try {
 
-            String base64String;
+
             String mimeType = img.getMimeDetected();
 
             MessageDigest digest = null;
@@ -312,7 +311,6 @@ public class ImageParse {
             int width = imgDimensions.width;
             int height = imgDimensions.height;
 
-
             img.setHeight(height);
             img.setWidth(width);
 
@@ -323,7 +321,7 @@ public class ImageParse {
 
             digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
 
-            byte[] bytesImgOriginal = img.getBytesArray();
+            byte[] bytesImgOriginal = img.getBytes();
 
             //calculate digest
             digest.update(bytesImgOriginal);
@@ -337,7 +335,7 @@ public class ImageParse {
             }
 
             BufferedImage bimg;
-            InputStream inImg = new ByteArrayInputStream(img.getBytesArray());
+            InputStream inImg = new ByteArrayInputStream(img.getBytes());
             bimg = ImageIO.read(inImg);
             if (width < THUMB_WIDTH || height < THUMB_HEIGHT) {
                 scaledImg = bimg;
@@ -374,9 +372,9 @@ public class ImageParse {
             bao.flush();
 
             // Create a byte array output stream.
-            base64String = Base64.encode(bao.toByteArray());
+            img.setBytes(bao.toByteArray());
             bao.close();
-            img.setBytes(base64String);
+
 
             return img;
 

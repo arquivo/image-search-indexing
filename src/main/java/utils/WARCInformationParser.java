@@ -9,12 +9,9 @@ import org.archive.url.SURT;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
-import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -83,7 +80,7 @@ public class WARCInformationParser {
         while (iter.hasNext()) {
             ImageReader reader = iter.next();
             try {
-                ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(img.getBytesArray()));
+                ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(img.getBytes()));
                 reader.setInput(stream);
                 int width = reader.getWidth(reader.getMinIndex());
                 int height = reader.getHeight(reader.getMinIndex());

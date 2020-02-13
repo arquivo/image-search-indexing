@@ -1,5 +1,7 @@
 package data;
 
+import java.util.Base64;
+
 public class FullImageMetadata {
 
     private String collection;
@@ -26,6 +28,8 @@ public class FullImageMetadata {
     private String pageHost;
     private String pageProtocol;
     private int pageImages;
+
+    private int imageSize;
 
     // searchable tokens
     private String pageTitle;
@@ -54,13 +58,15 @@ public class FullImageMetadata {
         this.mime = image.getMimeDetected();
         this.collection = image.getCollection();
         this.imgDigest = image.getContentHash();
-        this.imgSrcBase64 = image.getBytes();
+        this.imgSrcBase64 = Base64.getEncoder().encodeToString(image.getBytes());
 
         this.pageTimestamp = page.getTimestamp().toString();
         this.imgTimestamp = image.getTimestamp().toString();
 
         this.imgWidth = image.getWidth();
         this.imgHeight = image.getHeight();
+        this.imageSize = image.getSize();
+
 
         this.safe = -1;
         this.spam = 0;
