@@ -189,7 +189,7 @@ public class ImageSearchIndexingUtil {
         String result = "";
         Matcher matcher = VALID_PATTERN.matcher(toParse);
         while (matcher.find()) {
-            result += matcher.group() + " ";
+            result += matcher.group().trim() + " ";
         }
         return result;
     }
