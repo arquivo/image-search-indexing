@@ -1,4 +1,4 @@
-/*
+package utils;/*
  *
  *  Licensed to the Internet Archive (IA) by one or more individual 
  *  contributors. 

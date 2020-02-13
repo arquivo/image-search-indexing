@@ -6,6 +6,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import utils.InvalidWARCResponseIOException;
+import utils.WARCRecordResponseEncapsulated;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.log4j.Logger;
 import org.archive.format.warc.WARCConstants;
@@ -16,8 +18,6 @@ import org.archive.io.arc.ARCReaderFactory;
 import org.archive.io.arc.ARCRecord;
 import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
-
-import com.mongodb.ServerAddress;
 
 /**
  * Utility methos
@@ -141,17 +141,6 @@ public class ImageSearchIndexingUtil {
             }
         }
 
-    }
-
-    public static List<ServerAddress> getMongoDBServerAddresses(String mongodbServers) {
-        System.out.println("Using mongodb servers: " + mongodbServers);
-
-        return Arrays.asList(mongodbServers.split(",")).stream().map(mongoServerStr -> {
-            String[] ms = mongoServerStr.split(":");
-            String server = ms[0];
-            Integer port = Integer.valueOf(ms[1]);
-            return new ServerAddress(server, port);
-        }).collect(Collectors.toList());
     }
 
     public static byte[] getRecordContentBytes(ARCRecord record) throws IOException {

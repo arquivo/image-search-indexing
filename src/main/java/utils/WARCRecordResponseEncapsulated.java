@@ -1,3 +1,5 @@
+package utils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,6 +68,7 @@ public class WARCRecordResponseEncapsulated {
     public WARCRecordResponseEncapsulated(WARCRecord warcrecord)
             throws IOException {
         this.warcrecord = warcrecord;
+
         if (!isWARCResponseRecord()) {
             throw new InvalidWARCResponseIOException("Invalid WARCRecordResponse record");
         } else {
@@ -73,8 +76,7 @@ public class WARCRecordResponseEncapsulated {
         }
     }
 
-    public WARCRecordResponseEncapsulated(WARCRecord warcrecord, Map<String, Object> headerFields)
-            throws IOException {
+    public WARCRecordResponseEncapsulated(WARCRecord warcrecord, Map<String, Object> headerFields) {
         this.warcrecord = warcrecord;
         this.headerFields = headerFields;
     }
@@ -110,12 +112,9 @@ public class WARCRecordResponseEncapsulated {
     public boolean isWARCResponseRecord() {
         String warcRecordMimetype = warcrecord.getHeader().getMimetype();
         String warcRecordType = (String) warcrecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
-        if (warcRecordType == null || warcRecordMimetype == null || !WARCConstants.WARCRecordType.response.toString().equals(warcRecordType.trim()) ||
-                !(warcRecordMimetype.trim().equals(WARCConstants.HTTP_RESPONSE_MIMETYPE) ||
-                        warcRecordMimetype.trim().equals(WARCConstants.HTTP_RESPONSE_MIMETYPE.replaceAll("\\s", "")))) {
-            return false;
-        }
-        return true;
+        return warcRecordType != null && warcRecordMimetype != null && WARCConstants.WARCRecordType.response.toString().equals(warcRecordType.trim()) &&
+                (warcRecordMimetype.trim().equals(WARCConstants.HTTP_RESPONSE_MIMETYPE) ||
+                        warcRecordMimetype.trim().equals(WARCConstants.HTTP_RESPONSE_MIMETYPE.replaceAll("\\s", "")));
     }
 
 

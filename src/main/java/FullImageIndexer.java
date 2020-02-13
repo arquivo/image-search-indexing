@@ -60,7 +60,7 @@ public class FullImageIndexer {
 
     public static class Map extends Mapper<LongWritable, Text, Text, Text> {
 
-        private Logger logger = Logger.getLogger(ImageMap.class);
+        private final Logger logger = Logger.getLogger(Map.class);
         public String collection;
         ImageInformationExtractor indexer;
 
@@ -102,7 +102,7 @@ public class FullImageIndexer {
 
     public static class Reduce extends Reducer<Text, Text, NullWritable, Text> {
 
-        private Logger logger = Logger.getLogger(ImageMap.class);
+        private final Logger logger = Logger.getLogger(Reduce.class);
         public String collection;
         ImageInformationMerger merger;
 

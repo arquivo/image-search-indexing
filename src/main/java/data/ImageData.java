@@ -1,6 +1,5 @@
 package data;
 
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import utils.WARCInformationParser;
 
 import java.time.LocalDateTime;

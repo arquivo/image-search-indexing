@@ -20,7 +20,7 @@ public class LocalFullImageIndexer {
 
     public static class Map {
 
-        private Logger logger = Logger.getLogger(ImageMap.class);
+        private Logger logger = Logger.getLogger(Map.class);
         public String collection;
         ImageInformationExtractor indexer;
 
@@ -107,7 +107,7 @@ public class LocalFullImageIndexer {
 
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
 

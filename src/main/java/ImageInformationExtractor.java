@@ -1,5 +1,3 @@
-import com.j256.simplemagic.ContentInfo;
-import com.j256.simplemagic.ContentInfoUtil;
 import data.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.LongWritable;
@@ -14,6 +12,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import utils.WARCInformationParser;
+import utils.WARCRecordResponseEncapsulated;
 
 import java.io.*;
 import java.net.URL;

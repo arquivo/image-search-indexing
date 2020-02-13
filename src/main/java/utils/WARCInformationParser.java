@@ -4,6 +4,7 @@ import com.j256.simplemagic.ContentInfo;
 import com.j256.simplemagic.ContentInfoUtil;
 import data.ImageData;
 import data.PageImageData;
+import org.apache.commons.httpclient.ChunkedInputStream;
 import org.apache.log4j.Logger;
 import org.archive.url.SURT;
 
@@ -12,6 +13,8 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -19,6 +22,7 @@ import java.util.List;
 
 public class WARCInformationParser {
     public static final String PATTERN = "yyyyMMddHHmmss";
+    private static final String TRANSFER_ENCODING_KEY = "Transfer-Encoding" ;
 
     public static Logger logger = Logger.getLogger(WARCInformationParser.class);
 
@@ -42,9 +46,7 @@ public class WARCInformationParser {
         if (url.startsWith("ww3."))
             url = url.substring("ww3.".length());
 
-        String surt = SURT.toSURT(url);
-
-        return surt;
+        return SURT.toSURT(url);
     }
 
     public static PageImageData getClosest(List<PageImageData> pages, LocalDateTime timekey) {
