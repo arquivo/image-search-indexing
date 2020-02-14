@@ -8,6 +8,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.httpclient.ChunkedInputStream;
 import org.apache.commons.httpclient.Header;
@@ -25,7 +26,10 @@ public class WARCRecordResponseEncapsulated {
     public final Log LOG = LogFactory.getLog(WARCRecordResponseEncapsulated.class);
 
     private static final String TRANSFER_ENCODING = "transfer-encoding";
+    private static final String CONTENT_ENCODING = "content-encoding";
+
     private static final String CHUNKED = "chunked";
+    private static final String GZIPPED = "gzip";
 
 
     private WARCRecord warcrecord;
@@ -155,15 +159,19 @@ public class WARCRecordResponseEncapsulated {
 
     public byte[] getContentBytes() {
         try {
+            InputStream stream = warcrecord;
             String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
             if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
-                /*Deal with chunked Record*/
-
                 LOG.debug("Chunked Bytes");
-                return getByteArrayFromInputStreamChunked(warcrecord);
+                stream = new ChunkedInputStream(stream);
+            }
+
+            String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
+            if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
+                stream = new GZIPInputStream(stream);
             }
             /*Default case convert to byte array*/
-            return IOUtils.toByteArray(warcrecord);
+            return IOUtils.toByteArray(stream);
         } catch (IOException e) {
             throw new RuntimeException("Error getting content byte for WARC", e);
         }
