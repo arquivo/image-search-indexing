@@ -22,7 +22,7 @@ import java.util.List;
 
 public class WARCInformationParser {
     public static final String PATTERN = "yyyyMMddHHmmss";
-    private static final String TRANSFER_ENCODING_KEY = "Transfer-Encoding" ;
+    private static final String TRANSFER_ENCODING_KEY = "Transfer-Encoding";
 
     public static Logger logger = Logger.getLogger(WARCInformationParser.class);
 
@@ -35,6 +35,9 @@ public class WARCInformationParser {
     }
 
     public static String toSURT(String url) {
+        if (url.startsWith("data"))
+            return url;
+
         if (url.startsWith("https://"))
             url = url.substring("https://".length());
         if (url.startsWith("http://"))
@@ -72,6 +75,8 @@ public class WARCInformationParser {
 
         if (!iter.hasNext()) {
             iter = ImageIO.getImageReadersByMIMEType(img.getMimeReported());
+            if (iter.hasNext())
+                img.setMimeDetected(img.getMimeReported());
         }
 
         if (!iter.hasNext()) {
@@ -86,14 +91,15 @@ public class WARCInformationParser {
                 reader.setInput(stream);
                 int width = reader.getWidth(reader.getMinIndex());
                 int height = reader.getHeight(reader.getMinIndex());
-                result = new Dimension(width, height);
+                return new Dimension(width, height);
             } catch (Exception e) {
                 logger.error(e.getMessage() + " reader: " + reader.toString() + " " + img.getURLWithTimestamp());
             } finally {
                 reader.dispose();
             }
         }
-        return result;
+
+        return null;
     }
 
     public static String getMimeType(byte[] contentBytes) {

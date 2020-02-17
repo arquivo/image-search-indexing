@@ -166,8 +166,6 @@ public class ImageParse {
     public static ImageData getPropImage(ImageData img) {
 
         try {
-            String mimeType = img.getMimeDetected();
-
             MessageDigest digest = null;
             BufferedImage scaledImg = null;
 
@@ -197,8 +195,8 @@ public class ImageParse {
             byte[] byteDigest = digest.digest();
             img.setContentHash(convertByteArrayToHexString(byteDigest));
 
-            // avoid reading gifs, as they will not be resized
-            if (mimeType.equals("image/gif")) {
+            // avoid reading gifs or svgs, as they do not need be resized
+            if (img.getMimeDetected().equals("image/gif") || img.getMimeDetected().contains("svg")) {
                 img.setBytes(bytesImgOriginal);
                 return img;
             }
@@ -237,7 +235,7 @@ public class ImageParse {
             ByteArrayOutputStream bao = new ByteArrayOutputStream();
 
             // Write to output stream
-            ImageIO.write(scaledImg, mimeType.substring(6), bao);
+            ImageIO.write(scaledImg, img.getMimeDetected().substring(6), bao);
             bao.flush();
 
             // Create a byte array output stream.

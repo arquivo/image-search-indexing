@@ -1,3 +1,4 @@
+import com.sun.jersey.core.util.Base64;
 import data.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.LongWritable;
@@ -54,7 +55,7 @@ public class ImageInformationExtractor {
     }
 
     public Counter getCounter(Enum<?> counterName) {
-        if (context != null){
+        if (context != null) {
             return context.getCounter(counterName);
         } else {
             if (localCounters.get(counterName) == null)
@@ -106,6 +107,33 @@ public class ImageInformationExtractor {
 
     }
 
+    public void saveImageMetadataInline(String url, String timestamp, Mapper.Context context) {
+        try {
+            String[] surl = url.split(",");
+
+
+            String[] metadata = surl[0].split(";");
+            String reportedMimeType = metadata[0].split(":")[1];
+
+            String data = url.substring(surl[0].length() + 1);
+            String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
+
+            byte[] contentBytes = data.getBytes();
+            for(String meta: metadata){
+                if (meta.contains("base64")) {
+                    contentBytes = Base64.decode(data);
+                    break;
+                }
+            }
+
+            saveImageMetadata(url, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context);
+        } catch (Exception e) {
+            logger.error(String.format("Malformed inline image"));
+            return;
+        }
+    }
+
+
     public void saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
@@ -141,6 +169,8 @@ public class ImageInformationExtractor {
 
         if (imageData == null) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+        } else if (url.startsWith("data:image") && (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT)) {
+            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL_BASE64).increment(1);
         } else if (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL).increment(1);
         } else if (imageData.getWidth() * imageData.getHeight() > ImageParse.MAX_HEIGHT * ImageParse.MAX_HEIGHT) {
@@ -268,17 +298,17 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
                 if (imgRelSrc.startsWith("data:image")) {
-                    logger.debug("Base64 image");
+                    logger.debug("Inline image");
+                    saveImageMetadataInline(imgRelSrc, pageTstamp, context);
+                    imgSrc = imgRelSrc;
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                    continue;
-                }
-                if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                    //continue;
+                } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
                     continue;
-                }/*Maximum size for SOLR index is 10 000*/
-                if (imgSrc == null || imgSrc.equals("")) {
+                } else if (imgSrc == null || imgSrc.equals("")) {
                     logger.debug("Null imgSrc");
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                     continue;
