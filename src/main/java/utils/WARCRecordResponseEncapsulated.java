@@ -8,8 +8,10 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.commons.compress.compressors.brotli.BrotliCompressorInputStream;
 import org.apache.commons.httpclient.ChunkedInputStream;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpException;
@@ -20,6 +22,7 @@ import org.apache.commons.logging.LogFactory;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.warc.WARCRecord;
 import org.archive.util.LaxHttpParser;
+import org.brotli.dec.BrotliInputStream;
 
 public class WARCRecordResponseEncapsulated {
 
@@ -30,6 +33,9 @@ public class WARCRecordResponseEncapsulated {
 
     private static final String CHUNKED = "chunked";
     private static final String GZIPPED = "gzip";
+    private static final String DEFLATE = "deflate";
+    private static final String BROTLI = "br";
+
 
 
     private WARCRecord warcrecord;
@@ -168,52 +174,22 @@ public class WARCRecordResponseEncapsulated {
 
             String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
             if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
+                // Test using
+                // http://p51.arquivo.pt/warcs/rec-20200211165715684946-oreas-FQURN3T3.warc.gz
                 stream = new GZIPInputStream(stream);
+            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(DEFLATE)) {
+                stream = new DeflaterInputStream(stream);
+            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
+                //TODO: this is not working correctly for webrecorder warcs (e.g. facebook.com is a chucked brotli)
+                // http://p51.arquivo.pt/warcs/rec-20200217102707485431-oreas-EIKC7CQC.warc.gz
+                stream = new BrotliInputStream(stream);
             }
+
             /*Default case convert to byte array*/
             return IOUtils.toByteArray(stream);
         } catch (IOException e) {
             throw new RuntimeException("Error getting content byte for WARC", e);
         }
-    }
-
-    private static byte[] getByteArrayFromInputStreamChunked(InputStream is) {
-        ChunkedInputStream cis = null;
-        int currentChar;
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        byte[] unchunkedData = null;
-
-        try {
-            cis = new ChunkedInputStream(is);
-
-            // read till the end of the stream
-            while ((currentChar = cis.read(buffer)) != -1) {
-                bos.write(buffer, 0, currentChar);
-            }
-            unchunkedData = bos.toByteArray();
-            bos.close();
-        } catch (IOException e) {
-            // if any I/O error occurs
-            e.printStackTrace();
-        } finally {
-            // releases any system resources associated with the stream
-            if (is != null) {
-                try {
-                    is.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (cis != null) {
-                try {
-                    cis.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return unchunkedData;
     }
 
     public String getTs() {
