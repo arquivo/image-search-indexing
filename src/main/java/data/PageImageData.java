@@ -23,11 +23,17 @@ public class PageImageData implements Comparable<LocalDateTime> {
     // Number of images in the original page
     private int imagesInOriginalPage;
 
-    // Number of images in the original page
+    // Number of images in all referenced pages
     private long imagesInAllMatchingPages;
 
-    // Number of images in the original page
+    // Total number of matching <img src="">
+    private int totalMatchingImgReferences;
+
+    // Number of pages referencing the image
     private int matchingPages;
+
+    // Number of times the metadata changed for the image
+    private int metadataChanges;
 
 
     private String pageTstamp;
@@ -38,7 +44,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
     private LocalDateTime timestamp;
 
-    public PageImageData(String type, String imgTitle, String imgAlt, String imgSrcTokens, String pageTitle, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int matchingPages, String pageTstamp, String pageURL, String pageHost, String pageProtocol) {
+    public PageImageData(String type, String imgTitle, String imgAlt, String imgSrcTokens, String pageTitle, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTstamp, String pageURL, String pageHost, String pageProtocol) {
         this.type = type;
         this.imgTitle = imgTitle;
         this.imgAlt = imgAlt;
@@ -51,7 +57,8 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.imagesInOriginalPage = imagesInOriginalPage;
         this.imagesInAllMatchingPages = imagesInAllMatchingPages;
 
-        this.matchingPages = matchingPages;
+        this.totalMatchingImgReferences = totalMatchingImgReferences;
+        this.matchingPages = 0;
 
         this.pageTstamp = pageTstamp;
         this.pageURL = pageURL;
@@ -120,6 +127,14 @@ public class PageImageData implements Comparable<LocalDateTime> {
         return pageHost;
     }
 
+    public void setImgTitle(String imgTitle) {
+        this.imgTitle = imgTitle;
+    }
+
+    public void setImgAlt(String imgAlt) {
+        this.imgAlt = imgAlt;
+    }
+
     public String getPageProtocol() {
         return pageProtocol;
     }
@@ -128,6 +143,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
         return timestamp;
     }
 
+    /*
     public String getPageMetadata() {
         Set<String> data = new HashSet<>();
         data.addAll(Arrays.asList(pageTitle.split(" ")));
@@ -140,6 +156,15 @@ public class PageImageData implements Comparable<LocalDateTime> {
         data.addAll(Arrays.asList(imgTitle.split(" ")));
         data.addAll(Arrays.asList(imgAlt.split(" ")));
         return String.join(" ", data.toArray(new String[0]));
+    }
+     */
+
+    public String getPageMetadata() {
+        return (pageTitle.trim() + " " + pageURLTokens.trim()).trim();
+    }
+
+    public String getImageMetadata() {
+        return (imgTitle.trim() + " " + imgAlt.trim()).trim();
     }
 
     public int getPageMetadataSize() {
@@ -166,6 +191,22 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.imagesInAllMatchingPages = imagesInAllMatchingPages;
     }
 
+    public void incrementImagesInAllMatchingPages(long imagesInAllMatchingPages) {
+        this.imagesInAllMatchingPages += imagesInAllMatchingPages;
+    }
+
+    public int getTotalMatchingImgReferences() {
+        return totalMatchingImgReferences;
+    }
+
+    public void setTotalMatchingImgReferences(int totalMatchingImgReferences) {
+        this.totalMatchingImgReferences = totalMatchingImgReferences;
+    }
+
+    public void incrementMatchingImageReferences(int totalMatchingImgReferences) {
+        this.totalMatchingImgReferences += totalMatchingImgReferences;
+    }
+
     public int getMatchingPages() {
         return matchingPages;
     }
@@ -174,12 +215,16 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.matchingPages = matchingPages;
     }
 
-    public void incrementImagesInAllMatchingPages(long imagesInAllMatchingPages) {
-        this.imagesInAllMatchingPages += imagesInAllMatchingPages;
-    }
-
     public void incrementMatchingPages(int matchingPages) {
         this.matchingPages += matchingPages;
+    }
+
+    public int getMetadataChanges() {
+        return metadataChanges;
+    }
+
+    public void incrementMetadataChanges(int metadataChanges){
+        this.metadataChanges += metadataChanges;
     }
 }
 

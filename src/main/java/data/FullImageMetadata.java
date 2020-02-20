@@ -45,8 +45,12 @@ public class FullImageMetadata {
     private int totalMatchingImages;
     private int totalMatchingPages;
     private long imagesInAllMatchingPages;
+    private long totalMatchingImgSrc;
 
-    public FullImageMetadata(ImageData image, PageImageData page, int totalMatchingImages, int totalMatchingPages, long imagesInAllMatchingPages) {
+    private int totalMetadataChanges;
+
+
+    public FullImageMetadata(ImageData image, PageImageData page, int totalMatchingImages, int totalMatchingPages, long totalMatchingImgSrc, long imagesInAllMatchingPages, int totalMetadataChanges) {
         this.imgTitle = page.getImgTitle();
         this.imgAlt = page.getImgAlt();
         this.imgSrcTokens = page.getImgSrcTokens();
@@ -77,5 +81,7 @@ public class FullImageMetadata {
         this.totalMatchingImages = totalMatchingImages;
         this.totalMatchingPages = totalMatchingPages;
         this.imagesInAllMatchingPages = imagesInAllMatchingPages;
+        this.totalMatchingImgSrc = totalMatchingImgSrc;
+        this.totalMetadataChanges = totalMetadataChanges;
     }
 }

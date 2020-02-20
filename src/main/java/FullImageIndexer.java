@@ -44,7 +44,9 @@ public class FullImageIndexer {
         PAGES_WITH_IMAGES,
 
         IMAGES_IN_HTML_SENT,
-        IMAGES_IN_HTML_SENT_IGNORED,
+        IMAGES_IN_HTML_SENT_METADATA_UPDATED,
+        IMAGES_IN_HTML_METADATA_CHANGED,
+        IMAGES_IN_HTML_SENT_DUP,
 
     }
 

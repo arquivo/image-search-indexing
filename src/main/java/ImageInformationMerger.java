@@ -23,30 +23,22 @@ public class ImageInformationMerger {
     private Gson gson;
 
     private long imagesInAllMatchingPages;
+    private long totalMatchingImgReferences;
     private int totalMatchingPages;
     private int totalMatchingImages;
+    private int totalMetadataChanges;
 
 
     ImageInformationMerger(Reducer.Context context) {
-        this.pages = new LinkedList<>();
-        this.images = new LinkedList<>();
         this.context = context;
         this.gson = new Gson();
-
-        this.imagesInAllMatchingPages = 0;
-        this.totalMatchingPages = 0;
-        this.totalMatchingImages = 0;
+        reset();
     }
 
     ImageInformationMerger() {
-        this.pages = new LinkedList<>();
-        this.images = new LinkedList<>();
         this.localCounters = new HashMap<>();
         this.gson = new Gson();
-
-        this.imagesInAllMatchingPages = 0;
-        this.totalMatchingPages = 0;
-        this.totalMatchingImages = 0;
+        reset();
     }
 
     public Counter getCounter(Enum<?> counterName) {
@@ -86,16 +78,20 @@ public class ImageInformationMerger {
 
     public void addPage(PageImageData page) {
         pages.add(page);
-        totalMatchingPages += page.getMatchingPages();
+        totalMatchingImgReferences += page.getTotalMatchingImgReferences();
         imagesInAllMatchingPages += page.getImagesInAllMatchingPages();
+        totalMatchingPages += page.getMatchingPages();
+        totalMetadataChanges += page.getMetadataChanges();
     }
 
     public void reset() {
         pages = new LinkedList<>();
         images = new LinkedList<>();
         this.imagesInAllMatchingPages = 0;
-        this.totalMatchingPages = 0;
+        this.totalMatchingImgReferences = 0;
         this.totalMatchingImages = 0;
+        this.totalMatchingPages = 0;
+        this.totalMetadataChanges = 0;
     }
 
     public List<PageImageData> getPages() {
@@ -113,6 +109,6 @@ public class ImageInformationMerger {
 
         PageImageData closestPage = WARCInformationParser.getClosest(pages, timekey);
 
-        return new FullImageMetadata(image, closestPage, totalMatchingImages, totalMatchingPages, imagesInAllMatchingPages);
+        return new FullImageMetadata(image, closestPage, totalMatchingImages, totalMatchingPages, totalMatchingImgReferences, imagesInAllMatchingPages, totalMetadataChanges);
     }
 }

@@ -173,15 +173,15 @@ public class ImageSearchIndexingUtil {
     }
 
     private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
-    
+
 
     public static String parseURL(String toParse) {
         String result = "";
         Matcher matcher = VALID_PATTERN.matcher(toParse);
         while (matcher.find()) {
-            result += matcher.group();
+            result += matcher.group().trim() + " ";
         }
-        return result;
+        return result.trim();
     }
 
 }

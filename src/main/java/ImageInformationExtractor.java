@@ -19,6 +19,8 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class ImageInformationExtractor {
 
@@ -107,7 +109,7 @@ public class ImageInformationExtractor {
 
     }
 
-    public void saveImageMetadataInline(String url, String timestamp, Mapper.Context context) {
+    public boolean saveImageMetadataInline(String url, String timestamp, Mapper.Context context) {
         try {
             String[] surl = url.split(",");
 
@@ -126,15 +128,15 @@ public class ImageInformationExtractor {
                 }
             }
 
-            saveImageMetadata(url, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context);
+            return saveImageMetadata(url, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context);
         } catch (Exception e) {
             logger.error(String.format("Malformed inline image"));
-            return;
+            return false;
         }
     }
 
 
-    public void saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
+    public boolean saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
 
@@ -164,7 +166,7 @@ public class ImageInformationExtractor {
             imageData = ImageParse.getPropImage(imageData);
         } catch (Exception e) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
-            return;
+            return false;
         }
 
         if (imageData == null) {
@@ -186,6 +188,7 @@ public class ImageInformationExtractor {
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
                 imgFileEntries.put(imageData.getSurt(), imageData);
             }
+            return true;
                 /*Gson gson = new Gson();
                 try {
                     context.write(new Text(imgSurt), new Text(gson.toJson(imageData)));
@@ -196,6 +199,7 @@ public class ImageInformationExtractor {
                 }
                 */
         }
+        return false;
     }
 
     public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Mapper.Context context) {
@@ -228,7 +232,7 @@ public class ImageInformationExtractor {
         }
     }
 
-    public void createImageDB(String arcURL, ARCRecord record, Mapper.Context context) {
+    public boolean createImageDB(String arcURL, ARCRecord record, Mapper.Context context) {
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
         String mime = record.getMetaData().getMimetype();
@@ -243,10 +247,10 @@ public class ImageInformationExtractor {
         } catch (IOException e) {
             logger.error(String.format("Error getting record content bytes for image url: %s/%s on offset %d with error message %s", timestamp, url, record.getBodyOffset(), e.getMessage()));
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
-            return;
+            return false;
         }
 
-        saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
+        return saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
     }
 
     public void parseImagesFromHtmlRecord(Mapper.Context context, byte[] arcRecordBytes, String pageURL, String
@@ -295,17 +299,24 @@ public class ImageInformationExtractor {
             }
             logger.debug("pageTstamp:" + pageTstamp);
 
+            Set<String> imgSrcParsed = new HashSet<>();
+
             for (Element el : imgs) {
                 String imgSrc = el.attr("abs:src");
                 String imgRelSrc = el.attr("src");
 
+                boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
+                imgSrcParsed.add(imgRelSrc);
+
+
                 logger.debug("Getting information for: " + imgSrc);
                 if (imgRelSrc.startsWith("data:image")) {
                     logger.debug("Inline image");
-                    saveImageMetadataInline(imgRelSrc, pageTstamp, context);
+                    boolean accepted = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
                     imgSrc = imgRelSrc;
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                    //continue;
+                    if (!accepted)
+                        continue;
                 } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");
@@ -331,7 +342,9 @@ public class ImageInformationExtractor {
                 if (imgAlt.length() > 9999) {
                     imgAlt = imgAlt.substring(0, 10000);
                 }
-                insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, context);
+
+
+                insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage, context);
 
                 logger.debug("Written to file - successfully indexed image record");
 
@@ -344,26 +357,51 @@ public class ImageInformationExtractor {
 
     private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                     int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
-                                            pageTitle, String pageURLTokens, Mapper<LongWritable, Text, Text, Text>.Context context) {
+                                            pageTitle, String pageURLTokens, boolean alreadyFoundInPage, Mapper<LongWritable, Text, Text, Text>.Context context) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
         PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol);
         PageImageData pageImageDataOld = null;
 
-        this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_IGNORED).increment(1);
+        if (!alreadyFoundInPage)
+            pageImageData.incrementMatchingPages(1);
+
+        this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_DUP).increment(1);
         if ((pageImageDataOld = imgSrcEntries.get(pageImageData.getImageSurt())) == null) {
             this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
             imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
         } else {
-            logger.debug(String.format("Old metadata size: %d,%d, new metadata size: %d,%d", pageImageDataOld.getPageMetadataSize(), pageImageDataOld.getImageMetadataSize(), pageImageData.getPageMetadataSize(), pageImageData.getImageMetadataSize()));
+
+            boolean metadataChanged = false;
+            if (pageImageDataOld.getImageMetadataSize() == 0 && pageImageData.getImageMetadataSize() != 0){
+                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_METADATA_UPDATED).increment(1);
+                logger.debug(String.format("URLS %s %s", pageImageDataOld.getImgSrc(), pageImageData.getImgSrc()));
+                logger.debug(String.format("NEW \"%s\"", pageImageData.getImageMetadata()));
+                pageImageDataOld.setImgAlt(pageImageData.getImgAlt());
+                pageImageDataOld.setImgTitle(pageImageData.getImgTitle());
+                metadataChanged = true;
+            } else if (!pageImageData.getImageMetadata().equals(pageImageDataOld.getImageMetadata())) {
+                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+                logger.debug(String.format("URLS %s %s", pageImageDataOld.getImgSrc(), pageImageData.getImgSrc()));
+                logger.debug(String.format("OLD \"%s\" NEW \"%s\"" , pageImageDataOld.getImageMetadata(), pageImageData.getImageMetadata()));
+                metadataChanged = true;
+            }
+
             int compResult = comparatorPages.compare(pageImageDataOld, pageImageData);
             if (compResult > 0) {
                 pageImageData.incrementImagesInAllMatchingPages(pageImageDataOld.getImagesInAllMatchingPages());
+                pageImageData.incrementMatchingImageReferences(pageImageDataOld.getTotalMatchingImgReferences());
                 pageImageData.incrementMatchingPages(pageImageDataOld.getMatchingPages());
+                if (metadataChanged)
+                    pageImageData.incrementMetadataChanges(1);
                 imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
             } else {
                 pageImageDataOld.incrementImagesInAllMatchingPages(pageImageData.getImagesInAllMatchingPages());
+                pageImageDataOld.incrementMatchingImageReferences(pageImageData.getTotalMatchingImgReferences());
                 pageImageDataOld.incrementMatchingPages(pageImageData.getMatchingPages());
+                if (metadataChanged)
+                    pageImageDataOld.incrementMetadataChanges(1);
             }
         }
 
