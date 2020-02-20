@@ -303,7 +303,7 @@ public class ImageInformationExtractor {
 
             for (Element el : imgs) {
                 String imgSrc = el.attr("abs:src");
-                String imgRelSrc = el.attr("src");
+                String imgRelSrc = el.attr("src").trim();
 
                 boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
                 imgSrcParsed.add(imgRelSrc);
@@ -322,7 +322,7 @@ public class ImageInformationExtractor {
                     logger.debug(pageURL.substring(0, 500) + "...");
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
                     continue;
-                } else if (imgSrc == null || imgSrc.equals("")) {
+                } else if (imgRelSrc == null || imgRelSrc.equals("")) {
                     logger.debug("Null imgSrc");
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                     continue;
