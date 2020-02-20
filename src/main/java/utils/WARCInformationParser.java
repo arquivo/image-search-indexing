@@ -11,6 +11,7 @@ import org.archive.url.SURT;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.servlet.jsp.tagext.PageData;
 import java.awt.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -52,6 +53,7 @@ public class WARCInformationParser {
         return SURT.toSURT(url);
     }
 
+    /*
     public static PageImageData getClosest(List<PageImageData> pages, LocalDateTime timekey) {
         pages.sort(Comparator.comparing(PageImageData::getTimestamp));
         int idx = Collections.binarySearch(pages, timekey);
@@ -67,6 +69,7 @@ public class WARCInformationParser {
 
         return timekey.compareTo(pages.get(idx - 1).getTimestamp()) < timekey.compareTo(pages.get(idx).getTimestamp()) ? pages.get(idx - 1) : pages.get(idx);
     }
+     */
 
     public static Dimension getImageDimensions(ImageData img) {
         Dimension result = null;

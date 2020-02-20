@@ -103,12 +103,20 @@ public class ImageInformationMerger {
     }
 
     public FullImageMetadata getBestMatch() {
-        ImageData image = images.get(0);
+        ImageData imageData = images.get(0);
 
-        LocalDateTime timekey = image.getTimestamp();
+        for (ImageData image : images.subList(1, images.size())) {
+            imageData.addTimestamps(image.getTimestamp());
+            imageData.addContentHashes(image.getContentHash());
+        }
 
-        PageImageData closestPage = WARCInformationParser.getClosest(pages, timekey);
+        PageImageData pageData = pages.get(0);
 
-        return new FullImageMetadata(image, closestPage, totalMatchingImages, totalMatchingPages, totalMatchingImgReferences, imagesInAllMatchingPages, totalMetadataChanges);
+        for (PageImageData page : pages.subList(1, pages.size())) {
+            pageData.addPageImageData(page);
+        }
+
+
+        return new FullImageMetadata(imageData, pageData, totalMatchingImages, totalMatchingPages, totalMatchingImgReferences, imagesInAllMatchingPages, totalMetadataChanges);
     }
 }

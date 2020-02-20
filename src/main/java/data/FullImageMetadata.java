@@ -1,6 +1,7 @@
 package data;
 
 import java.util.Base64;
+import java.util.List;
 
 public class FullImageMetadata {
 
@@ -16,7 +17,7 @@ public class FullImageMetadata {
 
     private String mime;
     private String imgSrcBase64;
-    private String imgDigest;
+    private List<String> imgDigest;
 
     private int imgWidth;
     private int imgHeight;
@@ -24,7 +25,7 @@ public class FullImageMetadata {
 
     // Info extracted from the associated page HTML
     private String pageTimestamp;
-    private String pageUrl;
+    private List<String> pageUrl;
     private String pageHost;
     private String pageProtocol;
     private int pageImages;
@@ -32,10 +33,10 @@ public class FullImageMetadata {
     private int imageSize;
 
     // searchable tokens
-    private String pageTitle;
-    private String pageURLTokens;
-    private String imgTitle;
-    private String imgAlt;
+    private List<String> pageTitle;
+    private List<String> pageURLTokens;
+    private List<String> imgTitle;
+    private List<String> imgAlt;
 
     // Externally computed placeholders
     private int safe;

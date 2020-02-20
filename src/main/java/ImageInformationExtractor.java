@@ -28,8 +28,8 @@ public class ImageInformationExtractor {
 
     private HashMap<String, PageImageData> imgSrcEntries;
     private HashMap<String, ImageData> imgFileEntries;
-    private PageImageDataComparator comparatorPages;
-    private ImageDataComparator comparatorImages;
+    //private PageImageDataComparator comparatorPages;
+    //private ImageDataComparator comparatorImages;
     private String collection;
     private Mapper<LongWritable, Text, Text, Text>.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
@@ -37,8 +37,8 @@ public class ImageInformationExtractor {
     public ImageInformationExtractor(String collection, Mapper<LongWritable, Text, Text, Text>.Context context) {
         imgSrcEntries = new HashMap<>();
         imgFileEntries = new HashMap<>();
-        comparatorPages = new PageImageDataComparator();
-        comparatorImages = new ImageDataComparator();
+        //comparatorPages = new PageImageDataComparator();
+        //comparatorImages = new ImageDataComparator();
 
         this.collection = collection;
 
@@ -48,8 +48,8 @@ public class ImageInformationExtractor {
     public ImageInformationExtractor(String collection) {
         imgSrcEntries = new HashMap<>();
         imgFileEntries = new HashMap<>();
-        comparatorPages = new PageImageDataComparator();
-        comparatorImages = new ImageDataComparator();
+        //comparatorPages = new PageImageDataComparator();
+        //comparatorImages = new ImageDataComparator();
 
         this.collection = collection;
 
@@ -169,6 +169,8 @@ public class ImageInformationExtractor {
             return false;
         }
 
+
+
         if (imageData == null) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
         } else if (url.startsWith("data:image") && (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT)) {
@@ -180,11 +182,11 @@ public class ImageInformationExtractor {
         } else {
 
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
-            if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null && comparatorImages.compare(imageDataOld, imageData) < 0) {
+            if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null ) {
                 imageDataOld.incrementMatchingImages(1);
+                imageDataOld.addTimestamps(imageData.getTimestamp());
             } else {
-                if (imageDataOld != null)
-                    imageData.incrementMatchingImages(imageDataOld.getMatchingImages());
+                imageData.incrementMatchingImages(1);
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
                 imgFileEntries.put(imageData.getSurt(), imageData);
             }
@@ -371,40 +373,7 @@ public class ImageInformationExtractor {
             this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
             imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
         } else {
-
-            boolean metadataChanged = false;
-            if (pageImageDataOld.getImageMetadataSize() == 0 && pageImageData.getImageMetadataSize() != 0){
-                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
-                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_METADATA_UPDATED).increment(1);
-                logger.debug(String.format("URLS %s %s", pageImageDataOld.getImgSrc(), pageImageData.getImgSrc()));
-                logger.debug(String.format("NEW \"%s\"", pageImageData.getImageMetadata()));
-                pageImageDataOld.setImgAlt(pageImageData.getImgAlt());
-                pageImageDataOld.setImgTitle(pageImageData.getImgTitle());
-                metadataChanged = true;
-            } else if (!pageImageData.getImageMetadata().equals(pageImageDataOld.getImageMetadata())) {
-                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
-                logger.debug(String.format("URLS %s %s", pageImageDataOld.getImgSrc(), pageImageData.getImgSrc()));
-                logger.debug(String.format("OLD \"%s\" NEW \"%s\"" , pageImageDataOld.getImageMetadata(), pageImageData.getImageMetadata()));
-                metadataChanged = true;
-            }
-
-            int compResult = comparatorPages.compare(pageImageDataOld, pageImageData);
-            if (compResult > 0) {
-                pageImageData.incrementImagesInAllMatchingPages(pageImageDataOld.getImagesInAllMatchingPages());
-                pageImageData.incrementMatchingImageReferences(pageImageDataOld.getTotalMatchingImgReferences());
-                pageImageData.incrementMatchingPages(pageImageDataOld.getMatchingPages());
-                pageImageData.incrementMetadataChanges(pageImageDataOld.getMetadataChanges());
-                if (metadataChanged)
-                    pageImageData.incrementMetadataChanges(1);
-                imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
-            } else {
-                pageImageDataOld.incrementImagesInAllMatchingPages(pageImageData.getImagesInAllMatchingPages());
-                pageImageDataOld.incrementMatchingImageReferences(pageImageData.getTotalMatchingImgReferences());
-                pageImageDataOld.incrementMatchingPages(pageImageData.getMatchingPages());
-                pageImageDataOld.incrementMetadataChanges(pageImageData.getMetadataChanges());
-                if (metadataChanged)
-                    pageImageDataOld.incrementMetadataChanges(1);
-            }
+            pageImageDataOld.addPageImageData(pageImageData);
         }
 
     }

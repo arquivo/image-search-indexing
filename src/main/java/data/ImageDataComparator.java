@@ -2,6 +2,11 @@ package data;
 
 import java.util.Comparator;
 
+public class ImageDataComparator {
+
+}
+
+/*
 public class ImageDataComparator implements Comparator<ImageData> {
 
     @Override
@@ -9,3 +14,4 @@ public class ImageDataComparator implements Comparator<ImageData> {
         return t1.getTimestamp().compareTo(t2.getTimestamp());
     }
 }
+ */

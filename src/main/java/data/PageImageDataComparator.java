@@ -2,7 +2,12 @@ package data;
 
 import java.util.Comparator;
 
+public class PageImageDataComparator {
+
+}
+/*
 public class PageImageDataComparator implements Comparator<PageImageData> {
+
 
     @Override
     public int compare(PageImageData t1, PageImageData t2) {
@@ -12,4 +17,6 @@ public class PageImageDataComparator implements Comparator<PageImageData> {
             return t1.getTimestamp().compareTo(t2.getTimestamp());
         }
     }
+
 }
+ */

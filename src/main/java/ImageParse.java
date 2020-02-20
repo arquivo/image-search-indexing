@@ -193,7 +193,7 @@ public class ImageParse {
             //calculate digest
             digest.update(bytesImgOriginal);
             byte[] byteDigest = digest.digest();
-            img.setContentHash(convertByteArrayToHexString(byteDigest));
+            img.addContentHash(convertByteArrayToHexString(byteDigest));
 
             // avoid reading gifs or svgs, as they do not need be resized
             if (img.getMimeDetected().equals("image/gif") || img.getMimeDetected().contains("svg")) {

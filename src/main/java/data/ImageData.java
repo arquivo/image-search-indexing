@@ -3,21 +3,23 @@ package data;
 import utils.WARCInformationParser;
 
 import java.time.LocalDateTime;
+import java.util.LinkedList;
+import java.util.List;
 
-public class ImageData implements Comparable<LocalDateTime> {
+public class ImageData {
     private String imageHashKey;
 
-    private LocalDateTime timestamp;
+    private List<LocalDateTime> timestamp;
+    private List<String> timestampOriginalFormat;
+    private List<String> contentHash;
 
     private String url;
     private String surt;
     private String mimeReported;
     private String mimeDetected;
     private String collection;
-    private String contentHash;
-    private byte[] bytes;
 
-    private String timestampOriginalFormat;
+    private byte[] bytes;
 
     private int width;
     private int height;
@@ -36,8 +38,12 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.bytes = bytes;
         this.size = bytes.length;
 
-        this.timestampOriginalFormat = timestamp;
-        this.timestamp = WARCInformationParser.parseLocalDateTime(timestamp);
+        this.timestampOriginalFormat = new LinkedList<>();
+        this.timestamp = new LinkedList<>();
+
+        this.timestamp.add(WARCInformationParser.parseLocalDateTime(timestamp));
+        this.timestampOriginalFormat.add(timestamp);
+        this.contentHash = new LinkedList<>();
 
         this.matchingImages = matchingImages;
     }
@@ -47,12 +53,6 @@ public class ImageData implements Comparable<LocalDateTime> {
         return String.format("\"%s\": %s", mimeReported, url);
     }
 
-    @Override
-    public int compareTo(LocalDateTime timestamp) {
-        return this.timestamp.compareTo(timestamp);
-    }
-
-
     public String getImageHashKey() {
         return imageHashKey;
     }
@@ -61,12 +61,8 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.imageHashKey = imageHashKey;
     }
 
-    public LocalDateTime getTimestamp() {
+    public List<LocalDateTime> getTimestamp() {
         return timestamp;
-    }
-
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
     }
 
     public String getUrl() {
@@ -109,12 +105,19 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.collection = collection;
     }
 
-    public String getContentHash() {
+    public List<String> getContentHash() {
         return contentHash;
     }
 
-    public void setContentHash(String contentHash) {
-        this.contentHash = contentHash;
+    public void addContentHash(String contentHash) {
+        if (!this.contentHash.contains(contentHash))
+            this.contentHash.add(contentHash);
+    }
+
+    public void addContentHashes(List<String> contentHashes) {
+        for (String contentHash : contentHashes)
+            if (!this.contentHash.contains(contentHash))
+                this.contentHash.add(contentHash);
     }
 
     public int getWidth() {
@@ -141,9 +144,13 @@ public class ImageData implements Comparable<LocalDateTime> {
         this.bytes = bytes;
     }
 
-    public String getTimestampOriginalFormat() { return timestampOriginalFormat; }
+    public List<String> getTimestampOriginalFormat() {
+        return timestampOriginalFormat;
+    }
 
-    public String getURLWithTimestamp() { return timestampOriginalFormat + "/" + this.url; }
+    public String getURLWithTimestamp() {
+        return timestampOriginalFormat + "/" + this.url;
+    }
 
     public int getSize() {
         return size;
@@ -159,5 +166,11 @@ public class ImageData implements Comparable<LocalDateTime> {
 
     public void incrementMatchingImages(int matchingImages) {
         this.matchingImages += matchingImages;
+    }
+
+    public void addTimestamps(List<LocalDateTime> timestamps) {
+        for(LocalDateTime timestamp: timestamps)
+            if (!this.timestamp.contains(timestamp))
+                this.timestamp.add(timestamp);
     }
 }
