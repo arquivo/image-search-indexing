@@ -393,6 +393,7 @@ public class ImageInformationExtractor {
                 pageImageData.incrementImagesInAllMatchingPages(pageImageDataOld.getImagesInAllMatchingPages());
                 pageImageData.incrementMatchingImageReferences(pageImageDataOld.getTotalMatchingImgReferences());
                 pageImageData.incrementMatchingPages(pageImageDataOld.getMatchingPages());
+                pageImageData.incrementMetadataChanges(pageImageDataOld.getMetadataChanges());
                 if (metadataChanged)
                     pageImageData.incrementMetadataChanges(1);
                 imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
@@ -400,6 +401,7 @@ public class ImageInformationExtractor {
                 pageImageDataOld.incrementImagesInAllMatchingPages(pageImageData.getImagesInAllMatchingPages());
                 pageImageDataOld.incrementMatchingImageReferences(pageImageData.getTotalMatchingImgReferences());
                 pageImageDataOld.incrementMatchingPages(pageImageData.getMatchingPages());
+                pageImageDataOld.incrementMetadataChanges(pageImageData.getMetadataChanges());
                 if (metadataChanged)
                     pageImageDataOld.incrementMetadataChanges(1);
             }
