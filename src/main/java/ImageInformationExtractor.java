@@ -119,7 +119,7 @@ public class ImageInformationExtractor {
             String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
 
             byte[] contentBytes = data.getBytes();
-            for(String meta: metadata){
+            for (String meta : metadata) {
                 if (meta.contains("base64")) {
                     contentBytes = Base64.decode(data);
                     break;
@@ -157,7 +157,7 @@ public class ImageInformationExtractor {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
         }
 
-        ImageData imageData = new ImageData(imageHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes);
+        ImageData imageData = new ImageData(imageHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes, 1);
         ImageData imageDataOld;
 
         try {
@@ -179,10 +179,13 @@ public class ImageInformationExtractor {
 
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
             if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null && comparatorImages.compare(imageDataOld, imageData) < 0) {
-                return;
+                imageDataOld.incrementMatchingImages(1);
+            } else {
+                if (imageDataOld != null)
+                    imageData.incrementMatchingImages(imageDataOld.getMatchingImages());
+                this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
+                imgFileEntries.put(imageData.getSurt(), imageData);
             }
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
-            imgFileEntries.put(imageData.getSurt(), imageData);
                 /*Gson gson = new Gson();
                 try {
                     context.write(new Text(imgSurt), new Text(gson.toJson(imageData)));
@@ -344,7 +347,7 @@ public class ImageInformationExtractor {
                                             pageTitle, String pageURLTokens, Mapper<LongWritable, Text, Text, Text>.Context context) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol);
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol);
         PageImageData pageImageDataOld = null;
 
         this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_IGNORED).increment(1);
@@ -352,10 +355,16 @@ public class ImageInformationExtractor {
             this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
             imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
         } else {
+            logger.debug(String.format("Old metadata size: %d,%d, new metadata size: %d,%d", pageImageDataOld.getPageMetadataSize(), pageImageDataOld.getImageMetadataSize(), pageImageData.getPageMetadataSize(), pageImageData.getImageMetadataSize()));
             int compResult = comparatorPages.compare(pageImageDataOld, pageImageData);
-            if (compResult > 0)
+            if (compResult > 0) {
+                pageImageData.incrementImagesInAllMatchingPages(pageImageDataOld.getImagesInAllMatchingPages());
+                pageImageData.incrementMatchingPages(pageImageDataOld.getMatchingPages());
                 imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
-
+            } else {
+                pageImageDataOld.incrementImagesInAllMatchingPages(pageImageData.getImagesInAllMatchingPages());
+                pageImageDataOld.incrementMatchingPages(pageImageData.getMatchingPages());
+            }
         }
 
     }

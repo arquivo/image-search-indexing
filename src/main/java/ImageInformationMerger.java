@@ -22,11 +22,20 @@ public class ImageInformationMerger {
     private HashMap<Enum<?>, Counter> localCounters;
     private Gson gson;
 
+    private long imagesInAllMatchingPages;
+    private int totalMatchingPages;
+    private int totalMatchingImages;
+
+
     ImageInformationMerger(Reducer.Context context) {
         this.pages = new LinkedList<>();
         this.images = new LinkedList<>();
         this.context = context;
         this.gson = new Gson();
+
+        this.imagesInAllMatchingPages = 0;
+        this.totalMatchingPages = 0;
+        this.totalMatchingImages = 0;
     }
 
     ImageInformationMerger() {
@@ -34,6 +43,10 @@ public class ImageInformationMerger {
         this.images = new LinkedList<>();
         this.localCounters = new HashMap<>();
         this.gson = new Gson();
+
+        this.imagesInAllMatchingPages = 0;
+        this.totalMatchingPages = 0;
+        this.totalMatchingImages = 0;
     }
 
     public Counter getCounter(Enum<?> counterName) {
@@ -68,15 +81,21 @@ public class ImageInformationMerger {
 
     public void addImage(ImageData image) {
         images.add(image);
+        totalMatchingImages += image.getMatchingImages();
     }
 
     public void addPage(PageImageData page) {
         pages.add(page);
+        totalMatchingPages += page.getMatchingPages();
+        imagesInAllMatchingPages += page.getImagesInAllMatchingPages();
     }
 
     public void reset() {
         pages = new LinkedList<>();
         images = new LinkedList<>();
+        this.imagesInAllMatchingPages = 0;
+        this.totalMatchingPages = 0;
+        this.totalMatchingImages = 0;
     }
 
     public List<PageImageData> getPages() {
@@ -94,6 +113,6 @@ public class ImageInformationMerger {
 
         PageImageData closestPage = WARCInformationParser.getClosest(pages, timekey);
 
-        return new FullImageMetadata(image, closestPage);
+        return new FullImageMetadata(image, closestPage, totalMatchingImages, totalMatchingPages, imagesInAllMatchingPages);
     }
 }

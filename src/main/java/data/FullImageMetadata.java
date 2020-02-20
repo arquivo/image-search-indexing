@@ -41,8 +41,12 @@ public class FullImageMetadata {
     private int safe;
     private int spam;
 
+    // Aggregation metadata
+    private int totalMatchingImages;
+    private int totalMatchingPages;
+    private long imagesInAllMatchingPages;
 
-    public FullImageMetadata(ImageData image, PageImageData page) {
+    public FullImageMetadata(ImageData image, PageImageData page, int totalMatchingImages, int totalMatchingPages, long imagesInAllMatchingPages) {
         this.imgTitle = page.getImgTitle();
         this.imgAlt = page.getImgAlt();
         this.imgSrcTokens = page.getImgSrcTokens();
@@ -67,10 +71,11 @@ public class FullImageMetadata {
         this.imgHeight = image.getHeight();
         this.imageSize = image.getSize();
 
-
         this.safe = -1;
         this.spam = 0;
 
+        this.totalMatchingImages = totalMatchingImages;
+        this.totalMatchingPages = totalMatchingPages;
+        this.imagesInAllMatchingPages = imagesInAllMatchingPages;
     }
-
 }

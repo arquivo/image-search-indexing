@@ -23,8 +23,10 @@ public class ImageData implements Comparable<LocalDateTime> {
     private int height;
     private int size;
 
+    private int matchingImages;
 
-    public ImageData(String imageHashKey, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes) {
+
+    public ImageData(String imageHashKey, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes, int matchingImages) {
         this.imageHashKey = imageHashKey;
         this.url = url;
         this.surt = surt;
@@ -36,6 +38,8 @@ public class ImageData implements Comparable<LocalDateTime> {
 
         this.timestampOriginalFormat = timestamp;
         this.timestamp = WARCInformationParser.parseLocalDateTime(timestamp);
+
+        this.matchingImages = matchingImages;
     }
 
     @Override
@@ -143,5 +147,17 @@ public class ImageData implements Comparable<LocalDateTime> {
 
     public int getSize() {
         return size;
+    }
+
+    public int getMatchingImages() {
+        return matchingImages;
+    }
+
+    public void setMatchingImages(int matchingImages) {
+        this.matchingImages = matchingImages;
+    }
+
+    public void incrementMatchingImages(int matchingImages) {
+        this.matchingImages += matchingImages;
     }
 }
