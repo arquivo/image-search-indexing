@@ -187,6 +187,13 @@ public class PageImageData implements Comparable<LocalDateTime> {
         return timestamp;
     }
 
+    public List<String> getTimestampsAsStrings() {
+        List<String> results = new LinkedList<>();
+        for (LocalDateTime time: this.timestamp)
+            results.add(time.toString());
+        return results;
+    }
+
     /*
     public String getPageMetadata() {
         Set<String> data = new HashSet<>();

@@ -1,63 +1,66 @@
 package data;
 
-import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 
 public class FullImageMetadata {
 
-    private String collection;
 
-    //TODO: what to do when more than one image per image url (different timestamps/collections)
-    //TODO: what to do when more than one page per image url
-
-    // Info extracted from the image bytes
-    private List<LocalDateTime> imgTimestamp;
+    public static final int MAXIMUM_META = 100;
     private String imgSurt;
     private String imgUrl;
 
-    private String mime;
-    private String imgSrcBase64;
-    private List<String> imgDigest;
 
-    private int imgWidth;
-    private int imgHeight;
+    // Aggregation metadata
+    private int totalMatchingImages;
+    private int totalMatchingPages;
+    private int imagesInPage;
+    private long imagesInAllPages;
+    private long totalImgSrc;
+
+    private int totalImgMetadataChanges;
+    private int totalPageMetadataChanges;
+
+
+
+    // Info extracted from the image bytes
+    private List<String> imgTimestamp;
+
+    // searchable tokens
+    private List<String> imgTitle;
+    private List<String> imgAlt;
     private String imgSrcTokens;
 
-    // Info extracted from the associated page HTML
-    private List<LocalDateTime> pageTimestamp;
-    private List<String> pageUrl;
-    private int pageImages;
-
+    private String mime;
+    private int imgWidth;
+    private int imgHeight;
     private int imageSize;
+
 
     // searchable tokens
     private List<String> pageTitle;
-    private List<String> imgTitle;
-    private List<String> imgAlt;
+    private List<String> pageUrl;
+    // Info extracted from the associated page HTML
+    private List<String> pageTimestamp;
 
     // Externally computed placeholders
     private int safe;
     private int spam;
 
-    // Aggregation metadata
-    private int totalMatchingImages;
-    private int totalMatchingPages;
-    private long imagesInAllMatchingPages;
-    private long totalMatchingImgSrc;
+    private String imgSrcBase64;
+    private List<String> imgDigest;
 
-    private int totalMetadataChanges;
-    private int totalPageMetadataChanges;
+    private String collection;
 
 
     public FullImageMetadata(ImageData image, PageImageData page) {
-        this.imgTitle = page.getImgTitle();
-        this.imgAlt = page.getImgAlt();
+        this.imgTitle = page.getImgTitle().subList(0, Math.min(page.getImgTitle().size(), MAXIMUM_META));
+        this.imgAlt = page.getImgAlt().subList(0, Math.min(page.getImgAlt().size(), MAXIMUM_META));
         this.imgSrcTokens = page.getImgSrcTokens();
-        this.pageTitle = page.getPageTitle();
-        this.pageUrl = page.getPageURL();
+        this.pageTitle = page.getPageTitle().subList(0, Math.min(page.getPageTitle().size(), MAXIMUM_META));
+        this.pageUrl = page.getPageURL().subList(0, Math.min(page.getPageURL().size(), MAXIMUM_META));
         this.imgSurt = image.getSurt();
-        this.pageImages = page.getPageImages();
+        this.imagesInPage = page.getPageImages();
 
         this.imgUrl = image.getUrl();
         this.mime = image.getMimeDetected();
@@ -65,8 +68,8 @@ public class FullImageMetadata {
         this.imgDigest = image.getContentHash();
         this.imgSrcBase64 = Base64.getEncoder().encodeToString(image.getBytes());
 
-        this.pageTimestamp = page.getTimestamp();
-        this.imgTimestamp = image.getTimestamp();
+        this.pageTimestamp = page.getTimestampsAsStrings().subList(0, Math.min(page.getTimestampsAsStrings().size(), MAXIMUM_META));
+        this.imgTimestamp = image.getTimestampsAsStrings().subList(0, Math.min(image.getTimestampsAsStrings().size(), MAXIMUM_META));
 
         this.imgWidth = image.getWidth();
         this.imgHeight = image.getHeight();
@@ -77,9 +80,9 @@ public class FullImageMetadata {
 
         this.totalMatchingImages = image.getMatchingImages();
         this.totalMatchingPages = page.getMatchingPages();
-        this.imagesInAllMatchingPages = page.getImagesInAllMatchingPages();
-        this.totalMatchingImgSrc = page.getTotalMatchingImgReferences();
-        this.totalMetadataChanges = Math.max(page.getImgAlt().size(), page.getImgTitle().size());
+        this.imagesInAllPages = page.getImagesInAllMatchingPages();
+        this.totalImgSrc = page.getTotalMatchingImgReferences();
+        this.totalImgMetadataChanges = Math.max(page.getImgAlt().size(), page.getImgTitle().size());
         this.totalPageMetadataChanges = Math.max(page.getPageURL().size(), page.getPageTitle().size());
     }
 

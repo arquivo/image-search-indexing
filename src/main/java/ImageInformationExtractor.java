@@ -376,9 +376,6 @@ public class ImageInformationExtractor {
                 this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
             }
         }
-
-
-
     }
 
     public HashMap<String, PageImageData> getImgSrcEntries() {

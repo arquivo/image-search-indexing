@@ -1,5 +1,4 @@
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 
 import data.*;
 import org.apache.hadoop.conf.Configuration;
@@ -59,7 +58,7 @@ public class FullImageIndexer {
         URL_IMAGES_NPAGES,
         URL_IMAGESALL_NPAGES,
         URL_NIMAGES_PAGES,
-        URL_NIMAGES_PAGES_ALL,
+        URL_NIMAGES_PAGESALL,
         IMAGES_PAGES_EXCEEDED
     }
 
@@ -164,7 +163,7 @@ public class FullImageIndexer {
                 merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getImages().size());
             } else if (merger.getPages().size() != 0) {
                 merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES_ALL).increment(merger.getPages().size());
+                merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(merger.getPages().size());
             }
 
         }

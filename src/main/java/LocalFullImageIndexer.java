@@ -1,10 +1,6 @@
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 import data.ImageData;
 import data.PageImageData;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
 
@@ -14,7 +10,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 public class LocalFullImageIndexer {
 
@@ -86,9 +81,12 @@ public class LocalFullImageIndexer {
             }
             logger.debug(String.format("Found %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
             if (merger.getImages().size() != 0 && merger.getPages().size() != 0) {
+                for (PageImageData page : merger.getPages())
+                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(page.getMatchingPages());
 
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(merger.getPages().size());
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(merger.getImages().size());
+                for (ImageData image : merger.getImages())
+                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(image.getMatchingImages());
+
                 merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
@@ -96,10 +94,15 @@ public class LocalFullImageIndexer {
                 return gson.toJson(merger.getBestMatch());
             } else if (merger.getImages().size() != 0) {
                 merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getImages().size());
+                for (ImageData image : merger.getImages())
+                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(image.getMatchingImages());
+
             } else if (merger.getPages().size() != 0) {
+
                 merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_NIMAGES_PAGES_ALL).increment(merger.getPages().size());
+
+                for (PageImageData page : merger.getPages())
+                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(page.getMatchingPages());
             }
             return null;
         }
@@ -137,19 +140,19 @@ public class LocalFullImageIndexer {
 
         System.out.println("FullImageIndexer$IMAGE_COUNTERS");
 
-        for (FullImageIndexer.IMAGE_COUNTERS counter: FullImageIndexer.IMAGE_COUNTERS.values()) {
+        for (FullImageIndexer.IMAGE_COUNTERS counter : FullImageIndexer.IMAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
         System.out.println("FullImageIndexer$PAGE_COUNTERS");
-        for (FullImageIndexer.PAGE_COUNTERS counter: FullImageIndexer.PAGE_COUNTERS.values()) {
+        for (FullImageIndexer.PAGE_COUNTERS counter : FullImageIndexer.PAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
         System.out.println("FullImageIndexer$REDUCE_COUNTERS");
-        for (FullImageIndexer.REDUCE_COUNTERS counter: FullImageIndexer.REDUCE_COUNTERS.values()) {
+        for (FullImageIndexer.REDUCE_COUNTERS counter : FullImageIndexer.REDUCE_COUNTERS.values()) {
             Counter c = reduce.merger.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

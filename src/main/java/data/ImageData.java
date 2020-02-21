@@ -167,7 +167,7 @@ public class ImageData {
     }
 
     public void addTimestamps(List<LocalDateTime> timestamps) {
-        for(LocalDateTime timestamp: timestamps)
+        for (LocalDateTime timestamp : timestamps)
             if (!this.timestamp.contains(timestamp))
                 this.timestamp.add(timestamp);
     }
@@ -176,5 +176,12 @@ public class ImageData {
         this.addTimestamps(other.getTimestamp());
         this.addTimestampsString(other.getTimestampOriginalFormat());
         this.addContentHashes(other.getContentHash());
+    }
+
+    public List<String> getTimestampsAsStrings() {
+        List<String> results = new LinkedList<>();
+        for (LocalDateTime time : this.timestamp)
+            results.add(time.toString());
+        return results;
     }
 }
