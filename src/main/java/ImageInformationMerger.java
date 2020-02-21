@@ -22,13 +22,6 @@ public class ImageInformationMerger {
     private HashMap<Enum<?>, Counter> localCounters;
     private Gson gson;
 
-    private long imagesInAllMatchingPages;
-    private long totalMatchingImgReferences;
-    private int totalMatchingPages;
-    private int totalMatchingImages;
-    private int totalMetadataChanges;
-
-
     ImageInformationMerger(Reducer.Context context) {
         this.context = context;
         this.gson = new Gson();
@@ -73,25 +66,15 @@ public class ImageInformationMerger {
 
     public void addImage(ImageData image) {
         images.add(image);
-        totalMatchingImages += image.getMatchingImages();
     }
 
     public void addPage(PageImageData page) {
         pages.add(page);
-        totalMatchingImgReferences += page.getTotalMatchingImgReferences();
-        imagesInAllMatchingPages += page.getImagesInAllMatchingPages();
-        totalMatchingPages += page.getMatchingPages();
-        totalMetadataChanges += page.getMetadataChanges();
     }
 
     public void reset() {
         pages = new LinkedList<>();
         images = new LinkedList<>();
-        this.imagesInAllMatchingPages = 0;
-        this.totalMatchingImgReferences = 0;
-        this.totalMatchingImages = 0;
-        this.totalMatchingPages = 0;
-        this.totalMetadataChanges = 0;
     }
 
     public List<PageImageData> getPages() {
@@ -113,10 +96,20 @@ public class ImageInformationMerger {
         PageImageData pageData = pages.get(0);
 
         for (PageImageData page : pages.subList(1, pages.size())) {
-            pageData.addPageImageData(page);
+            boolean imageMetadataChanged = pageData.addPageImageData(page);
+            if (imageMetadataChanged){
+                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+            }
         }
 
 
-        return new FullImageMetadata(imageData, pageData, totalMatchingImages, totalMatchingPages, totalMatchingImgReferences, imagesInAllMatchingPages, totalMetadataChanges);
+        FullImageMetadata mergedMetadata = new FullImageMetadata(imageData, pageData);
+
+        if (mergedMetadata.hasImageMetadata())
+            this.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGES_WITH_METADATA).increment(1);
+        else
+            this.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGES_WITHOUT_METADATA).increment(1);
+
+        return mergedMetadata;
     }
 }

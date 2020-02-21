@@ -53,6 +53,7 @@ public class FullImageIndexer {
     public enum REDUCE_COUNTERS {
         URL_IMAGES_PAGES,
         URL_IMAGES_PAGES_WITH_METADATA,
+        URL_IMAGES_PAGES_WITHOUT_METADATA,
         URL_IMAGES_PAGESALL,
         URL_IMAGESALL_PAGES,
         URL_IMAGES_NPAGES,

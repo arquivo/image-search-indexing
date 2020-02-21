@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import utils.InvalidWARCResponseIOException;
 import utils.WARCRecordResponseEncapsulated;
@@ -24,6 +23,7 @@ import org.archive.io.warc.WARCRecord;
  */
 public class ImageSearchIndexingUtil {
 
+    public static final int MAXIMUM_RECORD_SIZE_MB = 32;
     private static Logger logger = Logger.getLogger(ImageSearchIndexingUtil.class);
 
     public static String md5ofString(String content) {
@@ -148,7 +148,7 @@ public class ImageSearchIndexingUtil {
         byte[] buffer = new byte[1024 * 16];
         int len = record.read(buffer, 0, buffer.length);
         ByteArrayOutputStream contentBuffer =
-                new ByteArrayOutputStream(1024 * 16 * 1000); /*Max record size: 16Mb*/
+                new ByteArrayOutputStream(1024 * MAXIMUM_RECORD_SIZE_MB * 1000); /*Max record size: 32Mb*/
         contentBuffer.reset();
         while (len != -1) {
             contentBuffer.write(buffer, 0, len);

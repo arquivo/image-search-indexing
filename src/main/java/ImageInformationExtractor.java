@@ -183,10 +183,8 @@ public class ImageInformationExtractor {
 
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
             if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null ) {
-                imageDataOld.incrementMatchingImages(1);
                 imageDataOld.addTimestamps(imageData.getTimestamp());
             } else {
-                imageData.incrementMatchingImages(1);
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
                 imgFileEntries.put(imageData.getSurt(), imageData);
             }
@@ -373,8 +371,13 @@ public class ImageInformationExtractor {
             this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
             imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
         } else {
-            pageImageDataOld.addPageImageData(pageImageData);
+            boolean imageMetadataChanged = pageImageDataOld.addPageImageData(pageImageData);
+            if (imageMetadataChanged){
+                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+            }
         }
+
+
 
     }
 

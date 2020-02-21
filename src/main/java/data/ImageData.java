@@ -120,6 +120,12 @@ public class ImageData {
                 this.contentHash.add(contentHash);
     }
 
+    public void addTimestampsString(List<String> timestamps) {
+        for (String timestamp : timestamps)
+            if (!this.timestampOriginalFormat.contains(timestamp))
+                this.timestampOriginalFormat.add(timestamp);
+    }
+
     public int getWidth() {
         return width;
     }
@@ -149,7 +155,7 @@ public class ImageData {
     }
 
     public String getURLWithTimestamp() {
-        return timestampOriginalFormat + "/" + this.url;
+        return timestampOriginalFormat.get(0) + "/" + this.url;
     }
 
     public int getSize() {
@@ -157,20 +163,18 @@ public class ImageData {
     }
 
     public int getMatchingImages() {
-        return matchingImages;
-    }
-
-    public void setMatchingImages(int matchingImages) {
-        this.matchingImages = matchingImages;
-    }
-
-    public void incrementMatchingImages(int matchingImages) {
-        this.matchingImages += matchingImages;
+        return this.timestamp.size();
     }
 
     public void addTimestamps(List<LocalDateTime> timestamps) {
         for(LocalDateTime timestamp: timestamps)
             if (!this.timestamp.contains(timestamp))
                 this.timestamp.add(timestamp);
+    }
+
+    public void addImageData(ImageData other) {
+        this.addTimestamps(other.getTimestamp());
+        this.addTimestampsString(other.getTimestampOriginalFormat());
+        this.addContentHashes(other.getContentHash());
     }
 }
