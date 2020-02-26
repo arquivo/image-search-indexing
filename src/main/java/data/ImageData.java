@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class ImageData {
+    private static final int MAX_ADD_THRESHOLD = 50;
     private String imageHashKey;
 
     private List<LocalDateTime> timestamp;
@@ -110,19 +111,18 @@ public class ImageData {
     }
 
     public void addContentHash(String contentHash) {
-        if (!this.contentHash.contains(contentHash))
+        if (this.contentHash.size() <= MAX_ADD_THRESHOLD && !this.contentHash.contains(contentHash))
             this.contentHash.add(contentHash);
     }
 
     public void addContentHashes(List<String> contentHashes) {
         for (String contentHash : contentHashes)
-            if (!this.contentHash.contains(contentHash))
-                this.contentHash.add(contentHash);
+            addContentHash(contentHash);
     }
 
     public void addTimestampsString(List<String> timestamps) {
         for (String timestamp : timestamps)
-            if (!this.timestampOriginalFormat.contains(timestamp))
+            if (this.timestampOriginalFormat.size() <= MAX_ADD_THRESHOLD && !this.timestampOriginalFormat.contains(timestamp))
                 this.timestampOriginalFormat.add(timestamp);
     }
 
@@ -168,7 +168,7 @@ public class ImageData {
 
     public void addTimestamps(List<LocalDateTime> timestamps) {
         for (LocalDateTime timestamp : timestamps)
-            if (!this.timestamp.contains(timestamp))
+            if (this.timestamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
                 this.timestamp.add(timestamp);
     }
 

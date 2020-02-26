@@ -6,7 +6,7 @@ import java.util.List;
 public class FullImageMetadata {
 
 
-    public static final int MAXIMUM_META = 100;
+    public static final int MAXIMUM_META = 50;
     private String imgSurt;
     private String imgUrl;
 
@@ -82,7 +82,7 @@ public class FullImageMetadata {
         this.totalMatchingPages = page.getMatchingPages();
         this.imagesInAllPages = page.getImagesInAllMatchingPages();
         this.totalImgSrc = page.getTotalMatchingImgReferences();
-        this.totalImgMetadataChanges = Math.max(page.getImgAlt().size(), page.getImgTitle().size());
+        this.totalImgMetadataChanges = page.getImageMetadataChanges();
         this.totalPageMetadataChanges = Math.max(page.getPageURL().size(), page.getPageTitle().size());
     }
 

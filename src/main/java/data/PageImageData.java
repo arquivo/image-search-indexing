@@ -9,6 +9,7 @@ import java.util.List;
 
 public class PageImageData implements Comparable<LocalDateTime> {
 
+    private static final int MAX_ADD_THRESHOLD = 50;
     private String type;
     private List<String> imgTitle;
     private List<String> imgAlt;
@@ -41,7 +42,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
     private int matchingPages;
 
     // Number of times the metadata changed for the image
-    private int metadataChanges;
+    private int imageMetadataChanges;
 
 
     public PageImageData(String type, String imgTitle, String imgAlt, String imgSrcTokens, String pageTitle, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTstamp, String pageURL, String pageHost, String pageProtocol) {
@@ -76,6 +77,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.totalMatchingImgReferences = totalMatchingImgReferences;
         this.matchingPages = 0;
 
+        this.imageMetadataChanges = 1;
 
         this.pageTstamp = new LinkedList<>();
         this.pageTstamp.add(pageTstamp);
@@ -93,13 +95,13 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
     private void addPageURLTokens(List<String> pageURLTokens) {
         for (String tokens : pageURLTokens)
-            if (!tokens.isEmpty() && !this.pageURLTokens.contains(tokens))
+            if (this.pageURLTokens.size() <= MAX_ADD_THRESHOLD && !tokens.isEmpty() && !this.pageURLTokens.contains(tokens))
                 this.pageURLTokens.add(tokens);
     }
 
     private void addPageTitle(List<String> pageTitle) {
         for (String title : pageTitle)
-            if (!pageTitle.isEmpty() && !this.pageTitle.contains(title))
+            if (this.pageTitle.size() <= MAX_ADD_THRESHOLD && !pageTitle.isEmpty() && !this.pageTitle.contains(title))
                 this.pageTitle.add(title);
     }
 
@@ -163,20 +165,31 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
     public void addPageURL(List<String> pageURL) {
         for (String url : pageURL)
-            if (!url.isEmpty() && !this.pageURL.contains(url))
+            if (this.pageURL.size() <= MAX_ADD_THRESHOLD && !url.isEmpty() && !this.pageURL.contains(url))
                 this.pageURL.add(url);
+
+
+
     }
 
     public void addImgTitle(List<String> imgTitle) {
-        for (String title : imgTitle)
-            if (!title.trim().isEmpty() && !this.imgTitle.contains(title))
-                this.imgTitle.add(title);
+        for (String title : imgTitle){
+            if (!title.trim().isEmpty() && !this.imgTitle.contains(title)) {
+                imageMetadataChanges++;
+                if (this.imgTitle.size() <= MAX_ADD_THRESHOLD)
+                    this.imgTitle.add(title);
+            }
+        }
     }
 
     public void addImgAlt(List<String> imgAlt) {
-        for (String alt : imgAlt)
-            if (!alt.trim().isEmpty() && !this.imgAlt.contains(alt))
-                this.imgAlt.add(alt);
+        for (String title : imgAlt){
+            if (!title.trim().isEmpty() && !this.imgAlt.contains(title)) {
+                imageMetadataChanges++;
+                if (this.imgAlt.size() <= MAX_ADD_THRESHOLD)
+                    this.imgAlt.add(title);
+            }
+        }
     }
 
     public String getPageProtocol() {
@@ -189,7 +202,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
     public List<String> getTimestampsAsStrings() {
         List<String> results = new LinkedList<>();
-        for (LocalDateTime time: this.timestamp)
+        for (LocalDateTime time : this.timestamp)
             results.add(time.toString());
         return results;
     }
@@ -262,20 +275,16 @@ public class PageImageData implements Comparable<LocalDateTime> {
         return matchingPages;
     }
 
+    public int getImageMetadataChanges() {
+        return imageMetadataChanges;
+    }
+
     public void setMatchingPages(int matchingPages) {
         this.matchingPages = matchingPages;
     }
 
     public void incrementMatchingPages(int matchingPages) {
         this.matchingPages += matchingPages;
-    }
-
-    public int getMetadataChanges() {
-        return metadataChanges;
-    }
-
-    public void incrementMetadataChanges(int metadataChanges) {
-        this.metadataChanges += metadataChanges;
     }
 
     public boolean addPageImageData(PageImageData newPageImageData) {
@@ -289,12 +298,12 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.addPageURL(newPageImageData.getPageURL());
         this.addPageURLTokens(newPageImageData.getPageURLTokens());
 
-        for(String timestamp: newPageImageData.getPageTstamp())
-            if (!this.pageTstamp.contains(timestamp))
+        for (String timestamp : newPageImageData.getPageTstamp())
+            if (this.pageTstamp.size() <= MAX_ADD_THRESHOLD && !this.pageTstamp.contains(timestamp))
                 this.pageTstamp.add(timestamp);
 
-        for(LocalDateTime timestamp: newPageImageData.getTimestamp())
-            if (!this.timestamp.contains(timestamp))
+        for (LocalDateTime timestamp : newPageImageData.getTimestamp())
+            if (this.pageTstamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
                 this.timestamp.add(timestamp);
 
         this.imagesInOriginalPage += newPageImageData.getImagesInOriginalPage();
@@ -303,10 +312,14 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.totalMatchingImgReferences += newPageImageData.getTotalMatchingImgReferences();
         this.matchingPages += newPageImageData.getMatchingPages();
 
+        //this.imageMetadataChanges = newPageImageData.getImageMetadataChanges();
+
         int finalSize = this.imgAlt.size() + this.imgTitle.size();
 
         return initalSize != finalSize;
 
     }
+
+
 }
 
