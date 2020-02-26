@@ -164,11 +164,10 @@ public class ImageInformationExtractor {
 
         try {
             imageData = ImageParse.getPropImage(imageData);
-        } catch (Exception e) {
+        }  catch (Exception | StackOverflowError e) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return false;
         }
-
 
 
         if (imageData == null) {
