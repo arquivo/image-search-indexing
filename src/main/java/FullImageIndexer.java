@@ -19,6 +19,13 @@ public class FullImageIndexer {
 
     public enum IMAGE_COUNTERS {
         WARCS,
+
+        WARCS_FAILED,
+
+        RECORDS_READ,
+        RECORDS_FAILED,
+        RECORD_NEXT_FAILED,
+
         IMAGES_IN_WARC_TOTAL,
         IMAGES_IN_WARC_FAILED,
 
@@ -153,9 +160,7 @@ public class FullImageIndexer {
 
                 try {
                     context.write(NullWritable.get(), new Text(gson.toJson(merger.getBestMatch())));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
+                } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
             } else if (merger.getImages().size() != 0) {

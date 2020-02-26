@@ -75,7 +75,7 @@ public class ImageInformationExtractor {
     }
 
     public void parseWarcEntryRecord(String arcURL) {
-        ImageSearchIndexingUtil.readWarcRecords(arcURL, (record) -> {
+        ImageSearchIndexingUtil.readWarcRecords(arcURL, this, (record) -> {
             boolean isImage = record.getContentMimetype().contains("image");
             if (isImage) {
                 createImageDB(arcURL, record, context);
@@ -89,7 +89,7 @@ public class ImageInformationExtractor {
     }
 
     public void parseArcEntry(String arcURL) {
-        ImageSearchIndexingUtil.readArcRecords(arcURL, record -> {
+        ImageSearchIndexingUtil.readArcRecords(arcURL, this, record -> {
             boolean isImage = record.getMetaData().getMimetype().contains("image");
             if (isImage) {
                 createImageDB(arcURL, record, context);
