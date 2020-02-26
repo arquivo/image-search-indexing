@@ -4,9 +4,7 @@ import data.PageImageData;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -117,6 +115,9 @@ public class LocalFullImageIndexer {
         assert args.length >= 2 : "Missing collection name argument";
         String collection = args[1];
 
+        assert args.length >= 3 : "Missing output file";
+        String outputFile = args[2];
+
         LocalFullImageIndexer.Map map = new Map(collection);
 
         try (BufferedReader br = new BufferedReader(new FileReader(hdfsArcsPath))) {
@@ -132,10 +133,15 @@ public class LocalFullImageIndexer {
 
         LocalFullImageIndexer.Reduce reduce = new Reduce();
 
-        for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
-            String result = reduce.reduce(entry.getKey(), entry.getValue());
-            if (result != null)
-                System.out.println(result);
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))) {
+
+            for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
+                String result = reduce.reduce(entry.getKey(), entry.getValue());
+                if (result != null)
+                    out.println(result);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         System.out.println("FullImageIndexer$IMAGE_COUNTERS");
