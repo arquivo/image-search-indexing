@@ -44,40 +44,52 @@ public class ImageSearchIndexingUtil {
 
         int records = 0;
         int errors = 0;
-        for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext(); ) {
-            ARCRecord record;
-            try {
-                record = (ARCRecord) ii.next();
-            } catch (RuntimeException e) {
-                errors++;
-                // skip this record
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
-                logger.error("Exception reading next (W)ARC record", e);
-                break;
-            }
-            try {
-                consumer.accept(record);
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);
-            } catch (RuntimeException e) {
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
-                logger.error("Exception reading (W)ARC record", e);
-                errors++;
-            }
 
-            ++records;
-            if (record.hasErrors()) {
-                errors += record.getErrors().size();
+        reader.setStrict(true);
+        Iterator<ArchiveRecord> ii = reader.iterator();
+
+        try {
+            while (ii.hasNext()) {
+                ARCRecord record;
+                try {
+                    record = (ARCRecord) ii.next();
+                } catch (RuntimeException e) {
+                    errors++;
+                    // skip this record
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
+                    logger.error("Exception reading next (W)ARC record", e);
+                    throw e;
+                }
+                try {
+                    consumer.accept(record);
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                } catch (RuntimeException e) {
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    logger.error("Exception reading (W)ARC record", e);
+                    errors++;
+                }
+
+                ++records;
+                if (record.hasErrors()) {
+                    errors += record.getErrors().size();
+                }
             }
-        }
-        logger.debug("records: " + records);
-        logger.debug("errors: " + errors);
-        if (reader != null) {
-            try {
-                reader.close();
-            } catch (IOException e) {
-                logger.debug("error closing ArchiveReader" + e.getMessage());
+            logger.debug("records: " + records);
+            logger.debug("errors: " + errors);
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    logger.debug("error closing ArchiveReader" + e.getMessage());
+                }
+
             }
+        } catch (RuntimeException e) {
+            context.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            logger.error("Exception reading WARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
+            throw e;
         }
+
     }
 
     public static byte[] getRecordContentBytes(ARCRecord record) throws IOException {
@@ -107,58 +119,62 @@ public class ImageSearchIndexingUtil {
         }
         int records = 0;
         int errors = 0;
+        reader.setStrict(true);
+        Iterator<ArchiveRecord> ii = reader.iterator();
 
-        for (Iterator<ArchiveRecord> ii = reader.iterator(); ii.hasNext(); ) {
-
-            WARCRecord warcRecord;
-            try {
-                warcRecord = (WARCRecord) ii.next();
-            } catch (RuntimeException re) {
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
-                errors++;
-                // skip this record
-                logger.error("Exception reading next WARC record", re);
-                break;
-            }
-
-
-
-            String warcRecordType = (String) warcRecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
-            String warcRecordMimetype = warcRecord.getHeader().getMimetype();
-            WARCRecordResponseEncapsulated record = null;
-
-            try {
-                if (warcRecordType.equalsIgnoreCase(WARCConstants.WARCRecordType.resource.toString())) {
-                    Map<String, Object> headers = new HashMap<>();
-                    headers.put(WARCConstants.CONTENT_LENGTH.toLowerCase(), String.valueOf(warcRecord.getHeader().getContentLength()));
-                    headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
-                    headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
-
-                    record = new WARCRecordResponseEncapsulated(warcRecord, headers, warcURL);
-                    consumer.accept(record);
-                } else {
-                    record = new WARCRecordResponseEncapsulated(warcRecord, warcURL);
-                    consumer.accept(record);
+        try {
+            while (ii.hasNext()) {
+                WARCRecord warcRecord;
+                try {
+                    warcRecord = (WARCRecord) ii.next();
+                } catch (RuntimeException re) {
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
+                    errors++;
+                    logger.error("Exception reading next WARC record", re);
+                    throw re;
                 }
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);
-            } catch (InvalidWARCResponseIOException e) {
-                /* This is not a WARCResponse; skip */
-                errors++;
-            } catch (IOException e) {
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
-                logger.error("IO Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
-                errors++;
-            } catch (Exception e) {
-                context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
-                logger.error("Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
-                errors++;
+
+
+                String warcRecordType = (String) warcRecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
+                String warcRecordMimetype = warcRecord.getHeader().getMimetype();
+                WARCRecordResponseEncapsulated record = null;
+
+                try {
+                    if (warcRecordType.equalsIgnoreCase(WARCConstants.WARCRecordType.resource.toString())) {
+                        Map<String, Object> headers = new HashMap<>();
+                        headers.put(WARCConstants.CONTENT_LENGTH.toLowerCase(), String.valueOf(warcRecord.getHeader().getContentLength()));
+                        headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
+                        headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
+
+                        record = new WARCRecordResponseEncapsulated(warcRecord, headers, warcURL);
+                        consumer.accept(record);
+                    } else {
+                        record = new WARCRecordResponseEncapsulated(warcRecord, warcURL);
+                        consumer.accept(record);
+                    }
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                } catch (InvalidWARCResponseIOException e) {
+                    /* This is not a WARCResponse; skip */
+                    errors++;
+                } catch (IOException e) {
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    logger.error("IO Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
+                    errors++;
+                } catch (Exception e) {
+                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    logger.error("Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
+                    errors++;
+                }
+                ++records;
+
             }
-            ++records;
-            if (record != null && record.hasErrors()) {
-                errors += record.getErrors().size();
-            }
+        } catch (RuntimeException e) {
+            context.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            logger.error("Exception reading WARC bytes, WARCNAME: " + warcURL + " " + e.getMessage());
+            throw e;
         }
-        logger.info("WARCS RECORDS READ: " + records + " ERRORS: " +  errors);
+
+        logger.info("WARCS RECORDS READ: " + records + " ERRORS: " + errors);
         if (reader != null) {
             try {
                 reader.close();

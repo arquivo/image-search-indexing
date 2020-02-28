@@ -1,5 +1,6 @@
 package utils;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +37,6 @@ public class WARCRecordResponseEncapsulated {
     private static final String GZIPPED = "gzip";
     private static final String DEFLATE = "deflate";
     private static final String BROTLI = "br";
-
 
 
     private WARCRecord warcrecord;
@@ -169,45 +169,35 @@ public class WARCRecordResponseEncapsulated {
     }
 
     public byte[] getContentBytes() {
-        int retries = NUM_OF_RETRIES_GET_CONT_BYTES;
-        while (retries > 0) {
-            try {
-                InputStream stream = warcrecord;
-                String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
-                if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
-                    LOG.debug("Chunked Bytes");
-                    stream = new ChunkedInputStream(stream);
-                }
 
-                String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
-                if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
-                    // Test using
-                    // http://p51.arquivo.pt/warcs/rec-20200211165715684946-oreas-FQURN3T3.warc.gz
-                    stream = new GZIPInputStream(stream);
-                } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(DEFLATE)) {
-                    stream = new DeflaterInputStream(stream);
-                } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
-                    //TODO: this is not working correctly for webrecorder warcs (e.g. facebook.com is a chucked brotli)
-                    // http://p51.arquivo.pt/warcs/rec-20200217102707485431-oreas-EIKC7CQC.warc.gz
-                    stream = new BrotliInputStream(stream);
-                }
-
-                /*Default case convert to byte array*/
-                byte[] results = IOUtils.toByteArray(stream);
-
-                if (retries < NUM_OF_RETRIES_GET_CONT_BYTES){
-                    LOG.error(String.format("Success after %d retries", NUM_OF_RETRIES_GET_CONT_BYTES-retries));
-                }
-                return results;
-            } catch (IOException e) {
-                retries--;
-                LOG.error(String.format("Error getting content byte for WARC, %s ,retries left: %d", this.warcURL, retries));
-                try {
-                    Thread.sleep(3000);
-                } catch (InterruptedException ignored) {
-                    LOG.error("InterruptedException while getting content byte for WARC");
-                }
+        try {
+            InputStream astream = warcrecord;
+            String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
+            byte[] results = IOUtils.toByteArray(astream);
+            InputStream stream = new ByteArrayInputStream(results);
+            if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
+                LOG.debug("Chunked Bytes");
+                stream = new ChunkedInputStream(stream);
             }
+
+            String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
+            if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
+                // Test using
+                // http://p51.arquivo.pt/warcs/rec-20200211165715684946-oreas-FQURN3T3.warc.gz
+                stream = new GZIPInputStream(stream);
+            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(DEFLATE)) {
+                stream = new DeflaterInputStream(stream);
+            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
+                //TODO: this is not working correctly for webrecorder warcs (e.g. facebook.com is a chucked brotli)
+                // http://p51.arquivo.pt/warcs/rec-20200217102707485431-oreas-EIKC7CQC.warc.gz
+                stream = new BrotliInputStream(stream);
+            }
+
+            /*Default case convert to byte array*/
+            results = IOUtils.toByteArray(stream);
+            return results;
+        } catch (IOException e) {
+            LOG.error(String.format("Error getting content byte for WARC, %s", this.warcURL));
         }
         throw new RuntimeException("Error getting content byte for WARC");
     }

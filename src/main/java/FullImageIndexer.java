@@ -22,6 +22,8 @@ public class FullImageIndexer {
 
         WARCS_FAILED,
 
+        WARCS_FAILED_STREAM,
+
         RECORDS_READ,
         RECORDS_FAILED,
         RECORD_NEXT_FAILED,

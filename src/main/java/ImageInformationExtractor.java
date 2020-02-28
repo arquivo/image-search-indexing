@@ -76,13 +76,16 @@ public class ImageInformationExtractor {
 
     public void parseWarcEntryRecord(String arcURL) {
         ImageSearchIndexingUtil.readWarcRecords(arcURL, this, (record) -> {
-            boolean isImage = record.getContentMimetype().contains("image");
-            if (isImage) {
-                createImageDB(arcURL, record, context);
-            }
-            if (record != null && record.getContentMimetype() != null && record.getContentMimetype().contains("html")) { /*only processing images*/
-                logger.debug("Searching images in html record");
-                parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs());
+
+            String mimetype = record.getContentMimetype();
+            if (mimetype != null) {
+                if (mimetype.contains("image")) {
+                    createImageDB(arcURL, record, context);
+                }
+                if (mimetype.contains("html")) { /*only processing images*/
+                    logger.debug("Searching images in html record");
+                    parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs());
+                }
             }
         });
 
@@ -164,7 +167,7 @@ public class ImageInformationExtractor {
 
         try {
             imageData = ImageParse.getPropImage(imageData);
-        }  catch (Exception | StackOverflowError e) {
+        } catch (Exception | StackOverflowError e) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return false;
         }
@@ -181,7 +184,7 @@ public class ImageInformationExtractor {
         } else {
 
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
-            if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null ) {
+            if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null) {
                 imageDataOld.addTimestamps(imageData.getTimestamp());
             } else {
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
@@ -371,7 +374,7 @@ public class ImageInformationExtractor {
             imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
         } else {
             boolean imageMetadataChanged = pageImageDataOld.addPageImageData(pageImageData);
-            if (imageMetadataChanged){
+            if (imageMetadataChanged) {
                 this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
             }
         }
