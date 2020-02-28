@@ -134,10 +134,10 @@ public class ImageSearchIndexingUtil {
                     headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
                     headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
 
-                    record = new WARCRecordResponseEncapsulated(warcRecord, headers);
+                    record = new WARCRecordResponseEncapsulated(warcRecord, headers, warcURL);
                     consumer.accept(record);
                 } else {
-                    record = new WARCRecordResponseEncapsulated(warcRecord);
+                    record = new WARCRecordResponseEncapsulated(warcRecord, warcURL);
                     consumer.accept(record);
                 }
                 context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);

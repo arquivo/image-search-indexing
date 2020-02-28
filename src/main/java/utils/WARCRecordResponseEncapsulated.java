@@ -26,6 +26,7 @@ import org.brotli.dec.BrotliInputStream;
 
 public class WARCRecordResponseEncapsulated {
 
+    private static final int NUM_OF_RETRIES_GET_CONT_BYTES = 3;
     public final Log LOG = LogFactory.getLog(WARCRecordResponseEncapsulated.class);
 
     private static final String TRANSFER_ENCODING = "transfer-encoding";
@@ -60,6 +61,8 @@ public class WARCRecordResponseEncapsulated {
      */
     private String statusCode = null;
 
+    private String warcURL;
+
     public int contentBegin = 0;
 
     /**
@@ -75,8 +78,9 @@ public class WARCRecordResponseEncapsulated {
     /**
      * Constructor.
      */
-    public WARCRecordResponseEncapsulated(WARCRecord warcrecord)
+    public WARCRecordResponseEncapsulated(WARCRecord warcrecord, String warcURL)
             throws IOException {
+        this.warcURL = warcURL;
         this.warcrecord = warcrecord;
 
         if (!isWARCResponseRecord()) {
@@ -86,7 +90,8 @@ public class WARCRecordResponseEncapsulated {
         }
     }
 
-    public WARCRecordResponseEncapsulated(WARCRecord warcrecord, Map<String, Object> headerFields) {
+    public WARCRecordResponseEncapsulated(WARCRecord warcrecord, Map<String, Object> headerFields, String warcURL) {
+        this.warcURL = warcURL;
         this.warcrecord = warcrecord;
         this.headerFields = headerFields;
     }
@@ -164,32 +169,47 @@ public class WARCRecordResponseEncapsulated {
     }
 
     public byte[] getContentBytes() {
-        try {
-            InputStream stream = warcrecord;
-            String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
-            if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
-                LOG.debug("Chunked Bytes");
-                stream = new ChunkedInputStream(stream);
-            }
+        int retries = NUM_OF_RETRIES_GET_CONT_BYTES;
+        while (retries > 0) {
+            try {
+                InputStream stream = warcrecord;
+                String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
+                if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
+                    LOG.debug("Chunked Bytes");
+                    stream = new ChunkedInputStream(stream);
+                }
 
-            String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
-            if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
-                // Test using
-                // http://p51.arquivo.pt/warcs/rec-20200211165715684946-oreas-FQURN3T3.warc.gz
-                stream = new GZIPInputStream(stream);
-            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(DEFLATE)) {
-                stream = new DeflaterInputStream(stream);
-            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
-                //TODO: this is not working correctly for webrecorder warcs (e.g. facebook.com is a chucked brotli)
-                // http://p51.arquivo.pt/warcs/rec-20200217102707485431-oreas-EIKC7CQC.warc.gz
-                stream = new BrotliInputStream(stream);
-            }
+                String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
+                if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
+                    // Test using
+                    // http://p51.arquivo.pt/warcs/rec-20200211165715684946-oreas-FQURN3T3.warc.gz
+                    stream = new GZIPInputStream(stream);
+                } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(DEFLATE)) {
+                    stream = new DeflaterInputStream(stream);
+                } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
+                    //TODO: this is not working correctly for webrecorder warcs (e.g. facebook.com is a chucked brotli)
+                    // http://p51.arquivo.pt/warcs/rec-20200217102707485431-oreas-EIKC7CQC.warc.gz
+                    stream = new BrotliInputStream(stream);
+                }
 
-            /*Default case convert to byte array*/
-            return IOUtils.toByteArray(stream);
-        } catch (IOException e) {
-            throw new RuntimeException("Error getting content byte for WARC", e);
+                /*Default case convert to byte array*/
+                byte[] results = IOUtils.toByteArray(stream);
+
+                if (retries < NUM_OF_RETRIES_GET_CONT_BYTES){
+                    LOG.error(String.format("Success after %d retries", NUM_OF_RETRIES_GET_CONT_BYTES-retries));
+                }
+                return results;
+            } catch (IOException e) {
+                retries--;
+                LOG.error(String.format("Error getting content byte for WARC, %s ,retries left: %d", this.warcURL, retries));
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ignored) {
+                    LOG.error("InterruptedException while getting content byte for WARC");
+                }
+            }
         }
+        throw new RuntimeException("Error getting content byte for WARC");
     }
 
     public String getTs() {
@@ -226,5 +246,7 @@ public class WARCRecordResponseEncapsulated {
         return year + month + day + hour + minute + second;
     }
 
-
+    public String getWarcURL() {
+        return warcURL;
+    }
 }
