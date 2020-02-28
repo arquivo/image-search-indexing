@@ -1,6 +1,9 @@
 import com.google.gson.Gson;
+import data.FullImageMetadata;
 import data.ImageData;
 import data.PageImageData;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
 
@@ -53,15 +56,13 @@ public class LocalFullImageIndexer {
 
         private Logger logger = Logger.getLogger(Reduce.class);
         private ImageInformationMerger merger;
-        private Gson gson;
 
         public Reduce() {
             merger = new ImageInformationMerger();
-            gson = new Gson();
         }
 
 
-        public String reduce(String key, List<Object> values) {
+        public FullImageMetadata reduce(String key, List<Object> values) {
 
             int counter = 0;
 
@@ -89,7 +90,7 @@ public class LocalFullImageIndexer {
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
-                return gson.toJson(merger.getBestMatch());
+                return merger.getBestMatch();
             } else if (merger.getImages().size() != 0) {
                 merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
                 for (ImageData image : merger.getImages())
@@ -108,6 +109,53 @@ public class LocalFullImageIndexer {
 
     }
 
+    public static class ReduceDigest {
+
+        private final Logger logger = Logger.getLogger(DupDigestMergerJob.Reduce.class);
+        public String collection;
+        private DupDigestMerger merger;
+        private Gson gson;
+
+        public ReduceDigest() {
+            gson = new Gson();
+            merger = new DupDigestMerger();
+        }
+
+
+        public FullImageMetadata reduce(Text key, Iterable<FullImageMetadata> values) {
+            int counter = 0;
+            Gson gson = new Gson();
+            FullImageMetadata result = null;
+            logger.debug("Reducing: " + key);
+
+
+            for (FullImageMetadata val : values) {
+                merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_IN).increment(1);
+                FullImageMetadata metadata = val;
+                if (result == null) {
+                    merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_OUT).increment(1);
+                    result = metadata;
+                } else {
+                    result.merge(metadata);
+                }
+                if (counter >= 1000) {
+                    logger.info(String.format("Broke iterating: %d records", counter));
+                    merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_EXCEEDED).increment(1);
+                    break;
+                }
+                counter++;
+
+
+            }
+            logger.debug(String.format("Found %d records", counter));
+
+            return result;
+
+        }
+
+
+    }
+
     public static void main(String[] args) {
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
@@ -117,6 +165,8 @@ public class LocalFullImageIndexer {
 
         assert args.length >= 3 : "Missing output file";
         String outputFile = args[2];
+
+        Gson gson = new Gson();
 
         LocalFullImageIndexer.Map map = new Map(collection);
 
@@ -130,19 +180,33 @@ public class LocalFullImageIndexer {
         }
 
         HashMap<String, List<Object>> mapResults = map.cleanup();
+        HashMap<String, List<FullImageMetadata>> reduceResults = new HashMap<>();
 
         LocalFullImageIndexer.Reduce reduce = new Reduce();
 
-        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))) {
 
-            for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
-                String result = reduce.reduce(entry.getKey(), entry.getValue());
-                if (result != null)
-                    out.println(result);
+        for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
+            FullImageMetadata result = reduce.reduce(entry.getKey(), entry.getValue());
+            if (result != null) {
+                reduceResults.putIfAbsent(result.getImgDigest(), new LinkedList<>());
+                reduceResults.get(result.getImgDigest()).add(result);
+            }
+        }
+
+        LocalFullImageIndexer.ReduceDigest reduceDigest = new ReduceDigest();
+
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))) {
+            for (java.util.Map.Entry<String, List<FullImageMetadata>> entry : reduceResults.entrySet()) {
+
+                FullImageMetadata result = reduceDigest.reduce(new Text(entry.getKey()), entry.getValue());
+                if (result != null){
+                    out.println(gson.toJson(result));
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+
 
         System.out.println("FullImageIndexer$IMAGE_COUNTERS");
 
@@ -160,6 +224,12 @@ public class LocalFullImageIndexer {
         System.out.println("FullImageIndexer$REDUCE_COUNTERS");
         for (FullImageIndexer.REDUCE_COUNTERS counter : FullImageIndexer.REDUCE_COUNTERS.values()) {
             Counter c = reduce.merger.getCounter(counter);
+            System.out.println("\t" + c.getName() + ": " + c.getValue());
+        }
+
+        System.out.println("DupDigestMergerJob$COUNTERS");
+        for (DupDigestMergerJob.COUNTERS counter : DupDigestMergerJob.COUNTERS.values()) {
+            Counter c = reduceDigest.merger.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
