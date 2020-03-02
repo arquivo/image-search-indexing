@@ -1,13 +1,8 @@
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.hadoop.mapreduce.Mapper;
 import utils.InvalidWARCResponseIOException;
 import utils.WARCRecordResponseEncapsulated;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -39,7 +34,7 @@ public class ImageSearchIndexingUtil {
         try {
             reader = ARCReaderFactory.get(arcURL);
         } catch (Exception e) {
-            context.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
+            context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
             logger.error("Exception starting reading ARC", e);
             return;
         }
@@ -58,15 +53,15 @@ public class ImageSearchIndexingUtil {
                 } catch (RuntimeException e) {
                     errors++;
                     // skip this record
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
                     logger.error("Exception reading next (W)ARC record", e);
                     throw e;
                 }
                 try {
                     consumer.accept(record);
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORDS_READ).increment(1);
                 } catch (RuntimeException e) {
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
                     logger.error("Exception reading (W)ARC record", e);
                     errors++;
                 }
@@ -87,7 +82,7 @@ public class ImageSearchIndexingUtil {
 
             }
         } catch (RuntimeException e) {
-            context.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
             logger.error("Exception reading WARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
             throw e;
         }
@@ -115,7 +110,7 @@ public class ImageSearchIndexingUtil {
         try {
             reader = WARCReaderFactory.get(warcURL);
         } catch (Exception e) {
-            context.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
+            context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
             logger.error("Exception starting reading WARC", e);
             return;
         }
@@ -130,7 +125,7 @@ public class ImageSearchIndexingUtil {
                 try {
                     warcRecord = (WARCRecord) ii.next();
                 } catch (RuntimeException re) {
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
                     errors++;
                     logger.error("Exception reading next WARC record", re);
                     throw re;
@@ -154,16 +149,16 @@ public class ImageSearchIndexingUtil {
                         record = new WARCRecordResponseEncapsulated(warcRecord, warcURL);
                         consumer.accept(record);
                     }
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORDS_READ).increment(1);
                 } catch (InvalidWARCResponseIOException e) {
                     /* This is not a WARCResponse; skip */
                     errors++;
                 } catch (IOException e) {
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
                     logger.error("IO Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
                     errors++;
                 } catch (Exception e) {
-                    context.getCounter(FullImageIndexer.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
                     logger.error("Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
                     errors++;
                 }
@@ -171,7 +166,7 @@ public class ImageSearchIndexingUtil {
 
             }
         } catch (RuntimeException e) {
-            context.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
             logger.error("Exception reading WARC bytes, WARCNAME: " + warcURL + " " + e.getMessage());
             throw e;
         }

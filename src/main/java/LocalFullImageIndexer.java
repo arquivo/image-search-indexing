@@ -2,7 +2,6 @@ import com.google.gson.Gson;
 import data.FullImageMetadata;
 import data.ImageData;
 import data.PageImageData;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
@@ -29,7 +28,7 @@ public class LocalFullImageIndexer {
 
         public void map(String arcURL) {
             logger.info("(W)ARCNAME: " + arcURL);
-            indexer.getCounter(FullImageIndexer.IMAGE_COUNTERS.WARCS).increment(1);
+            indexer.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS).increment(1);
             indexer.parseRecord(arcURL);
         }
 
@@ -74,34 +73,34 @@ public class LocalFullImageIndexer {
                 counter++;
                 if (counter >= 1000) {
                     logger.info(String.format("Broke iterating: %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
-                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
             }
             logger.debug(String.format("Found %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
             if (merger.getImages().size() != 0 && merger.getPages().size() != 0) {
                 for (PageImageData page : merger.getPages())
-                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(page.getMatchingPages());
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(page.getMatchingPages());
 
                 for (ImageData image : merger.getImages())
-                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(image.getMatchingImages());
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(image.getMatchingImages());
 
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
                 return merger.getBestMatch();
             } else if (merger.getImages().size() != 0) {
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
                 for (ImageData image : merger.getImages())
-                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(image.getMatchingImages());
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(image.getMatchingImages());
 
             } else if (merger.getPages().size() != 0) {
 
-                merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
 
                 for (PageImageData page : merger.getPages())
-                    merger.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(page.getMatchingPages());
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(page.getMatchingPages());
             }
             return null;
         }
@@ -188,8 +187,10 @@ public class LocalFullImageIndexer {
         for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
             FullImageMetadata result = reduce.reduce(entry.getKey(), entry.getValue());
             if (result != null) {
-                reduceResults.putIfAbsent(result.getImgDigest(), new LinkedList<>());
-                reduceResults.get(result.getImgDigest()).add(result);
+                for(String digest: result.getImgDigests()) {
+                    reduceResults.putIfAbsent(digest, new LinkedList<>());
+                    reduceResults.get(digest).add(result);
+                }
             }
         }
 
@@ -210,19 +211,19 @@ public class LocalFullImageIndexer {
 
         System.out.println("FullImageIndexer$IMAGE_COUNTERS");
 
-        for (FullImageIndexer.IMAGE_COUNTERS counter : FullImageIndexer.IMAGE_COUNTERS.values()) {
+        for (ImageIndexerWithDups.IMAGE_COUNTERS counter : ImageIndexerWithDups.IMAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
         System.out.println("FullImageIndexer$PAGE_COUNTERS");
-        for (FullImageIndexer.PAGE_COUNTERS counter : FullImageIndexer.PAGE_COUNTERS.values()) {
+        for (ImageIndexerWithDups.PAGE_COUNTERS counter : ImageIndexerWithDups.PAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
         System.out.println("FullImageIndexer$REDUCE_COUNTERS");
-        for (FullImageIndexer.REDUCE_COUNTERS counter : FullImageIndexer.REDUCE_COUNTERS.values()) {
+        for (ImageIndexerWithDups.REDUCE_COUNTERS counter : ImageIndexerWithDups.REDUCE_COUNTERS.values()) {
             Counter c = reduce.merger.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

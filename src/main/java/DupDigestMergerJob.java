@@ -1,15 +1,14 @@
 import com.google.gson.Gson;
 import data.FullImageMetadata;
-import data.ImageData;
-import data.PageImageData;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
@@ -31,9 +30,7 @@ public class DupDigestMergerJob {
         public void map(Text key, Text value, Context context) {
             try {
                 context.write(key, value);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
         }
@@ -88,74 +85,77 @@ public class DupDigestMergerJob {
     }
 
     public static void main(String[] args) throws Exception {
-        assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
-        String hdfsArcsPath = args[0];
+        assert args.length >= 1 : "Missing collection name argument";
+        String collection = args[0];
+        String jobName = collection + "_DupDigestMergerJob";
 
-        assert args.length >= 2 : "Missing collection name argument";
-        String collection = args[1];
-        String jobName = collection + "_FullIndexer";
+        assert args.length >= 2 : "Missing number of files per map";
+        int linesPerMap = Integer.parseInt(args[1]);
 
-        assert args.length >= 3 : "Missing number of warcs per map";
-        int linesPerMap = Integer.parseInt(args[2]);
-
-        assert args.length >= 4 : "Missing number of reduces";
-        int reducesCount = Integer.parseInt(args[3]);
+        assert args.length >= 3 : "Missing number of reduces";
+        int reducesCount = Integer.parseInt(args[2]);
 
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
 
-        Job job = Job.getInstance(conf);
-        job.setJarByClass(DupDigestMergerJob.class);
-        job.setInputFormatClass(NLineInputFormat.class);
+        Job jobDigest = Job.getInstance(conf);
+        jobDigest.setJarByClass(DupDigestMergerJob.class);
+        jobDigest.setInputFormatClass(KeyValueTextInputFormat.class);
 
-        job.setMapperClass(DupDigestMergerJob.Map.class);
-        job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(Text.class);
+        jobDigest.setMapperClass(DupDigestMergerJob.Map.class);
+        jobDigest.setMapOutputKeyClass(Text.class);
+        jobDigest.setMapOutputValueClass(Text.class);
 
-        job.setReducerClass(DupDigestMergerJob.Reduce.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(NullWritable.class);
-        job.setOutputFormatClass(TextOutputFormat.class);
+        jobDigest.setReducerClass(DupDigestMergerJob.Reduce.class);
+        jobDigest.setOutputKeyClass(NullWritable.class);
+        jobDigest.setOutputValueClass(Text.class);
+        jobDigest.setOutputFormatClass(TextOutputFormat.class);
 
-        job.setJobName(jobName);
+        jobDigest.setJobName(jobName);
 
-        NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+        jobDigest.setNumReduceTasks(reducesCount);
+
+        String inputDir = "/user/amourao/output/" + collection + "/";
+
+        FileSystem hdfs = FileSystem.get(conf);
+        FileStatus[] fileStatus = hdfs.listStatus(new Path(inputDir));
 
 
-        job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
+        long latestValueLong = 0;
+        for (FileStatus fileStat : fileStatus) {
+            if (fileStat.isDir()) {
+                try {
+                    long currentValueLong = Long.parseLong(fileStat.getPath().getName());
+                    if (currentValueLong > latestValueLong)
+                        latestValueLong = currentValueLong;
+                } catch (Exception ignore){
+
+                }
+            }
+        }
+
+        inputDir += latestValueLong + "/";
+        KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
+        KeyValueTextInputFormat.addInputPath(jobDigest, new Path(inputDir));
+
+        String outputDir = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
+        TextOutputFormat.setOutputPath(jobDigest, new Path(outputDir));
+        if (hdfs.exists(new Path(outputDir)))
+            hdfs.delete(new Path(outputDir), true);
+
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
-        // Sets reducer tasks to 1
-        job.setNumReduceTasks(reducesCount);
+
         //job.setNumReduceTasks(1);
 
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
-        String outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis();
-        FileOutputFormat.setOutputPath(job, new Path(outputDir));
+        boolean result = jobDigest.waitForCompletion(true);
 
-        FileSystem hdfs = FileSystem.get(conf);
-        if (hdfs.exists(new Path(outputDir)))
-            hdfs.delete(new Path(outputDir), true);
-
-        boolean result = job.waitForCompletion(true);
-
-        System.out.println("FullImageIndexer$IMAGE_COUNTERS");
-        Counters cn = job.getCounters();
-        CounterGroup counterGroup = cn.getGroup("FullImageIndexer$IMAGE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("FullImageIndexer$PAGE_COUNTERS");
-        counterGroup = cn.getGroup("FullImageIndexer$PAGE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("FullImageIndexer$REDUCE_COUNTERS");
-        counterGroup = cn.getGroup("FullImageIndexer$REDUCE_COUNTERS");
+        System.out.println("DupDigestMergerJob$COUNTERS");
+        Counters cn = jobDigest.getCounters();
+        CounterGroup counterGroup = cn.getGroup("DupDigestMergerJob$COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

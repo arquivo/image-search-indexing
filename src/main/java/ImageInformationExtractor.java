@@ -1,6 +1,5 @@
 import com.sun.jersey.core.util.Base64;
 import data.*;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
@@ -151,15 +150,15 @@ public class ImageInformationExtractor {
             detectedMimeType = WARCInformationParser.getMimeType(contentBytes);
 
             if (detectedMimeType == null) {
-                this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
+                this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
                 detectedMimeType = "";
             } else if (!detectedMimeType.isEmpty() && !detectedMimeType.equals(reportedMimeType)) {
                 logger.debug(String.format("MimeType for http://arquivo.pt/wayback/%s/%s", timestamp, url));
                 logger.debug(String.format("reported: \"%s\" ; detected: \"%s\"", reportedMimeType, detectedMimeType));
-                this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_WRONG).increment(1);
+                this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_WRONG).increment(1);
             }
         } catch (Exception e) {
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
         }
 
         ImageData imageData = new ImageData(imageHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes, 1);
@@ -168,26 +167,26 @@ public class ImageInformationExtractor {
         try {
             imageData = ImageParse.getPropImage(imageData);
         } catch (Exception | StackOverflowError e) {
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return null;
         }
 
 
         if (imageData == null) {
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
         } else if (url.startsWith("hash:") && (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT)) {
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL_BASE64).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL_BASE64).increment(1);
         } else if (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT) {
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL).increment(1);
         } else if (imageData.getWidth() * imageData.getHeight() > ImageParse.MAX_HEIGHT * ImageParse.MAX_HEIGHT) {
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_LARGE).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_LARGE).increment(1);
         } else {
 
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
             if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null) {
                 imageDataOld.addTimestamps(imageData.getTimestamp());
             } else {
-                this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
+                this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
                 imgFileEntries.put(imageData.getSurt(), imageData);
             }
             return imageData;
@@ -215,13 +214,13 @@ public class ImageInformationExtractor {
             String imageURLHashKey = ImageSearchIndexingUtil.md5ofString(url);
             byte[] contentBytes = null;
 
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
 
             try {
                 contentBytes = record.getContentBytes();
             } catch (RuntimeException e) {
                 logger.error(String.format("Error getting record content bytes for image url: %s/%s with error message %s", timestamp, url, e.getMessage()));
-                this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+                this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
                 return;
             }
 
@@ -229,7 +228,7 @@ public class ImageInformationExtractor {
 
         } catch (Exception e) {
             logger.error(String.format("Error parsing image url: %s/%s with error message %s", timestamp, url, e.getMessage()));
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return;
         }
     }
@@ -242,13 +241,13 @@ public class ImageInformationExtractor {
 
         byte[] contentBytes;
 
-        this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
+        this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
 
         try {
             contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
         } catch (IOException e) {
             logger.error(String.format("Error getting record content bytes for image url: %s/%s on offset %d with error message %s", timestamp, url, record.getBodyOffset(), e.getMessage()));
-            this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
+            this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
             return null;
         }
 
@@ -277,14 +276,14 @@ public class ImageInformationExtractor {
 
             logger.debug("Page contains: " + pageImages + " images");
 
-            this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_TOTAL).increment(pageImages);
+            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_TOTAL).increment(pageImages);
 
-            this.getCounter(FullImageIndexer.PAGE_COUNTERS.PAGES).increment(1);
+            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.PAGES).increment(1);
 
             if (imgs.size() == 0)
                 return;
 
-            this.getCounter(FullImageIndexer.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
+            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
 
 
             String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
@@ -316,22 +315,22 @@ public class ImageInformationExtractor {
                 if (imgRelSrc.startsWith("data:image")) {
                     logger.debug("Inline image");
                     ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
-                    this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
                     if (acceptedRecord == null)
                         continue;
                     imgSrc = acceptedRecord.getUrl();
                 } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");
-                    this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
                     continue;
                 } else if (imgRelSrc == null || imgRelSrc.equals("")) {
                     logger.debug("Null imgSrc");
-                    this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                     continue;
                 }
 
-                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
 
                 String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
                 //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
@@ -369,14 +368,14 @@ public class ImageInformationExtractor {
         if (!alreadyFoundInPage)
             pageImageData.incrementMatchingPages(1);
 
-        this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_DUP).increment(1);
+        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_DUP).increment(1);
         if ((pageImageDataOld = imgSrcEntries.get(pageImageData.getImageSurt())) == null) {
-            this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
+            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
             imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
         } else {
             boolean imageMetadataChanged = pageImageDataOld.addPageImageData(pageImageData);
             if (imageMetadataChanged) {
-                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
             }
         }
     }

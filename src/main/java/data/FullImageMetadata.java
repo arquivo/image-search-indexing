@@ -201,7 +201,7 @@ public class FullImageMetadata {
         return !(imgAlt.isEmpty() && imgTitle.isEmpty());
     }
 
-    public String getImgDigest() {
-        return (String) imgDigest.toArray()[0];
+    public Set<String> getImgDigests() {
+        return imgDigest;
     }
 }

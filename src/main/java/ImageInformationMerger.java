@@ -7,9 +7,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
-import utils.WARCInformationParser;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -98,7 +96,7 @@ public class ImageInformationMerger {
         for (PageImageData page : pages.subList(1, pages.size())) {
             boolean imageMetadataChanged = pageData.addPageImageData(page);
             if (imageMetadataChanged){
-                this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
             }
         }
 
@@ -106,9 +104,9 @@ public class ImageInformationMerger {
         FullImageMetadata mergedMetadata = new FullImageMetadata(imageData, pageData);
 
         if (mergedMetadata.hasImageMetadata())
-            this.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGES_WITH_METADATA).increment(1);
+            this.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES_WITH_METADATA).increment(1);
         else
-            this.getCounter(FullImageIndexer.REDUCE_COUNTERS.URL_IMAGES_PAGES_WITHOUT_METADATA).increment(1);
+            this.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES_WITHOUT_METADATA).increment(1);
 
         return mergedMetadata;
     }
