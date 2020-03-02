@@ -286,8 +286,9 @@ public class ImageInformationExtractor {
 
             this.getCounter(FullImageIndexer.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
 
+
             String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
-            pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
+            //pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
             String pageURLTokens = ImageSearchIndexingUtil.parseURL(pageURLCleaned); /*split the URL*/
 
 
@@ -333,7 +334,7 @@ public class ImageInformationExtractor {
                 this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
 
                 String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
-                imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
+                //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
                 String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
 
                 String imgTitle = el.attr("title");

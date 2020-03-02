@@ -1,5 +1,7 @@
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -199,17 +201,14 @@ public class ImageSearchIndexingUtil {
         return encoding;
     }
 
-    private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
+    //private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
+    private static final String SPLIT_PATTERN = "[\\p{Punct}\b]+";
 
 
     public static String parseURL(String toParse) {
-        String result = "";
-        Matcher matcher = VALID_PATTERN.matcher(toParse);
-        while (matcher.find()) {
-            if (!matcher.group().trim().isEmpty())
-                result += matcher.group().trim() + " ";
-        }
-        return result.trim();
+        if (toParse.startsWith("hash:"))
+            return "";
+        return String.join(" ", toParse.split(SPLIT_PATTERN));
     }
 
 }
