@@ -112,7 +112,7 @@ public class ImageInformationExtractor {
 
     }
 
-    public boolean saveImageMetadataInline(String url, String timestamp, Mapper.Context context) {
+    public ImageData saveImageMetadataInline(String url, String timestamp, Mapper.Context context) {
         try {
             String[] surl = url.split(",");
 
@@ -131,15 +131,15 @@ public class ImageInformationExtractor {
                 }
             }
 
-            return saveImageMetadata(url, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context);
+            return saveImageMetadata("hash:" + imageURLHashKey, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context);
         } catch (Exception e) {
             logger.error(String.format("Malformed inline image"));
-            return false;
+            return null;
         }
     }
 
 
-    public boolean saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
+    public ImageData saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
 
@@ -169,13 +169,13 @@ public class ImageInformationExtractor {
             imageData = ImageParse.getPropImage(imageData);
         } catch (Exception | StackOverflowError e) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
-            return false;
+            return null;
         }
 
 
         if (imageData == null) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
-        } else if (url.startsWith("data:image") && (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT)) {
+        } else if (url.startsWith("hash:") && (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT)) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL_BASE64).increment(1);
         } else if (imageData.getWidth() < ImageParse.MIN_WIDTH || imageData.getHeight() < ImageParse.MIN_HEIGHT) {
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_TOO_SMALL).increment(1);
@@ -190,7 +190,7 @@ public class ImageInformationExtractor {
                 this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
                 imgFileEntries.put(imageData.getSurt(), imageData);
             }
-            return true;
+            return imageData;
                 /*Gson gson = new Gson();
                 try {
                     context.write(new Text(imgSurt), new Text(gson.toJson(imageData)));
@@ -201,7 +201,7 @@ public class ImageInformationExtractor {
                 }
                 */
         }
-        return false;
+        return null;
     }
 
     public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Mapper.Context context) {
@@ -234,7 +234,7 @@ public class ImageInformationExtractor {
         }
     }
 
-    public boolean createImageDB(String arcURL, ARCRecord record, Mapper.Context context) {
+    public ImageData createImageDB(String arcURL, ARCRecord record, Mapper.Context context) {
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
         String mime = record.getMetaData().getMimetype();
@@ -249,7 +249,7 @@ public class ImageInformationExtractor {
         } catch (IOException e) {
             logger.error(String.format("Error getting record content bytes for image url: %s/%s on offset %d with error message %s", timestamp, url, record.getBodyOffset(), e.getMessage()));
             this.getCounter(FullImageIndexer.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
-            return false;
+            return null;
         }
 
         return saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
@@ -314,11 +314,11 @@ public class ImageInformationExtractor {
                 logger.debug("Getting information for: " + imgSrc);
                 if (imgRelSrc.startsWith("data:image")) {
                     logger.debug("Inline image");
-                    boolean accepted = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
-                    imgSrc = imgRelSrc;
+                    ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
                     this.getCounter(FullImageIndexer.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                    if (!accepted)
+                    if (acceptedRecord == null)
                         continue;
+                    imgSrc = acceptedRecord.getUrl();
                 } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");

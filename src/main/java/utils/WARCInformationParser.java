@@ -36,8 +36,9 @@ public class WARCInformationParser {
     }
 
     public static String toSURT(String url) {
-        if (url.startsWith("data"))
+        if (url.startsWith("data:") || url.startsWith("hash:"))
             return url;
+
 
         if (url.startsWith("https://"))
             url = url.substring("https://".length());

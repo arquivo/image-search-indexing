@@ -44,6 +44,8 @@ public class PageImageData implements Comparable<LocalDateTime> {
     // Number of times the metadata changed for the image
     private int imageMetadataChanges;
 
+    private boolean isInline = false;
+
 
     public PageImageData(String type, String imgTitle, String imgAlt, String imgSrcTokens, String pageTitle, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTstamp, String pageURL, String pageHost, String pageProtocol) {
         this.type = type;
@@ -52,7 +54,12 @@ public class PageImageData implements Comparable<LocalDateTime> {
         if (!imgAlt.trim().isEmpty())
             this.imgAlt.add(imgAlt);
 
-        this.imgSrcTokens = imgSrcTokens;
+        isInline = imgSrc.startsWith("hash:");
+
+        this.imgSrcTokens = "";
+
+        if (!isInline)
+            this.imgSrcTokens = imgSrcTokens;
 
         this.pageTitle = new LinkedList<>();
         if (!pageTitle.trim().isEmpty())

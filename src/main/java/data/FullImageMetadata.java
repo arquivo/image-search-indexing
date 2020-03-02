@@ -1,16 +1,13 @@
 package data;
 
-import java.util.Base64;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class FullImageMetadata {
 
 
     public static final int MAXIMUM_META = 50;
-    private List<String> imgSurt;
-    private List<String> imgUrl;
+    private Set<String> imgSurt;
+    private Set<String> imgUrl;
 
 
     // Aggregation metadata
@@ -25,12 +22,12 @@ public class FullImageMetadata {
 
 
     // Info extracted from the image bytes
-    private List<String> imgTimestamp;
+    private Set<String> imgTimestamp;
 
     // searchable tokens
-    private List<String> imgTitle;
-    private List<String> imgAlt;
-    private List<String> imgSrcTokens;
+    private Set<String> imgTitle;
+    private Set<String> imgAlt;
+    private Set<String> imgSrcTokens;
 
     private String mime;
     private int imgWidth;
@@ -39,46 +36,59 @@ public class FullImageMetadata {
 
 
     // searchable tokens
-    private List<String> pageTitle;
-    private List<String> pageUrl;
+    private Set<String> pageTitle;
+    private Set<String> pageUrl;
     // Info extracted from the associated page HTML
-    private List<String> pageTimestamp;
+    private Set<String> pageTimestamp;
 
     // Externally computed placeholders
     private int safe;
     private int spam;
 
     private String imgSrcBase64;
-    private List<String> imgDigest;
+    private Set<String> imgDigest;
 
     private String collection;
 
 
     public FullImageMetadata(ImageData image, PageImageData page) {
-        this.imgTitle = page.getImgTitle().subList(0, Math.min(page.getImgTitle().size(), MAXIMUM_META));
-        this.imgAlt = page.getImgAlt().subList(0, Math.min(page.getImgAlt().size(), MAXIMUM_META));
+        this.imgTitle = new HashSet<>();
+        this.imgTitle.addAll(page.getImgTitle().subList(0, Math.min(page.getImgTitle().size(), MAXIMUM_META)));
 
-        this.imgSrcTokens = new LinkedList<>();
-        this.imgSrcTokens.add(page.getImgSrcTokens());
+        this.imgAlt = new HashSet<>();
+        this.imgAlt.addAll(page.getImgAlt().subList(0, Math.min(page.getImgAlt().size(), MAXIMUM_META)));
 
-        this.pageTitle = page.getPageTitle().subList(0, Math.min(page.getPageTitle().size(), MAXIMUM_META));
-        this.pageUrl = page.getPageURL().subList(0, Math.min(page.getPageURL().size(), MAXIMUM_META));
+        this.imgSrcTokens = new HashSet<>();
+        if (!page.getImgSrcTokens().isEmpty())
+            this.imgSrcTokens.add(page.getImgSrcTokens());
 
-        this.imgSurt = new LinkedList<>();
+        this.pageTitle = new HashSet<>();
+        this.pageTitle.addAll(page.getPageTitle().subList(0, Math.min(page.getPageTitle().size(), MAXIMUM_META)));
+
+        this.pageUrl = new HashSet<>();
+        this.pageUrl.addAll(page.getPageURL().subList(0, Math.min(page.getPageURL().size(), MAXIMUM_META)));
+
+        this.imgSurt = new HashSet<>();
         this.imgSurt.add(image.getSurt());
 
-        this.imgUrl = new LinkedList<>();
+        this.imgUrl = new HashSet<>();
         this.imgUrl.add(image.getUrl());
 
         this.imagesInPage = page.getPageImages();
 
         this.mime = image.getMimeDetected();
         this.collection = image.getCollection();
-        this.imgDigest = image.getContentHash();
+
+        this.imgDigest = new HashSet<>();
+        this.imgDigest.addAll(image.getContentHash());
+
         this.imgSrcBase64 = Base64.getEncoder().encodeToString(image.getBytes());
 
-        this.pageTimestamp = page.getTimestampsAsStrings().subList(0, Math.min(page.getTimestampsAsStrings().size(), MAXIMUM_META));
-        this.imgTimestamp = image.getTimestampsAsStrings().subList(0, Math.min(image.getTimestampsAsStrings().size(), MAXIMUM_META));
+        this.pageTimestamp = new HashSet<>();
+        this.pageTimestamp.addAll(page.getTimestampsAsStrings().subList(0, Math.min(page.getTimestampsAsStrings().size(), MAXIMUM_META)));
+
+        this.imgTimestamp = new HashSet<>();
+        this.imgTimestamp.addAll(image.getTimestampsAsStrings().subList(0, Math.min(image.getTimestampsAsStrings().size(), MAXIMUM_META)));
 
         this.imgWidth = image.getWidth();
         this.imgHeight = image.getHeight();
@@ -122,27 +132,27 @@ public class FullImageMetadata {
         this.totalPageMetadataChanges += result.getTotalPageMetadataChanges();
     }
 
-    private List<String> getImgUrl() {
+    private Set<String> getImgUrl() {
         return imgUrl;
     }
 
-    public List<String> getSurtTokens() {
+    public Set<String> getSurtTokens() {
         return imgSrcTokens;
     }
 
-    public List<String> getImgTitle() {
+    public Set<String> getImgTitle() {
         return imgTitle;
     }
 
-    public List<String> getImgAlt() {
+    public Set<String> getImgAlt() {
         return imgAlt;
     }
 
-    public List<String> getImgTimestamp() {
+    public Set<String> getImgTimestamp() {
         return imgTimestamp;
     }
 
-    public List<String> getSurt() {
+    public Set<String> getSurt() {
         return imgSurt;
     }
 
@@ -175,15 +185,15 @@ public class FullImageMetadata {
         return totalPageMetadataChanges;
     }
 
-    public List<String> getPageTimestamp() {
+    public Set<String> getPageTimestamp() {
         return pageTimestamp;
     }
 
-    public List<String> getPageUrl() {
+    public Set<String> getPageUrl() {
         return pageUrl;
     }
 
-    public List<String> getPageTitle() {
+    public Set<String> getPageTitle() {
         return pageTitle;
     }
 
@@ -192,6 +202,6 @@ public class FullImageMetadata {
     }
 
     public String getImgDigest() {
-        return imgDigest.get(0);
+        return (String) imgDigest.toArray()[0];
     }
 }
