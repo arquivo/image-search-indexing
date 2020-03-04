@@ -2,11 +2,14 @@ import com.google.gson.Gson;
 import data.FullImageMetadata;
 import data.ImageData;
 import data.PageImageData;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,7 +32,24 @@ public class LocalFullImageIndexer {
         public void map(String arcURL) {
             logger.info("(W)ARCNAME: " + arcURL);
             indexer.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS).increment(1);
-            indexer.parseRecord(arcURL);
+
+            URL url = null;
+            try {
+                url = new URL(arcURL);
+            } catch (MalformedURLException ignored) {
+
+            }
+            String[] surl = url.getPath().split("/");
+            String filename = System.currentTimeMillis() + "_" + surl[surl.length - 1];
+            File dest = new File("/tmp/" + filename);
+
+            try {
+                FileUtils.copyURLToFile(url, dest);
+                indexer.parseRecord(dest.getPath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            FileUtils.deleteQuietly(dest);
         }
 
         public HashMap<String, List<Object>> cleanup() {

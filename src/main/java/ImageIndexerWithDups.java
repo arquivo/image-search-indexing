@@ -1,6 +1,7 @@
 import com.google.gson.Gson;
 
 import data.*;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -12,12 +13,16 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class ImageIndexerWithDups {
 
     public enum IMAGE_COUNTERS {
         WARCS,
+        WARCS_DOWNLOAD_ERROR,
 
         WARCS_FAILED,
 
@@ -92,7 +97,27 @@ public class ImageIndexerWithDups {
             if (!arcURL.isEmpty()) {
                 logger.info("(W)ARCNAME: " + arcURL);
                 context.getCounter(IMAGE_COUNTERS.WARCS).increment(1);
-                indexer.parseRecord(arcURL);
+
+                URL url = null;
+                try {
+                    url = new URL(arcURL);
+                } catch (MalformedURLException ignored) {
+
+                }
+                String[] surl = url.getPath().split("/");
+                String filename = System.currentTimeMillis() + "_" + surl[surl.length - 1];
+                File dest = new File("/tmp/" + filename);
+
+                try {
+                    FileUtils.copyURLToFile(url, dest);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
+                }
+
+                indexer.parseRecord(dest.getPath());
+                FileUtils.deleteQuietly(dest);
+
             }
         }
 
@@ -161,7 +186,7 @@ public class ImageIndexerWithDups {
 
                 try {
                     FullImageMetadata fim = merger.getBestMatch();
-                    for(String digest: fim.getImgDigests()){
+                    for (String digest : fim.getImgDigests()) {
                         context.write(new Text(digest), new Text(gson.toJson(fim)));
                     }
                 } catch (IOException | InterruptedException e) {
@@ -217,6 +242,8 @@ public class ImageIndexerWithDups {
 
 
         job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
+        job.getConfiguration().setFloat("mapreduce.job.reduce.slowstart.completedmaps", 0.9f);
+
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
         job.setNumReduceTasks(reducesCount);
