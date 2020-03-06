@@ -20,7 +20,10 @@ public class DupDigestMergerJob {
     public enum COUNTERS {
         RECORDS_EXCEEDED,
         RECORDS_IN,
-        RECORDS_OUT
+        RECORDS_OUT,
+        RECORDS_WITH_METADATA,
+        RECORDS_WITHOUT_METADATA
+
     }
 
     public static class Map extends Mapper<Text, Text, Text, Text> {
@@ -57,7 +60,6 @@ public class DupDigestMergerJob {
                 context.getCounter(COUNTERS.RECORDS_IN).increment(1);
                 FullImageMetadata metadata = merger.parseRecord(val);
                 if (result == null) {
-                    context.getCounter(COUNTERS.RECORDS_OUT).increment(1);
                     result = metadata;
                 } else {
                     result.merge(metadata);
@@ -69,8 +71,14 @@ public class DupDigestMergerJob {
                 }
                 counter++;
 
-
             }
+
+            if (result.hasImageMetadata())
+                context.getCounter(COUNTERS.RECORDS_WITH_METADATA).increment(1);
+            else
+                context.getCounter(COUNTERS.RECORDS_WITHOUT_METADATA).increment(1);
+
+            context.getCounter(COUNTERS.RECORDS_OUT).increment(1);
             logger.info(String.format("Found %d records", counter));
 
             try {

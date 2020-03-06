@@ -244,7 +244,7 @@ public class ImageInformationExtractor {
         this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
 
         try {
-            contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
+                contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
         } catch (IOException e) {
             logger.error(String.format("Error getting record content bytes for image url: %s/%s on offset %d with error message %s", timestamp, url, record.getBodyOffset(), e.getMessage()));
             this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);

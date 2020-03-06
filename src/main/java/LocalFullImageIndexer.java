@@ -148,9 +148,8 @@ public class LocalFullImageIndexer {
             logger.debug("Reducing: " + key);
 
 
-            for (FullImageMetadata val : values) {
+            for (FullImageMetadata metadata : values) {
                 merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_IN).increment(1);
-                FullImageMetadata metadata = val;
                 if (result == null) {
                     merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_OUT).increment(1);
                     result = metadata;
@@ -164,6 +163,10 @@ public class LocalFullImageIndexer {
                 }
                 counter++;
 
+                if (result.hasImageMetadata())
+                    merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_WITH_METADATA).increment(1);
+                else
+                    merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_WITHOUT_METADATA).increment(1);
 
             }
             logger.debug(String.format("Found %d records", counter));
