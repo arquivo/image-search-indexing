@@ -122,7 +122,7 @@ public class FullImageMetadata {
         this.pageTimestamp.addAll(result.getPageTimestamp());
         this.imgTimestamp.addAll(result.getImgTimestamp());
 
-        this.imagesInPage += result.getPageImages();
+        //this.imagesInPage += result.getPageImages();
 
         this.totalMatchingImages += result.getMatchingImages();
         this.totalMatchingPages += result.getMatchingPages();

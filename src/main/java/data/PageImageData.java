@@ -84,7 +84,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.totalMatchingImgReferences = totalMatchingImgReferences;
         this.matchingPages = 0;
 
-        this.imageMetadataChanges = 1;
+        this.imageMetadataChanges = 0;
 
         this.pageTstamp = new LinkedList<>();
         this.pageTstamp.add(pageTstamp);
@@ -313,13 +313,13 @@ public class PageImageData implements Comparable<LocalDateTime> {
             if (this.pageTstamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
                 this.timestamp.add(timestamp);
 
-        this.imagesInOriginalPage += newPageImageData.getImagesInOriginalPage();
+        //this.imagesInOriginalPage = newPageImageData.getImagesInOriginalPage();
         this.imagesInAllMatchingPages += newPageImageData.getImagesInAllMatchingPages();
 
         this.totalMatchingImgReferences += newPageImageData.getTotalMatchingImgReferences();
         this.matchingPages += newPageImageData.getMatchingPages();
 
-        //this.imageMetadataChanges = newPageImageData.getImageMetadataChanges();
+        this.imageMetadataChanges += newPageImageData.getImageMetadataChanges();
 
         int finalSize = this.imgAlt.size() + this.imgTitle.size();
 
