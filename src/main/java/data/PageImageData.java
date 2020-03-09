@@ -310,10 +310,10 @@ public class PageImageData implements Comparable<LocalDateTime> {
                 this.pageTstamp.add(timestamp);
 
         for (LocalDateTime timestamp : newPageImageData.getTimestamp())
-            if (this.pageTstamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
+            if (this.timestamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
                 this.timestamp.add(timestamp);
 
-        //this.imagesInOriginalPage = newPageImageData.getImagesInOriginalPage();
+        this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, newPageImageData.getImagesInOriginalPage());
         this.imagesInAllMatchingPages += newPageImageData.getImagesInAllMatchingPages();
 
         this.totalMatchingImgReferences += newPageImageData.getTotalMatchingImgReferences();
