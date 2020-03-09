@@ -72,7 +72,8 @@ public class ImageIndexerWithDups {
         URL_IMAGESALL_NPAGES,
         URL_NIMAGES_PAGES,
         URL_NIMAGES_PAGESALL,
-        IMAGES_PAGES_EXCEEDED
+        IMAGES_PAGES_EXCEEDED,
+        URL_IMAGES_PAGES_DIGEST
     }
 
     public static class Map extends Mapper<LongWritable, Text, Text, Text> {
@@ -167,6 +168,8 @@ public class ImageIndexerWithDups {
             for (Text val : values) {
                 merger.add(val);
                 counter++;
+
+                //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
                     logger.info(String.format("Broke iterating: %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
@@ -187,6 +190,7 @@ public class ImageIndexerWithDups {
                 try {
                     FullImageMetadata fim = merger.getBestMatch();
                     for (String digest : fim.getImgDigests()) {
+                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGEST).increment(1);
                         context.write(new Text(digest), new Text(gson.toJson(fim)));
                     }
                 } catch (IOException | InterruptedException e) {
