@@ -32,13 +32,11 @@ public class DupDigestMerger {
 
     private Logger logger = Logger.getLogger(DupDigestMerger.class);
 
-    private String collection;
     private Mapper<LongWritable, Text, Text, Text>.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
     private Gson gson;
 
     public DupDigestMerger() {
-        this.collection = collection;
         this.localCounters = new HashMap<>();
         this.gson = new Gson();
     }
@@ -57,7 +55,7 @@ public class DupDigestMerger {
         FullImageMetadata page = null;
         try {
             page = gson.fromJson(recordJson.toString(), FullImageMetadata.class);
-        } catch (JsonSyntaxException e) {
+        } catch (JsonSyntaxException ignored) {
 
         }
         return page;
