@@ -64,6 +64,8 @@ public class DupDigestMergerJob {
                 } else {
                     result.merge(metadata);
                 }
+
+                //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
                     logger.info(String.format("Broke iterating: %d records", counter));
                     context.getCounter(COUNTERS.RECORDS_EXCEEDED).increment(1);

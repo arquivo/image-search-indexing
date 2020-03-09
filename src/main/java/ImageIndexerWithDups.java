@@ -73,7 +73,8 @@ public class ImageIndexerWithDups {
         URL_NIMAGES_PAGES,
         URL_NIMAGES_PAGESALL,
         IMAGES_PAGES_EXCEEDED,
-        URL_IMAGES_PAGES_DIGEST
+        URL_IMAGES_PAGES_DIGESTALL,
+        URL_IMAGES_PAGES_MULIPLE_DIGEST
     }
 
     public static class Map extends Mapper<LongWritable, Text, Text, Text> {
@@ -189,8 +190,10 @@ public class ImageIndexerWithDups {
 
                 try {
                     FullImageMetadata fim = merger.getBestMatch();
+                    if (fim.getImgDigests().size() > 1)
+                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_MULIPLE_DIGEST).increment(1);
                     for (String digest : fim.getImgDigests()) {
-                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGEST).increment(1);
+                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGESTALL).increment(1);
                         context.write(new Text(digest), new Text(gson.toJson(fim)));
                     }
                 } catch (IOException | InterruptedException e) {
