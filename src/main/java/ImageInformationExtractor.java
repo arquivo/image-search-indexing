@@ -369,9 +369,9 @@ public class ImageInformationExtractor {
             pageImageData.incrementMatchingPages(1);
 
         this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_DUP).increment(1);
-        if ((pageImageDataOld = imgSrcEntries.get(pageImageData.getImageSurt())) == null) {
+        if ((pageImageDataOld = imgSrcEntries.get(pageImageData.getImgSurt())) == null) {
             this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
-            imgSrcEntries.put(pageImageData.getImageSurt(), pageImageData);
+            imgSrcEntries.put(pageImageData.getImgSurt(), pageImageData);
         } else {
             boolean imageMetadataChanged = pageImageDataOld.addPageImageData(pageImageData);
             if (imageMetadataChanged) {

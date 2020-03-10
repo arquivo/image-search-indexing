@@ -6,19 +6,22 @@ public class FullImageMetadata {
 
 
     public static final int MAXIMUM_META = 50;
+
     private Set<String> imgSurt;
     private Set<String> imgUrl;
 
 
     // Aggregation metadata
-    private int totalMatchingImages;
-    private int totalMatchingPages;
-    private int imagesInPage;
-    private long imagesInAllPages;
-    private long totalImgSrc;
+    private int imagesInOriginalPage;
+    private int matchingImages;
+    private int matchingPages;
+    private int imageFilenameChanges;
+    private long imagesInAllMatchingPages;
+    private long matchingImgReferences;
 
-    private int totalImgMetadataChanges;
-    private int totalPageMetadataChanges;
+
+    private int imageMetadataChanges;
+    private int pageMetadataChanges;
 
 
     // Info extracted from the image bytes
@@ -27,6 +30,8 @@ public class FullImageMetadata {
     // searchable tokens
     private Set<String> imgTitle;
     private Set<String> imgAlt;
+    private Set<String> imgFilenames;
+    private Set<String> imgCaption;
     private Set<String> imgSrcTokens;
 
     private String mime;
@@ -38,6 +43,7 @@ public class FullImageMetadata {
     // searchable tokens
     private Set<String> pageTitle;
     private Set<String> pageUrl;
+    private Set<String> pageHosts;
     // Info extracted from the associated page HTML
     private Set<String> pageTimestamp;
 
@@ -53,20 +59,23 @@ public class FullImageMetadata {
 
     public FullImageMetadata(ImageData image, PageImageData page) {
         this.imgTitle = new HashSet<>();
-        this.imgTitle.addAll(page.getImgTitle().subList(0, Math.min(page.getImgTitle().size(), MAXIMUM_META)));
+        this.imgTitle.addAll(page.getImgTitles().subList(0, Math.min(page.getImgTitles().size(), MAXIMUM_META)));
 
         this.imgAlt = new HashSet<>();
-        this.imgAlt.addAll(page.getImgAlt().subList(0, Math.min(page.getImgAlt().size(), MAXIMUM_META)));
+        this.imgAlt.addAll(page.getImgAlts().subList(0, Math.min(page.getImgAlts().size(), MAXIMUM_META)));
 
         this.imgSrcTokens = new HashSet<>();
         if (!page.getImgSrcTokens().isEmpty())
             this.imgSrcTokens.add(page.getImgSrcTokens());
 
         this.pageTitle = new HashSet<>();
-        this.pageTitle.addAll(page.getPageTitle().subList(0, Math.min(page.getPageTitle().size(), MAXIMUM_META)));
+        this.pageTitle.addAll(page.getPageTitles().subList(0, Math.min(page.getPageTitles().size(), MAXIMUM_META)));
 
         this.pageUrl = new HashSet<>();
-        this.pageUrl.addAll(page.getPageURL().subList(0, Math.min(page.getPageURL().size(), MAXIMUM_META)));
+        this.pageUrl.addAll(page.getPageURLs().subList(0, Math.min(page.getPageURLs().size(), MAXIMUM_META)));
+
+        this.pageHosts = new HashSet<>();
+        this.pageHosts.addAll(page.getPageHosts().subList(0, Math.min(page.getPageURLs().size(), MAXIMUM_META)));
 
         this.imgSurt = new HashSet<>();
         this.imgSurt.add(image.getSurt());
@@ -74,7 +83,13 @@ public class FullImageMetadata {
         this.imgUrl = new HashSet<>();
         this.imgUrl.add(image.getUrl());
 
-        this.imagesInPage = page.getPageImages();
+        this.imgFilenames = new HashSet<>();
+        this.imgFilenames.addAll(page.getImgFilenames());
+
+        this.imgCaption = new HashSet<>();
+        this.imgCaption.addAll(page.getImgCaptions());
+
+        this.imagesInOriginalPage = page.getPageImages();
 
         this.mime = image.getMimeDetected();
         this.collection = image.getCollection();
@@ -97,15 +112,15 @@ public class FullImageMetadata {
         this.safe = -1;
         this.spam = 0;
 
-        this.totalMatchingImages = image.getMatchingImages();
-        this.totalMatchingPages = page.getMatchingPages();
-        this.imagesInAllPages = page.getImagesInAllMatchingPages();
-        this.totalImgSrc = page.getTotalMatchingImgReferences();
-        this.totalImgMetadataChanges = page.getImageMetadataChanges();
-        this.totalPageMetadataChanges = Math.max(page.getPageURL().size(), page.getPageTitle().size());
+        this.matchingImages = image.getMatchingImages();
+        this.matchingPages = page.getMatchingPages();
+        this.imagesInAllMatchingPages = page.getImagesInAllMatchingPages();
+        this.imagesInOriginalPage = page.getImagesInOriginalPage();
+        this.matchingImgReferences = page.getTotalMatchingImgReferences();
+        this.imageMetadataChanges = page.getImageMetadataChanges();
+        this.imageFilenameChanges = page.getImageFilenameChanges();
+        this.pageMetadataChanges = Math.max(page.getPageURLs().size(), page.getPageTitles().size());
     }
-
-
 
 
     public void merge(FullImageMetadata result) {
@@ -122,14 +137,21 @@ public class FullImageMetadata {
         this.pageTimestamp.addAll(result.getPageTimestamp());
         this.imgTimestamp.addAll(result.getImgTimestamp());
 
-        this.imagesInPage = Math.max(this.imagesInPage, result.getPageImages());
+        this.pageHosts.addAll(result.getPageHosts());
 
-        this.totalMatchingImages += result.getMatchingImages();
-        this.totalMatchingPages += result.getMatchingPages();
-        this.imagesInAllPages += result.getImagesInAllMatchingPages();
-        this.totalImgSrc += result.getTotalMatchingImgReferences();
-        this.totalImgMetadataChanges += result.getImageMetadataChanges();
-        this.totalPageMetadataChanges += result.getTotalPageMetadataChanges();
+
+        this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, result.getImagesInOriginalPage());
+
+        this.matchingImages += result.getMatchingImages();
+        this.matchingPages += result.getMatchingPages();
+        this.imagesInAllMatchingPages += result.getImagesInAllMatchingPages();
+        this.matchingImgReferences += result.getMatchingImgReferences();
+        this.imageMetadataChanges += result.getImageMetadataChanges();
+        this.pageMetadataChanges += result.getPageMetadataChanges();
+    }
+
+    private Set<String> getPageHosts() {
+        return pageHosts;
     }
 
     private Set<String> getImgUrl() {
@@ -156,33 +178,32 @@ public class FullImageMetadata {
         return imgSurt;
     }
 
-
-    public int getPageImages() {
-        return imagesInPage;
+    public int getImagesInOriginalPage() {
+        return imagesInOriginalPage;
     }
 
     public int getMatchingImages() {
-        return totalMatchingImages;
+        return matchingImages;
     }
 
     public int getMatchingPages() {
-        return totalMatchingPages;
+        return matchingPages;
     }
 
     public long getImagesInAllMatchingPages() {
-        return imagesInAllPages;
+        return imagesInAllMatchingPages;
     }
 
-    public long getTotalMatchingImgReferences() {
-        return totalImgSrc;
+    public long getMatchingImgReferences() {
+        return matchingImgReferences;
     }
 
     public int getImageMetadataChanges() {
-        return totalImgMetadataChanges;
+        return imageMetadataChanges;
     }
 
-    public int getTotalPageMetadataChanges() {
-        return totalPageMetadataChanges;
+    public int getPageMetadataChanges() {
+        return pageMetadataChanges;
     }
 
     public Set<String> getPageTimestamp() {
