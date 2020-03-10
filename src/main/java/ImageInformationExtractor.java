@@ -1,5 +1,6 @@
 import com.sun.jersey.core.util.Base64;
 import data.*;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
@@ -15,13 +16,17 @@ import utils.WARCInformationParser;
 import utils.WARCRecordResponseEncapsulated;
 
 import java.io.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
 public class ImageInformationExtractor {
+
+    private static final Set<String> IMAGE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("jpg", "jpeg", "png", "tif", "tiff", "gif", "svg", "webp", "bmp", "ico"));
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
 
@@ -244,7 +249,7 @@ public class ImageInformationExtractor {
         this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_TOTAL).increment(1);
 
         try {
-                contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
+            contentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
         } catch (IOException e) {
             logger.error(String.format("Error getting record content bytes for image url: %s/%s on offset %d with error message %s", timestamp, url, record.getBodyOffset(), e.getMessage()));
             this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_FAILED).increment(1);
@@ -279,12 +284,6 @@ public class ImageInformationExtractor {
             this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_TOTAL).increment(pageImages);
 
             this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.PAGES).increment(1);
-
-            if (imgs.size() == 0)
-                return;
-
-            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
-
 
             String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
             //pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
@@ -346,23 +345,87 @@ public class ImageInformationExtractor {
                 }
 
 
-                insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage, context);
+                insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage);
 
                 logger.debug("Written to file - successfully indexed image record");
 
             }
+
+
+            Elements links = doc.getElementsByTag("a");
+
+            logger.debug("Page contains: " + links.size() + " links");
+
+            for (Element el : links) {
+                String imgSrc = el.attr("abs:href");
+                String imgRelSrc = el.attr("href").trim();
+
+                boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
+                imgSrcParsed.add(imgRelSrc);
+
+                URL url = null;
+                String extension = "";
+                try {
+                    url = new URL(imgSrc);
+                    extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
+                } catch (MalformedURLException ignored) {
+
+                }
+
+                logger.debug("Getting information for: " + imgSrc);
+                if (!IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                    continue;
+                }
+
+                //if (imgRelSrc.startsWith("data:image")) {
+                //    continue;
+                //} else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                    logger.debug("URL of image too big ");
+                    logger.debug(pageURL.substring(0, 500) + "...");
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
+                    continue;
+                } else if (imgRelSrc == null || imgRelSrc.equals("")) {
+                    logger.debug("Null href");
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
+                    continue;
+                }
+
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_LINK).increment(1);
+
+                String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
+                //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
+                String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
+
+
+                String imgCaption = el.html();
+                if (imgCaption.length() > 9999) {
+                    imgCaption = imgCaption.substring(0, 10000);
+                }
+
+
+                insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage);
+
+                logger.debug("Written to file - successfully indexed image record");
+
+            }
+
+            if (imgs.size() == 0)
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
+
         } catch (Exception e) {
             logger.debug("Something failed JSOUP parsing " + e.getMessage());
         }
 
+
     }
 
     private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
-                                    int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
-                                            pageTitle, String pageURLTokens, boolean alreadyFoundInPage, Mapper<LongWritable, Text, Text, Text>.Context context) {
+                                    String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
+                                            pageTitle, String pageURLTokens, boolean alreadyFoundInPage) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol);
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol);
         PageImageData pageImageDataOld = null;
 
         if (!alreadyFoundInPage)

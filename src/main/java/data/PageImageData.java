@@ -55,7 +55,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
     private boolean isInline;
 
 
-    public PageImageData(String type, String imgTitles, String imgAlts, String imgSrcTokens, String pageTitles, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTimestamps, String pageURLs, String pageHost, String pageProtocol) {
+    public PageImageData(String type, String imgTitles, String imgAlts, String imgSrcTokens, String imgCaption, String pageTitles, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTimestamps, String pageURLs, String pageHost, String pageProtocol) {
         this.type = type;
 
         this.imgAlts = new LinkedList<>();
@@ -84,6 +84,11 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
             }
         }
+
+        this.imgCaptions = new LinkedList<>();
+        imgCaption = imgCaption.trim();
+        if (!imgCaption.isEmpty())
+            this.imgCaptions.add(imgCaption);
 
         this.pageTitles = new LinkedList<>();
         pageTitles = pageTitles.trim();
@@ -230,6 +235,9 @@ public class PageImageData implements Comparable<LocalDateTime> {
         for (String title : imgTitle){
             title = title.trim();
             if (!title.isEmpty() && !this.imgTitles.contains(title)) {
+                //TODO: this check is not correct, as not all information is kept
+                //There is a MAX_ADD_THRESHOLD, thus, if the same metadata shows up twice after the length of
+                //the threshold is exceed, the counter will be incremented twice
                 imageMetadataChanges++;
                 if (this.imgTitles.size() <= MAX_ADD_THRESHOLD)
                     this.imgTitles.add(title);
@@ -263,6 +271,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
         for (String caption : imgCaptionss){
             caption = caption.trim();
             if (!caption.isEmpty() && !this.imgCaptions.contains(caption)) {
+                imageMetadataChanges++;
                 if (this.imgCaptions.size() <= MAX_ADD_THRESHOLD)
                     this.imgCaptions.add(caption);
             }
@@ -373,10 +382,6 @@ public class PageImageData implements Comparable<LocalDateTime> {
         return imageFilenameChanges;
     }
 
-    public void setMatchingPages(int matchingPages) {
-        this.matchingPages = matchingPages;
-    }
-
     public void incrementMatchingPages(int matchingPages) {
         this.matchingPages += matchingPages;
     }
@@ -403,6 +408,8 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.imagesInAllMatchingPages += newPageImageData.getImagesInAllMatchingPages();
 
         this.totalMatchingImgReferences += newPageImageData.getTotalMatchingImgReferences();
+
+        //TODO: this may need to be changed, as it will increment if an image is found twice in the same page
         this.matchingPages += newPageImageData.getMatchingPages();
 
         this.imageMetadataChanges += newPageImageData.getImageMetadataChanges();

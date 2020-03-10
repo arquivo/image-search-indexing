@@ -143,6 +143,7 @@ public class FullImageMetadata {
         this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, result.getImagesInOriginalPage());
 
         this.matchingImages += result.getMatchingImages();
+
         this.matchingPages += result.getMatchingPages();
         this.imagesInAllMatchingPages += result.getImagesInAllMatchingPages();
         this.matchingImgReferences += result.getMatchingImgReferences();

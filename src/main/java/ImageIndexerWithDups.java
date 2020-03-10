@@ -51,6 +51,7 @@ public class ImageIndexerWithDups {
         IMAGES_IN_HTML_FAILED,
         IMAGES_IN_HTML_INVALID,
         IMAGES_IN_HTML_MATCHING,
+        IMAGES_IN_HTML_MATCHING_LINK,
         IMAGES_IN_HTML_BASE64,
         PAGES,
         PAGES_WITH_IMAGES,
