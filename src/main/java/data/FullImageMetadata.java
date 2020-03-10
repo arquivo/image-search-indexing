@@ -75,7 +75,7 @@ public class FullImageMetadata {
         this.pageUrl.addAll(page.getPageURLs().subList(0, Math.min(page.getPageURLs().size(), MAXIMUM_META)));
 
         this.pageHosts = new HashSet<>();
-        this.pageHosts.addAll(page.getPageHosts().subList(0, Math.min(page.getPageURLs().size(), MAXIMUM_META)));
+        this.pageHosts.addAll(page.getPageHosts().subList(0, Math.min(page.getPageHosts().size(), MAXIMUM_META)));
 
         this.imgSurt = new HashSet<>();
         this.imgSurt.add(image.getSurt());
