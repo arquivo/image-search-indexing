@@ -220,7 +220,7 @@ public class FullImageMetadata {
     }
 
     public boolean hasImageMetadata() {
-        return !(imgAlt.isEmpty() && imgTitle.isEmpty());
+        return !(imgAlt.isEmpty() && imgTitle.isEmpty() && imgCaption.isEmpty());
     }
 
     public Set<String> getImgDigests() {
