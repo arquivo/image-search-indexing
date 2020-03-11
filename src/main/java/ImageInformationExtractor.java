@@ -9,6 +9,8 @@ import org.apache.hadoop.mapreduce.counters.GenericCounter;
 import org.apache.log4j.Logger;
 import org.archive.io.arc.ARCRecord;
 import org.jsoup.Jsoup;
+import org.jsoup.helper.StringUtil;
+import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -27,6 +29,9 @@ import java.util.Set;
 public class ImageInformationExtractor {
 
     private static final Set<String> IMAGE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("jpg", "jpeg", "png", "tif", "tiff", "gif", "svg", "webp", "bmp", "ico"));
+
+    private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
+    private static final Set<String> IMAGE_TAG_JS_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("onLoad"));
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
 
@@ -303,51 +308,83 @@ public class ImageInformationExtractor {
             Set<String> imgSrcParsed = new HashSet<>();
 
             for (Element el : imgs) {
-                String imgSrc = el.attr("abs:src");
-                String imgRelSrc = el.attr("src").trim();
 
-                boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
-                imgSrcParsed.add(imgRelSrc);
+                Set<String> imgSrcAtrToParse = new HashSet<>();
 
+                for (String tag : IMAGE_TAG_ATTRIBUTES_WITH_FILES) {
+                    String imgRelSrc = el.attr(tag).trim();
+                    if (!imgRelSrc.isEmpty())
+                        imgSrcAtrToParse.add(imgRelSrc);
+                }
 
-                logger.debug("Getting information for: " + imgSrc);
-                if (imgRelSrc.startsWith("data:image")) {
-                    logger.debug("Inline image");
-                    ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
-                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                    if (acceptedRecord == null)
+                int oldSize = imgSrcAtrToParse.size();
+
+                for (Attribute attribute : el.attributes()) {
+                    try {
+                        String extension = "";
+                        String imgRelSrc = attribute.getValue();
+
+                        if (imgRelSrc != null && !imgRelSrc.isEmpty()) {
+                            String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+
+                            URL url = new URL(imgSrc);
+                            extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
+                            if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                                imgSrcAtrToParse.add(imgRelSrc);
+                            }
+                        }
+                    } catch (Exception ignored) {
+
+                    }
+                }
+
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_ALT_ATRIB).increment(imgSrcAtrToParse.size() - oldSize);
+
+                for (String imgRelSrc : imgSrcAtrToParse) {
+
+                    String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+
+                    boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
+                    imgSrcParsed.add(imgRelSrc);
+
+                    logger.debug("Getting information for: " + imgSrc);
+                    if (imgRelSrc.startsWith("data:image")) {
+                        logger.debug("Inline image");
+                        ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
+                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
+                        if (acceptedRecord == null)
+                            continue;
+                        imgSrc = acceptedRecord.getUrl();
+                    } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                        logger.debug("URL of image too big ");
+                        logger.debug(pageURL.substring(0, 500) + "...");
+                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
                         continue;
-                    imgSrc = acceptedRecord.getUrl();
-                } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
-                    logger.debug("URL of image too big ");
-                    logger.debug(pageURL.substring(0, 500) + "...");
-                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
-                    continue;
-                } else if (imgRelSrc == null || imgRelSrc.equals("")) {
-                    logger.debug("Null imgSrc");
-                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
-                    continue;
+                    } else if (imgRelSrc == null || imgRelSrc.equals("")) {
+                        logger.debug("Null imgSrc");
+                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
+                        continue;
+                    }
+
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
+
+                    String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
+                    //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
+                    String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
+
+                    String imgTitle = el.attr("title");
+                    if (imgTitle.length() > 9999) {
+                        imgTitle = imgTitle.substring(0, 10000);
+                    }
+                    String imgAlt = el.attr("alt");
+                    if (imgAlt.length() > 9999) {
+                        imgAlt = imgAlt.substring(0, 10000);
+                    }
+
+                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage);
+
+                    logger.debug("Written to file - successfully indexed image record");
                 }
-
-                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
-
-                String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
-                //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
-                String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
-
-                String imgTitle = el.attr("title");
-                if (imgTitle.length() > 9999) {
-                    imgTitle = imgTitle.substring(0, 10000);
-                }
-                String imgAlt = el.attr("alt");
-                if (imgAlt.length() > 9999) {
-                    imgAlt = imgAlt.substring(0, 10000);
-                }
-
-
-                insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage);
-
-                logger.debug("Written to file - successfully indexed image record");
 
             }
 
@@ -363,19 +400,19 @@ public class ImageInformationExtractor {
                 boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
                 imgSrcParsed.add(imgRelSrc);
 
-                URL url = null;
                 String extension = "";
                 try {
-                    url = new URL(imgSrc);
+                    URL url = new URL(imgSrc);
                     extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                } catch (MalformedURLException ignored) {
+                } catch (Exception ignored) {
 
                 }
 
-                logger.debug("Getting information for: " + imgSrc);
                 if (!IMAGE_FILE_EXTENSIONS.contains(extension)) {
                     continue;
                 }
+
+                logger.debug("Getting information for: " + imgSrc);
 
                 //if (imgRelSrc.startsWith("data:image")) {
                 //    continue;
@@ -391,6 +428,7 @@ public class ImageInformationExtractor {
                     continue;
                 }
 
+                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_LINK).increment(1);
 
                 String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/

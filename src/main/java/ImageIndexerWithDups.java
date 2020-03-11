@@ -41,6 +41,7 @@ public class ImageIndexerWithDups {
         IMAGES_IN_WARC_MIME_INVALID,
         IMAGES_IN_WARC_MIME_WRONG,
 
+
         IMAGES_IN_WARC_PARSED,
         IMAGES_IN_WARC_PARSED_DUP
 
@@ -51,6 +52,7 @@ public class ImageIndexerWithDups {
         IMAGES_IN_HTML_FAILED,
         IMAGES_IN_HTML_INVALID,
         IMAGES_IN_HTML_MATCHING,
+        IMAGES_IN_HTML_MATCHING_ALT_ATRIB,
         IMAGES_IN_HTML_MATCHING_LINK,
         IMAGES_IN_HTML_BASE64,
         PAGES,
