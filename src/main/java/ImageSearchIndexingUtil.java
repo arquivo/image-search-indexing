@@ -84,7 +84,8 @@ public class ImageSearchIndexingUtil {
         } catch (RuntimeException e) {
             context.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
             logger.error("Exception reading WARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
-            throw e;
+            if (!e.getMessage().startsWith("Retried"))
+                throw e;
         }
 
     }
