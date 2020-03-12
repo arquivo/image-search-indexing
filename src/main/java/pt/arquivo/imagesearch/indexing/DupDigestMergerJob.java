@@ -1,5 +1,7 @@
+package pt.arquivo.imagesearch.indexing;
+
 import com.google.gson.Gson;
-import data.FullImageMetadata;
+import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -7,9 +9,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 
@@ -163,9 +163,9 @@ public class DupDigestMergerJob {
 
         boolean result = jobDigest.waitForCompletion(true);
 
-        System.out.println("DupDigestMergerJob$COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
         Counters cn = jobDigest.getCounters();
-        CounterGroup counterGroup = cn.getGroup("DupDigestMergerJob$COUNTERS");
+        CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

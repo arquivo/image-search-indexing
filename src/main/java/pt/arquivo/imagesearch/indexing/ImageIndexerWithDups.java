@@ -1,6 +1,8 @@
+package pt.arquivo.imagesearch.indexing;
+
 import com.google.gson.Gson;
 
-import data.*;
+import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -272,21 +274,21 @@ public class ImageIndexerWithDups {
 
         boolean result = job.waitForCompletion(true);
 
-        System.out.println("ImageIndexerWithDups$IMAGE_COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$IMAGE_COUNTERS");
         Counters cn = job.getCounters();
-        CounterGroup counterGroup = cn.getGroup("ImageIndexerWithDups$IMAGE_COUNTERS");
+        CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$IMAGE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("ImageIndexerWithDups$PAGE_COUNTERS");
-        counterGroup = cn.getGroup("ImageIndexerWithDups$PAGE_COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$PAGE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$PAGE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("ImageIndexerWithDups$REDUCE_COUNTERS");
-        counterGroup = cn.getGroup("ImageIndexerWithDups$REDUCE_COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$REDUCE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$REDUCE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

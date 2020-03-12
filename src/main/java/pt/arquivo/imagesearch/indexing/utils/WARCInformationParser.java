@@ -1,25 +1,19 @@
-package utils;
+package pt.arquivo.imagesearch.indexing.utils;
 
 import com.j256.simplemagic.ContentInfo;
 import com.j256.simplemagic.ContentInfoUtil;
-import data.ImageData;
-import data.PageImageData;
-import org.apache.commons.httpclient.ChunkedInputStream;
+import pt.arquivo.imagesearch.indexing.data.ImageData;
 import org.apache.log4j.Logger;
 import org.archive.url.SURT;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
-import javax.servlet.jsp.tagext.PageData;
 import java.awt.*;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.List;
 
 public class WARCInformationParser {
     public static final String PATTERN = "yyyyMMddHHmmss";
@@ -36,7 +30,7 @@ public class WARCInformationParser {
     }
 
     public static String toSURT(String url) {
-        if (url.startsWith("data:") || url.startsWith("hash:"))
+        if (url.startsWith("pt.arquivo.imagesearch.indexing.data:") || url.startsWith("hash:"))
             return url;
 
 

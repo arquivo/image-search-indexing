@@ -1,8 +1,8 @@
-package data;
+package pt.arquivo.imagesearch.indexing.data;
 
 
 import org.apache.commons.io.FilenameUtils;
-import utils.WARCInformationParser;
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -314,17 +314,17 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
     /*
     public String getPageMetadata() {
-        Set<String> data = new HashSet<>();
-        data.addAll(Arrays.asList(pageTitle.split(" ")));
-        data.addAll(Arrays.asList(pageURLTokens.split(" ")));
-        return String.join(" ", data.toArray(new String[0]));
+        Set<String> pt.arquivo.imagesearch.indexing.data = new HashSet<>();
+        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(pageTitle.split(" ")));
+        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(pageURLTokens.split(" ")));
+        return String.join(" ", pt.arquivo.imagesearch.indexing.data.toArray(new String[0]));
     }
 
     public String getImageMetadata() {
-        Set<String> data = new HashSet<>();
-        data.addAll(Arrays.asList(imgTitle.split(" ")));
-        data.addAll(Arrays.asList(imgAlt.split(" ")));
-        return String.join(" ", data.toArray(new String[0]));
+        Set<String> pt.arquivo.imagesearch.indexing.data = new HashSet<>();
+        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(imgTitle.split(" ")));
+        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(imgAlt.split(" ")));
+        return String.join(" ", pt.arquivo.imagesearch.indexing.data.toArray(new String[0]));
     }
      */
 

@@ -1,4 +1,4 @@
-package utils;/*
+package pt.arquivo.imagesearch.indexing.utils;/*
  *
  *  Licensed to the Internet Archive (IA) by one or more individual 
  *  contributors. 

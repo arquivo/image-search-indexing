@@ -1,6 +1,4 @@
-package data;
-
-import java.util.Comparator;
+package pt.arquivo.imagesearch.indexing.data;
 
 public class ImageDataComparator {
 

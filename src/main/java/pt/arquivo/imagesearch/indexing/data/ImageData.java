@@ -1,6 +1,6 @@
-package data;
+package pt.arquivo.imagesearch.indexing.data;
 
-import utils.WARCInformationParser;
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.time.LocalDateTime;
 import java.util.LinkedList;

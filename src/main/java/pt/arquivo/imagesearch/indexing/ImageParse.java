@@ -1,22 +1,22 @@
+package pt.arquivo.imagesearch.indexing;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import javax.imageio.ImageIO;
 
-import data.ImageData;
+import pt.arquivo.imagesearch.indexing.data.ImageData;
 import org.apache.log4j.Logger;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Method;
 
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
-import utils.WARCInformationParser;
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 
 public class ImageParse {
@@ -196,7 +196,7 @@ public class ImageParse {
             String stringDigest = convertByteArrayToHexString(byteDigest);
             img.addContentHash(stringDigest);
 
-            if (img.getUrl().startsWith("data:image")){
+            if (img.getUrl().startsWith("pt.arquivo.imagesearch.indexing.data:image")){
                 img.setUrl(stringDigest);
                 img.setSurt(stringDigest);
             }

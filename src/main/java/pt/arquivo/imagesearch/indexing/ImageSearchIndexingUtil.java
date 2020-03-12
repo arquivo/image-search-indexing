@@ -1,10 +1,12 @@
+package pt.arquivo.imagesearch.indexing;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
 
-import utils.InvalidWARCResponseIOException;
-import utils.WARCRecordResponseEncapsulated;
+import pt.arquivo.imagesearch.indexing.utils.InvalidWARCResponseIOException;
+import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.log4j.Logger;
 import org.archive.format.warc.WARCConstants;

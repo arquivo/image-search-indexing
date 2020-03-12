@@ -1,4 +1,4 @@
-package data;
+package pt.arquivo.imagesearch.indexing.data;
 
 import java.util.*;
 

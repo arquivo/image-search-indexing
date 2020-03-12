@@ -1,7 +1,8 @@
+package pt.arquivo.imagesearch.indexing;
+
 import com.sun.jersey.core.util.Base64;
-import data.*;
+import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
@@ -15,11 +16,10 @@ import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import utils.WARCInformationParser;
-import utils.WARCRecordResponseEncapsulated;
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
+import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.*;
@@ -322,7 +322,7 @@ public class ImageInformationExtractor {
                     try {
                         String imgRelSrc = attribute.getValue();
                         if (imgRelSrc != null && !imgRelSrc.isEmpty()) {
-                            if (imgRelSrc.startsWith("data:image")) {
+                            if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
                                 imgSrcAtrToParse.add(imgRelSrc);
                             } else {
                                 String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
@@ -349,7 +349,7 @@ public class ImageInformationExtractor {
                     imgSrcParsed.add(imgRelSrc);
 
                     logger.debug("Getting information for: " + imgSrc);
-                    if (imgRelSrc.startsWith("data:image")) {
+                    if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
                         logger.debug("Inline image");
                         ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
                         this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
@@ -416,7 +416,7 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
 
-                //if (imgRelSrc.startsWith("data:image")) {
+                //if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
                 //    continue;
                 //} else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                 if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
@@ -456,7 +456,7 @@ public class ImageInformationExtractor {
             while (m.find()) {
                 String imgRelSrc = m.group(1);
                 if (!imgRelSrc.isEmpty() && !imgSrcParsed.contains(imgRelSrc)) {
-                    if (imgRelSrc.startsWith("data:image")) {
+                    if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
                         cssUrls.add(imgRelSrc);
                     } else {
                         try {
@@ -480,7 +480,7 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
 
-                //if (imgRelSrc.startsWith("data:image")) {
+                //if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
                 //    continue;
                 //} else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                 if (imgSrc.length() > 10000 || pageURL.length() > 10000) {

@@ -27,7 +27,7 @@ Create a .txt file where each line contains the path to a downloadable ARC/WARC 
 After hadoop image indexing is finished it is time to export the results
 
 ## Export Results
-```mongoexport --host $mongoserverlocation:$mongoport --db hadoop_images --collection imageIndexes --out /data/images/$line_uniq.jsonl  --query "{'collection':'$line'}"```  
+```mongoexport --host $mongoserverlocation:$mongoport --db hadoop_images --collection imageIndexes --out /pt.arquivo.imagesearch.indexing.data/images/$line_uniq.jsonl  --query "{'collection':'$line'}"```  
 
 ### Variables
 ```$line:```  Name of the collection to index (e.g. AWP10) 

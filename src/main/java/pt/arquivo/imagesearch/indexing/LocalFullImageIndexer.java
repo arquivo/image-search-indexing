@@ -1,7 +1,9 @@
+package pt.arquivo.imagesearch.indexing;
+
 import com.google.gson.Gson;
-import data.FullImageMetadata;
-import data.ImageData;
-import data.PageImageData;
+import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
+import pt.arquivo.imagesearch.indexing.data.ImageData;
+import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
@@ -232,26 +234,26 @@ public class LocalFullImageIndexer {
         }
 
 
-        System.out.println("FullImageIndexer$IMAGE_COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.FullImageIndexer$IMAGE_COUNTERS");
 
         for (ImageIndexerWithDups.IMAGE_COUNTERS counter : ImageIndexerWithDups.IMAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("FullImageIndexer$PAGE_COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.FullImageIndexer$PAGE_COUNTERS");
         for (ImageIndexerWithDups.PAGE_COUNTERS counter : ImageIndexerWithDups.PAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("FullImageIndexer$REDUCE_COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.FullImageIndexer$REDUCE_COUNTERS");
         for (ImageIndexerWithDups.REDUCE_COUNTERS counter : ImageIndexerWithDups.REDUCE_COUNTERS.values()) {
             Counter c = reduce.merger.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("DupDigestMergerJob$COUNTERS");
+        System.out.println("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
         for (DupDigestMergerJob.COUNTERS counter : DupDigestMergerJob.COUNTERS.values()) {
             Counter c = reduceDigest.merger.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());

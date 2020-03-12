@@ -1,7 +1,6 @@
-package utils;
+package pt.arquivo.imagesearch.indexing.utils;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -12,7 +11,6 @@ import java.util.Map;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.commons.compress.compressors.brotli.BrotliCompressorInputStream;
 import org.apache.commons.httpclient.ChunkedInputStream;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpException;
@@ -69,7 +67,7 @@ public class WARCRecordResponseEncapsulated {
      * Map of record header fields.
      * <p>
      * We store all in a hashmap.  This way we can hold version 1 or
-     * version 2 record meta data.
+     * version 2 record meta pt.arquivo.imagesearch.indexing.data.
      *
      * <p>Keys are lowercase.
      */

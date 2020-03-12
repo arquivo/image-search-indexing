@@ -1,8 +1,10 @@
+package pt.arquivo.imagesearch.indexing;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
-import data.FullImageMetadata;
-import data.ImageData;
-import data.PageImageData;
+import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
+import pt.arquivo.imagesearch.indexing.data.ImageData;
+import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Reducer;
