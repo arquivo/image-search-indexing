@@ -1,12 +1,12 @@
-package pt.arquivo.imagesearch.indexing;
+package pt.arquivo.imagesearch.indexing.utils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
 
-import pt.arquivo.imagesearch.indexing.utils.InvalidWARCResponseIOException;
-import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
+import pt.arquivo.imagesearch.indexing.ImageIndexerWithDups;
+import pt.arquivo.imagesearch.indexing.ImageInformationExtractor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.log4j.Logger;
 import org.archive.format.warc.WARCConstants;
@@ -206,6 +206,10 @@ public class ImageSearchIndexingUtil {
     public static String parseURL(String toParse) {
         if (toParse.startsWith("hash:"))
             return "";
+        return cleanPunctuation(toParse);
+    }
+
+    public static String cleanPunctuation(String toParse) {
         return String.join(" ", toParse.split(SPLIT_PATTERN));
     }
 

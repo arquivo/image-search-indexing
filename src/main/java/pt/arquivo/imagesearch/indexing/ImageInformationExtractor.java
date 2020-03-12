@@ -16,6 +16,7 @@ import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 

@@ -2,7 +2,6 @@ package pt.arquivo.imagesearch.indexing.data;
 
 
 import org.apache.commons.io.FilenameUtils;
-import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -11,6 +10,10 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
+
+import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 
 public class PageImageData implements Comparable<LocalDateTime> {
 
@@ -85,7 +88,7 @@ public class PageImageData implements Comparable<LocalDateTime> {
                 url = new URL(imgSrc);
                 String filename = FilenameUtils.getBaseName(url.getPath());
                 if (!filename.isEmpty())
-                    this.imgFilenames.add(filename);
+                    this.imgFilenames.add(ImageSearchIndexingUtil.cleanPunctuation(filename));
             } catch (MalformedURLException ignored) {
 
             }
