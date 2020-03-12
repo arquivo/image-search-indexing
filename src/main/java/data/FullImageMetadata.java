@@ -34,6 +34,8 @@ public class FullImageMetadata {
     private Set<String> imgCaption;
     private Set<String> imgSrcTokens;
 
+    private Set<String> tagFoundIn;
+
     private String mime;
     private int imgWidth;
     private int imgHeight;
@@ -89,6 +91,10 @@ public class FullImageMetadata {
         this.imgCaption = new HashSet<>();
         this.imgCaption.addAll(page.getImgCaptions());
 
+        this.tagFoundIn = new HashSet<>();
+        this.tagFoundIn.addAll(page.getTagFoundIn());
+
+
         this.imagesInOriginalPage = page.getPageImages();
 
         this.mime = image.getMimeDetected();
@@ -139,6 +145,8 @@ public class FullImageMetadata {
 
         this.pageHosts.addAll(result.getPageHosts());
 
+        this.tagFoundIn.addAll(result.getTagFoundIn());
+
 
         this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, result.getImagesInOriginalPage());
 
@@ -149,6 +157,10 @@ public class FullImageMetadata {
         this.matchingImgReferences += result.getMatchingImgReferences();
         this.imageMetadataChanges += result.getImageMetadataChanges();
         this.pageMetadataChanges += result.getPageMetadataChanges();
+    }
+
+    private Set<String> getTagFoundIn() {
+        return tagFoundIn;
     }
 
     private Set<String> getPageHosts() {

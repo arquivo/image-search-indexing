@@ -382,7 +382,7 @@ public class ImageInformationExtractor {
                         imgAlt = imgAlt.substring(0, 10000);
                     }
 
-                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage);
+                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
 
                     logger.debug("Written to file - successfully indexed image record");
                 }
@@ -444,7 +444,7 @@ public class ImageInformationExtractor {
                 }
 
 
-                insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, alreadyFoundInPage);
+                insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", alreadyFoundInPage);
 
                 logger.debug("Written to file - successfully indexed image record");
 
@@ -459,11 +459,16 @@ public class ImageInformationExtractor {
                     if (imgRelSrc.startsWith("data:image")) {
                         cssUrls.add(imgRelSrc);
                     } else {
-                        String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
-                        URL url = new URL(imgSrc);
-                        String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                        if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
-                            cssUrls.add(imgRelSrc);
+                        try {
+                            String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+                            URL url = new URL(imgSrc);
+                            String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
+                            if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                                cssUrls.add(imgRelSrc);
+                            }
+
+                        } catch (Exception ignored) {
+
                         }
                     }
                 }
@@ -496,7 +501,7 @@ public class ImageInformationExtractor {
                 //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
                 String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
 
-                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, false);
+                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", false);
 
                 logger.debug("Written to file - successfully indexed image record");
 
@@ -515,10 +520,10 @@ public class ImageInformationExtractor {
 
     private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                     String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
-                                            pageTitle, String pageURLTokens, boolean alreadyFoundInPage) {
+                                            pageTitle, String pageURLTokens, String foundInTag, boolean alreadyFoundInPage) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol);
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag);
         PageImageData pageImageDataOld = null;
 
         if (!alreadyFoundInPage)

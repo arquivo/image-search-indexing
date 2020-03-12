@@ -7,8 +7,10 @@ import utils.WARCInformationParser;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 public class PageImageData implements Comparable<LocalDateTime> {
 
@@ -54,8 +56,10 @@ public class PageImageData implements Comparable<LocalDateTime> {
 
     private boolean isInline;
 
+    private Set<String> tagFoundIn;
 
-    public PageImageData(String type, String imgTitles, String imgAlts, String imgSrcTokens, String imgCaption, String pageTitles, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTimestamps, String pageURLs, String pageHost, String pageProtocol) {
+
+    public PageImageData(String type, String imgTitles, String imgAlts, String imgSrcTokens, String imgCaption, String pageTitles, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTimestamps, String pageURLs, String pageHost, String pageProtocol, String tagType) {
         this.type = type;
 
         this.imgAlts = new LinkedList<>();
@@ -63,7 +67,9 @@ public class PageImageData implements Comparable<LocalDateTime> {
         if (!imgAlts.isEmpty())
             this.imgAlts.add(imgAlts);
 
+        this.tagFoundIn = new HashSet<>();
 
+        tagFoundIn.add(tagType);
 
         isInline = imgSrc.startsWith("hash:");
 
@@ -386,6 +392,14 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.matchingPages += matchingPages;
     }
 
+    public boolean isInline() {
+        return isInline;
+    }
+
+    public Set<String> getTagFoundIn() {
+        return tagFoundIn;
+    }
+
     public boolean addPageImageData(PageImageData newPageImageData) {
 
         int initalSize = this.imgAlts.size() + this.imgTitles.size();
@@ -403,6 +417,8 @@ public class PageImageData implements Comparable<LocalDateTime> {
         this.addImgTimestamps(newPageImageData.getTimestamp());
 
         this.addImgCaptions(newPageImageData.getImgCaptions());
+
+        this.tagFoundIn.addAll(newPageImageData.getTagFoundIn());
 
         this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, newPageImageData.getImagesInOriginalPage());
         this.imagesInAllMatchingPages += newPageImageData.getImagesInAllMatchingPages();
