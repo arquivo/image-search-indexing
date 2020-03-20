@@ -196,7 +196,7 @@ public class ImageParse {
             String stringDigest = convertByteArrayToHexString(byteDigest);
             img.addContentHash(stringDigest);
 
-            if (img.getUrl().startsWith("pt.arquivo.imagesearch.indexing.data:image")){
+            if (img.getUrl().startsWith("data:image")){
                 img.setUrl(stringDigest);
                 img.setSurt(stringDigest);
             }

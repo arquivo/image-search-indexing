@@ -166,7 +166,7 @@ public class DupDigestMergerJob {
 
         boolean result = jobDigest.waitForCompletion(true);
 
-        System.out.println("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
+        System.out.println("DupDigestMergerJob$COUNTERS");
         Counters cn = jobDigest.getCounters();
         CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
         for (Counter c : counterGroup) {

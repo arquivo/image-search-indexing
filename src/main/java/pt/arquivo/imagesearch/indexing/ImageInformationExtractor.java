@@ -323,7 +323,7 @@ public class ImageInformationExtractor {
                     try {
                         String imgRelSrc = attribute.getValue();
                         if (imgRelSrc != null && !imgRelSrc.isEmpty()) {
-                            if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
+                            if (imgRelSrc.startsWith("data:image")) {
                                 imgSrcAtrToParse.add(imgRelSrc);
                             } else {
                                 String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
@@ -350,7 +350,7 @@ public class ImageInformationExtractor {
                     imgSrcParsed.add(imgRelSrc);
 
                     logger.debug("Getting information for: " + imgSrc);
-                    if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
+                    if (imgRelSrc.startsWith("data:image")) {
                         logger.debug("Inline image");
                         ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
                         this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
@@ -417,9 +417,6 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
 
-                //if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
-                //    continue;
-                //} else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                 if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");
@@ -457,7 +454,7 @@ public class ImageInformationExtractor {
             while (m.find()) {
                 String imgRelSrc = m.group(1);
                 if (!imgRelSrc.isEmpty() && !imgSrcParsed.contains(imgRelSrc)) {
-                    if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
+                    if (imgRelSrc.startsWith("data:image")) {
                         cssUrls.add(imgRelSrc);
                     } else {
                         try {
@@ -481,9 +478,6 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
 
-                //if (imgRelSrc.startsWith("pt.arquivo.imagesearch.indexing.data:image")) {
-                //    continue;
-                //} else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                 if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");

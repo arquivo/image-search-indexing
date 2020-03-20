@@ -30,7 +30,7 @@ public class WARCInformationParser {
     }
 
     public static String toSURT(String url) {
-        if (url.startsWith("pt.arquivo.imagesearch.indexing.data:") || url.startsWith("hash:"))
+        if (url.startsWith("data:") || url.startsWith("hash:"))
             return url;
 
 
