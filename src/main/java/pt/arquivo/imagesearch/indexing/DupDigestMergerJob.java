@@ -135,12 +135,15 @@ public class DupDigestMergerJob {
         long latestValueLong = 0;
         for (FileStatus fileStat : fileStatus) {
             if (fileStat.isDir()) {
-                try {
-                    long currentValueLong = Long.parseLong(fileStat.getPath().getName());
-                    if (currentValueLong > latestValueLong)
-                        latestValueLong = currentValueLong;
-                } catch (Exception ignore){
+                if (fileStat.getPath().getName().endsWith("_dups")) {
+                    try {
+                        String name = fileStat.getPath().getName().replace("_dups", "");
+                        long currentValueLong = Long.parseLong(name);
+                        if (currentValueLong > latestValueLong)
+                            latestValueLong = currentValueLong;
+                    } catch (Exception ignore) {
 
+                    }
                 }
             }
         }
