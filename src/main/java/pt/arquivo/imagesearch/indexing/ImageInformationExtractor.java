@@ -1,6 +1,7 @@
 package pt.arquivo.imagesearch.indexing;
 
 import com.sun.jersey.core.util.Base64;
+import org.apache.commons.io.IOUtils;
 import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.io.LongWritable;
@@ -33,6 +34,8 @@ public class ImageInformationExtractor {
 
     private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
     private static final Set<String> IMAGE_TAG_JS_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("onLoad"));
+    public static final int MAX_PARENT_CAPTION_SIZE = 150;
+    public static final int MAX_IMAGE_FIELD_SIZE = 10000;
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
 
@@ -276,9 +279,9 @@ public class ImageInformationExtractor {
             String recordEncoding = ImageSearchIndexingUtil.guessEncoding(arcRecordBytes);
             InputStream is = new ByteArrayInputStream(arcRecordBytes);
 
-            Document doc = Jsoup.parse(is, recordEncoding, "");
+            String html = IOUtils.toString(is, recordEncoding);
 
-            doc.setBaseUri(pageURL);
+            Document doc = Jsoup.parse(html, pageURL);
 
             String pageTitle = doc.title(); /*returns empty string if no title in html document*/
             Elements imgs = doc.getElementsByTag("img");
@@ -357,7 +360,7 @@ public class ImageInformationExtractor {
                         if (acceptedRecord == null)
                             continue;
                         imgSrc = acceptedRecord.getUrl();
-                    } else if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                    } else if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
                         logger.debug("URL of image too big ");
                         logger.debug(pageURL.substring(0, 500) + "...");
                         this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
@@ -375,19 +378,32 @@ public class ImageInformationExtractor {
                     String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
 
                     String imgTitle = el.attr("title");
-                    if (imgTitle.length() > 9999) {
-                        imgTitle = imgTitle.substring(0, 10000);
+                    if (imgTitle.length() >= MAX_IMAGE_FIELD_SIZE) {
+                        imgTitle = imgTitle.substring(0, MAX_IMAGE_FIELD_SIZE);
                     }
                     String imgAlt = el.attr("alt");
-                    if (imgAlt.length() > 9999) {
-                        imgAlt = imgAlt.substring(0, 10000);
+                    if (imgAlt.length() >= MAX_IMAGE_FIELD_SIZE) {
+                        imgAlt = imgAlt.substring(0, MAX_IMAGE_FIELD_SIZE);
                     }
 
-                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
+                    Element parent = el;
+                    String imgCaption = "";
+                    while (parent != null && parent.text().trim().isEmpty() && !parent.tagName().equalsIgnoreCase("body")) {
+                        parent = parent.parent();
+                    }
+
+                    if (parent != null && !parent.text().trim().isEmpty() && !parent.tagName().equalsIgnoreCase("body"))
+                        imgCaption = parent.text();
+
+                    if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
+                        int lastSpace = imgCaption.substring(0, imgCaption.length()-MAX_PARENT_CAPTION_SIZE).lastIndexOf(" ");
+                        imgCaption = imgCaption.substring(lastSpace);
+                    }
+
+                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
 
                     logger.debug("Written to file - successfully indexed image record");
                 }
-
             }
 
 
@@ -417,7 +433,7 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
 
-                if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");
                     this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
@@ -437,8 +453,8 @@ public class ImageInformationExtractor {
 
 
                 String imgCaption = el.html();
-                if (imgCaption.length() > 9999) {
-                    imgCaption = imgCaption.substring(0, 10000);
+                if (imgCaption.length() >= MAX_IMAGE_FIELD_SIZE) {
+                    imgCaption = imgCaption.substring(0, MAX_IMAGE_FIELD_SIZE);
                 }
 
 
@@ -450,7 +466,7 @@ public class ImageInformationExtractor {
 
             List<String> cssUrls = new LinkedList<>();
             Matcher m = Pattern.compile("url\\(['\"]*(.*?)['\"]*\\)")
-                    .matcher(doc.outerHtml());
+                    .matcher(html);
             while (m.find()) {
                 String imgRelSrc = m.group(1);
                 if (!imgRelSrc.isEmpty() && !imgSrcParsed.contains(imgRelSrc)) {
