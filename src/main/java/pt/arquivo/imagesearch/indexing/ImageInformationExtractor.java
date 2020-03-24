@@ -333,9 +333,9 @@ public class ImageInformationExtractor {
 
                                 URL url = new URL(imgSrc);
                                 String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                                if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
-                                    imgSrcAtrToParse.add(imgRelSrc);
-                                }
+                                //if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                                imgSrcAtrToParse.add(imgRelSrc);
+                                //}
                             }
                         }
                     } catch (Exception ignored) {
@@ -479,9 +479,9 @@ public class ImageInformationExtractor {
                             String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
                             URL url = new URL(imgSrc);
                             String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                            if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
-                                cssUrls.add(imgRelSrc);
-                            }
+                            //if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                            cssUrls.add(imgRelSrc);
+                            //}
 
                         } catch (Exception ignored) {
 
