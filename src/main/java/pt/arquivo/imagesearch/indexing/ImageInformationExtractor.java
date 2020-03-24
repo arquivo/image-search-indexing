@@ -34,7 +34,7 @@ public class ImageInformationExtractor {
 
     private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
     private static final Set<String> IMAGE_TAG_JS_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("onLoad"));
-    public static final int MAX_PARENT_CAPTION_SIZE = 150;
+    public static final int MAX_PARENT_CAPTION_SIZE = 200;
     public static final int MAX_IMAGE_FIELD_SIZE = 10000;
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
@@ -396,7 +396,9 @@ public class ImageInformationExtractor {
                         imgCaption = parent.text();
 
                     if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
-                        int lastSpace = imgCaption.substring(0, imgCaption.length()-MAX_PARENT_CAPTION_SIZE).lastIndexOf(" ");
+                        int lastSpace = imgCaption.substring(0, imgCaption.length() - MAX_PARENT_CAPTION_SIZE).lastIndexOf(" ");
+                        if (lastSpace == -1)
+                            lastSpace = imgCaption.length() - MAX_PARENT_CAPTION_SIZE;
                         imgCaption = imgCaption.substring(lastSpace);
                     }
 
@@ -494,7 +496,7 @@ public class ImageInformationExtractor {
 
                 logger.debug("Getting information for: " + imgSrc);
 
-                if (imgSrc.length() > 10000 || pageURL.length() > 10000) {
+                if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
                     logger.debug("URL of image too big ");
                     logger.debug(pageURL.substring(0, 500) + "...");
                     this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
