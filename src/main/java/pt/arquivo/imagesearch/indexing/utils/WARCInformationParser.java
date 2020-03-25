@@ -68,8 +68,8 @@ public class WARCInformationParser {
     }
      */
 
-    public static Dimension getImageDimensions(ImageData img) {
-        Dimension result = null;
+    public static Map.Entry<ImageReader, Dimension> getImageDimensions(ImageData img) {
+        ImageReader reader = null;
 
         Iterator<ImageReader> iter = ImageIO.getImageReadersByMIMEType(img.getMimeDetected());
 
@@ -85,18 +85,18 @@ public class WARCInformationParser {
         }
 
         while (iter.hasNext()) {
-            ImageReader reader = iter.next();
+            reader = iter.next();
             try {
                 ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(img.getBytes()));
-                reader.setInput(stream);
+                reader.setInput(stream, true, true);
                 int width = reader.getWidth(reader.getMinIndex());
                 int height = reader.getHeight(reader.getMinIndex());
-                return new Dimension(width, height);
+                // avoid creating a new stream in reader
+                return new AbstractMap.SimpleEntry<>(reader, new Dimension(width, height));
             } catch (Exception e) {
                 logger.error(e.getMessage() + " reader: " + reader.toString() + " " + img.getURLWithTimestamp());
-            } finally {
-                reader.dispose();
             }
+            reader.dispose();
         }
 
         return null;

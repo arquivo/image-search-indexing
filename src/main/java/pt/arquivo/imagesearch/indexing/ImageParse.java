@@ -8,8 +8,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
 
 import pt.arquivo.imagesearch.indexing.data.ImageData;
 import org.apache.log4j.Logger;
@@ -169,11 +172,15 @@ public class ImageParse {
             MessageDigest digest = null;
             BufferedImage scaledImg = null;
 
-            Dimension imgDimensions = WARCInformationParser.getImageDimensions(img);
+            Map.Entry<ImageReader, Dimension> data = WARCInformationParser.getImageDimensions(img);
 
             //error getting dimensions; probably invalid or unsupported image type
-            if (imgDimensions == null)
+            if (data == null)
                 return null;
+
+
+            ImageReader reader = data.getKey();
+            Dimension imgDimensions = data.getValue();
 
             int width = imgDimensions.width;
             int height = imgDimensions.height;
@@ -208,8 +215,15 @@ public class ImageParse {
             }
 
             BufferedImage bimg;
-            InputStream inImg = new ByteArrayInputStream(img.getBytes());
-            bimg = ImageIO.read(inImg);
+
+            ImageReadParam param = reader.getDefaultReadParam();
+
+            try {
+                bimg = reader.read(reader.getMinIndex(), param);
+            } finally {
+                reader.dispose();
+            }
+
             if (width < THUMB_WIDTH || height < THUMB_HEIGHT) {
                 scaledImg = bimg;
             } else {
@@ -222,16 +236,13 @@ public class ImageParse {
                 else
                     thumbWidth = (int) (thumbHeight * imageRatio);
 
-                if (width < thumbWidth && height < thumbHeight) {
-                    thumbWidth = width;
-                    thumbHeight = height;
-                } else if (width < thumbWidth)
+                if (width < thumbWidth)
                     thumbWidth = width;
                 else if (height < thumbHeight)
                     thumbHeight = height;
 
                 scaledImg = Scalr.resize(bimg,
-                        Method.QUALITY,
+                        Method.AUTOMATIC,
                         Scalr.Mode.AUTOMATIC,
                         thumbWidth,
                         thumbHeight,
