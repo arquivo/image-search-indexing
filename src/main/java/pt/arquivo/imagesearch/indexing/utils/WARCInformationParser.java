@@ -33,16 +33,18 @@ public class WARCInformationParser {
         if (url.startsWith("data:") || url.startsWith("hash:"))
             return url;
 
-
-        if (url.startsWith("https://"))
+        if (url.startsWith("//"))
+            url = url.substring("//".length());
+        else if (url.startsWith("https://"))
             url = url.substring("https://".length());
-        if (url.startsWith("http://"))
+        else if (url.startsWith("http://"))
             url = url.substring("http://".length());
+
         if (url.startsWith("www."))
             url = url.substring("www.".length());
-        if (url.startsWith("ww2."))
+        else if (url.startsWith("ww2."))
             url = url.substring("ww2.".length());
-        if (url.startsWith("ww3."))
+        else if (url.startsWith("ww3."))
             url = url.substring("ww3.".length());
 
         return SURT.toSURT(url);
