@@ -24,6 +24,7 @@ import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 import java.io.*;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -293,10 +294,7 @@ public class ImageInformationExtractor {
 
             this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.PAGES).increment(1);
 
-            String pageURLCleaned = URLDecoder.decode(pageURL, "UTF-8"); /*Escape URL e.g %C3*/
-            //pageURLCleaned = StringUtils.stripAccents(pageURLCleaned); /* Remove accents*/
-            String pageURLTokens = ImageSearchIndexingUtil.parseURL(pageURLCleaned); /*split the URL*/
-
+            String pageURLTokens = getURLSrcTokens(pageURL);
 
             URL uri = new URL(pageURL);
             String pageHost = uri.getHost();
@@ -310,102 +308,105 @@ public class ImageInformationExtractor {
 
             Set<String> imgSrcParsed = new HashSet<>();
 
-            for (Element el : imgs) {
+            try {
+                for (Element el : imgs) {
 
-                Set<String> imgSrcAtrToParse = new HashSet<>();
+                    Set<String> imgSrcAtrToParse = new HashSet<>();
 
-                for (String tag : IMAGE_TAG_ATTRIBUTES_WITH_FILES) {
-                    String imgRelSrc = el.attr(tag).trim();
-                    if (!imgRelSrc.isEmpty())
-                        imgSrcAtrToParse.add(imgRelSrc);
-                }
+                    for (String tag : IMAGE_TAG_ATTRIBUTES_WITH_FILES) {
+                        String imgRelSrc = el.attr(tag).trim();
+                        if (!imgRelSrc.isEmpty())
+                            imgSrcAtrToParse.add(imgRelSrc);
+                    }
 
-                int oldSize = imgSrcAtrToParse.size();
+                    int oldSize = imgSrcAtrToParse.size();
 
-                for (Attribute attribute : el.attributes()) {
-                    try {
-                        String imgRelSrc = attribute.getValue();
-                        if (imgRelSrc != null && !imgRelSrc.isEmpty()) {
-                            if (imgRelSrc.startsWith("data:image")) {
-                                imgSrcAtrToParse.add(imgRelSrc);
-                            } else {
-                                String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+                    for (Attribute attribute : el.attributes()) {
+                        try {
+                            String imgRelSrc = attribute.getValue();
+                            if (imgRelSrc != null && !imgRelSrc.isEmpty()) {
+                                if (imgRelSrc.startsWith("data:image")) {
+                                    imgSrcAtrToParse.add(imgRelSrc);
+                                } else {
+                                    String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
 
-                                URL url = new URL(imgSrc);
-                                String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                                //if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
-                                imgSrcAtrToParse.add(imgRelSrc);
-                                //}
+                                    URL url = new URL(imgSrc);
+                                    String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
+                                    //if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                                    imgSrcAtrToParse.add(imgRelSrc);
+                                    //}
+                                }
                             }
+                        } catch (Exception ignored) {
+
                         }
-                    } catch (Exception ignored) {
-
                     }
-                }
 
-                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_ALT_ATRIB).increment(imgSrcAtrToParse.size() - oldSize);
+                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_ALT_ATRIB).increment(imgSrcAtrToParse.size() - oldSize);
 
-                for (String imgRelSrc : imgSrcAtrToParse) {
+                    for (String imgRelSrc : imgSrcAtrToParse) {
 
-                    String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+                        String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
 
-                    boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
-                    imgSrcParsed.add(imgRelSrc);
+                        boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
+                        imgSrcParsed.add(imgRelSrc);
 
-                    logger.debug("Getting information for: " + imgSrc);
-                    if (imgRelSrc.startsWith("data:image")) {
-                        logger.debug("Inline image");
-                        ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
-                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                        if (acceptedRecord == null)
+                        logger.debug("Getting information for: " + imgSrc);
+                        if (imgRelSrc.startsWith("data:image")) {
+                            logger.debug("Inline image");
+                            ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
+                            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
+                            if (acceptedRecord == null)
+                                continue;
+                            imgSrc = acceptedRecord.getUrl();
+                        } else if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
+                            logger.debug("URL of image too big ");
+                            logger.debug(pageURL.substring(0, 500) + "...");
+                            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
                             continue;
-                        imgSrc = acceptedRecord.getUrl();
-                    } else if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
-                        logger.debug("URL of image too big ");
-                        logger.debug(pageURL.substring(0, 500) + "...");
-                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(1);
-                        continue;
-                    } else if (imgRelSrc == null || imgRelSrc.equals("")) {
-                        logger.debug("Null imgSrc");
-                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
-                        continue;
+                        } else if (imgRelSrc == null || imgRelSrc.equals("")) {
+                            logger.debug("Null imgSrc");
+                            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
+                            continue;
+                        }
+
+                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
+
+
+                        String imgSrcTokens = getURLSrcTokens(imgSrc);
+
+                        String imgTitle = el.attr("title");
+                        if (imgTitle.length() >= MAX_IMAGE_FIELD_SIZE) {
+                            imgTitle = imgTitle.substring(0, MAX_IMAGE_FIELD_SIZE);
+                        }
+                        String imgAlt = el.attr("alt");
+                        if (imgAlt.length() >= MAX_IMAGE_FIELD_SIZE) {
+                            imgAlt = imgAlt.substring(0, MAX_IMAGE_FIELD_SIZE);
+                        }
+
+                        Element parent = el;
+                        String imgCaption = "";
+                        while (parent != null && parent.text().trim().isEmpty() && !parent.tagName().equalsIgnoreCase("body")) {
+                            parent = parent.parent();
+                        }
+
+                        if (parent != null && !parent.text().trim().isEmpty() && !parent.tagName().equalsIgnoreCase("body"))
+                            imgCaption = parent.text();
+
+                        if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
+                            int lastSpace = imgCaption.substring(0, imgCaption.length() - MAX_PARENT_CAPTION_SIZE).lastIndexOf(" ");
+                            if (lastSpace == -1)
+                                lastSpace = imgCaption.length() - MAX_PARENT_CAPTION_SIZE;
+                            imgCaption = imgCaption.substring(lastSpace);
+                        }
+
+                        insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
+
+                        logger.debug("Written to file - successfully indexed image record");
                     }
-
-                    this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
-
-                    String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
-                    //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
-                    String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
-
-                    String imgTitle = el.attr("title");
-                    if (imgTitle.length() >= MAX_IMAGE_FIELD_SIZE) {
-                        imgTitle = imgTitle.substring(0, MAX_IMAGE_FIELD_SIZE);
-                    }
-                    String imgAlt = el.attr("alt");
-                    if (imgAlt.length() >= MAX_IMAGE_FIELD_SIZE) {
-                        imgAlt = imgAlt.substring(0, MAX_IMAGE_FIELD_SIZE);
-                    }
-
-                    Element parent = el;
-                    String imgCaption = "";
-                    while (parent != null && parent.text().trim().isEmpty() && !parent.tagName().equalsIgnoreCase("body")) {
-                        parent = parent.parent();
-                    }
-
-                    if (parent != null && !parent.text().trim().isEmpty() && !parent.tagName().equalsIgnoreCase("body"))
-                        imgCaption = parent.text();
-
-                    if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
-                        int lastSpace = imgCaption.substring(0, imgCaption.length() - MAX_PARENT_CAPTION_SIZE).lastIndexOf(" ");
-                        if (lastSpace == -1)
-                            lastSpace = imgCaption.length() - MAX_PARENT_CAPTION_SIZE;
-                        imgCaption = imgCaption.substring(lastSpace);
-                    }
-
-                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
-
-                    logger.debug("Written to file - successfully indexed image record");
                 }
+            } catch (Exception e) {
+                logger.error(String.format("Error parsing HTML img record: {}", e.getMessage()));
             }
 
 
@@ -449,9 +450,7 @@ public class ImageInformationExtractor {
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_LINK).increment(1);
 
-                String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
-                //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
-                String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
+                String imgSrcTokens = getURLSrcTokens(imgSrc);
 
 
                 String imgCaption = el.html();
@@ -510,9 +509,7 @@ public class ImageInformationExtractor {
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_CSS).increment(1);
 
-                String imgSrcCleaned = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
-                //imgSrcCleaned = StringUtils.stripAccents(imgSrcCleaned); /* Remove accents*/
-                String imgSrcTokens = ImageSearchIndexingUtil.parseURL(imgSrcCleaned); /*split the imgSrc URL*/
+                String imgSrcTokens = getURLSrcTokens(imgSrc);
 
                 insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", false);
 
@@ -529,6 +526,15 @@ public class ImageInformationExtractor {
         }
 
 
+    }
+
+    private String getURLSrcTokens(String imgSrc) throws UnsupportedEncodingException {
+        try {
+            imgSrc = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
+        } catch (Exception ignored) {
+
+        }
+        return ImageSearchIndexingUtil.parseURL(imgSrc);
     }
 
     private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
