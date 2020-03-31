@@ -19,6 +19,7 @@ public class DupDigestMergerJob {
 
     public enum COUNTERS {
         RECORDS_EXCEEDED,
+        RECORDS_MAP_IN,
         RECORDS_IN,
         RECORDS_OUT,
         RECORDS_WITH_METADATA,
@@ -32,6 +33,7 @@ public class DupDigestMergerJob {
 
         public void map(Text key, Text value, Context context) {
             try {
+                context.getCounter(COUNTERS.RECORDS_MAP_IN).increment(1);
                 context.write(key, value);
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
@@ -57,6 +59,7 @@ public class DupDigestMergerJob {
             FullImageMetadata result = null;
 
             for (Text val : values) {
+                //RECORDS_MAP may not match RECORDS_MAP_IN due to the RECORDS_EXCEEDED breaking very large entries
                 context.getCounter(COUNTERS.RECORDS_IN).increment(1);
                 FullImageMetadata metadata = merger.parseRecord(val);
                 if (result == null) {
