@@ -38,7 +38,7 @@ public class ImageInformationExtractor {
 
     private static final Pattern CSS_URLS = Pattern.compile("url\\(['\"]*(.*?)['\"]*\\)");
 
-    public static final int MAX_PARENT_CAPTION_SIZE = 200;
+    public static final int MAX_PARENT_CAPTION_SIZE = 250;
     public static final int MAX_IMAGE_FIELD_SIZE = 10000;
     public static final String DATA_IMAGE_URL_PREFIX = "data:image";
 
@@ -484,19 +484,63 @@ public class ImageInformationExtractor {
     }
 
     private String extractCaptionFromParent(Element node) {
-        Element parent = node;
+
+        Element current = node;
         String imgCaption = "";
+
+        int maxChildLevel = 0;
+        int maxChildLevelCount = 0;
+        int i = 0;
+        while (current != null) {
+            if (maxChildLevelCount <= current.childNodeSize()) {
+                maxChildLevelCount = current.childNodeSize();
+                maxChildLevel = i;
+            }
+
+            current = current.parent();
+            i++;
+        }
+
+        i = 0;
+        Element previous = node;
+        current = node;
         // Go up the DOM tree until something is found or root is reached
-        while (parent != null && !parent.tagName().equalsIgnoreCase("body") && (imgCaption = parent.text().trim()).isEmpty())
-            parent = parent.parent();
+        while (current != null && (imgCaption = current.text().trim()).isEmpty()) {
+            previous = current;
+            current = current.parent();
+            i++;
+        }
+
+        if (i >= maxChildLevel) {
+            Element sibling = previous.previousElementSibling();
+            String imgCaptionPrev = "";
+            String imgCaptionNext = "";
+            while (sibling != null && (imgCaptionPrev = sibling.text().trim()).isEmpty()) {
+                sibling = sibling.previousElementSibling();
+            }
+
+            sibling = previous.nextElementSibling();
+            while (sibling != null && (imgCaptionNext = sibling.text().trim()).isEmpty()) {
+                sibling = sibling.nextElementSibling();
+            }
+
+            imgCaption = (imgCaptionPrev + "\n" + imgCaptionNext).trim();
+        }
+
 
         // No need for additional checks, as imgCaption will be empty if other conditions fail
         if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
             // Crop until closest empty space near the chosen text border (MAX_PARENT_CAPTION_SIZE chars in the end of the caption)
-            int lastSpace = imgCaption.substring(0, imgCaption.length() - MAX_PARENT_CAPTION_SIZE).lastIndexOf(" ");
+            int lastSpace = imgCaption.substring(0, MAX_PARENT_CAPTION_SIZE/2).lastIndexOf(" ");
             if (lastSpace == -1)
-                lastSpace = imgCaption.length() - MAX_PARENT_CAPTION_SIZE;
-            imgCaption = imgCaption.substring(lastSpace);
+                lastSpace = MAX_PARENT_CAPTION_SIZE/2;
+
+            String newImgCaption = imgCaption.substring(0, lastSpace).trim();
+
+            lastSpace = (imgCaption.length() - MAX_PARENT_CAPTION_SIZE/2) + imgCaption.substring(imgCaption.length() - MAX_PARENT_CAPTION_SIZE/2).indexOf(" ");
+
+            newImgCaption += "\n" + imgCaption.substring(lastSpace).trim();
+            imgCaption = newImgCaption.trim();
         }
         return imgCaption;
     }
