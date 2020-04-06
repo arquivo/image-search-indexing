@@ -41,6 +41,7 @@ public class ImageInformationExtractor {
     public static final int MAX_PARENT_CAPTION_SIZE = 250;
     public static final int MAX_IMAGE_FIELD_SIZE = 10000;
     public static final String DATA_IMAGE_URL_PREFIX = "data:image";
+    public static final int MAX_IMAGE_IN_HTML = 10000;
 
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
@@ -307,6 +308,7 @@ public class ImageInformationExtractor {
 
             Set<String> imgSrcParsed = new HashSet<>();
 
+            int parsedImagesPerPage = 0;
             try {
                 for (Element el : imgs) {
 
@@ -343,15 +345,24 @@ public class ImageInformationExtractor {
                         String imgSrcTokens = getURLSrcTokens(imgSrc);
                         String imgTitle = getHTMLAttribute(el, "title");
                         String imgAlt = getHTMLAttribute(el, "alt");
+
                         String imgCaption = extractCaptionFromParent(el);
 
                         insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
 
                         logger.debug("Written to file - successfully indexed image record");
                     }
+
+                    parsedImagesPerPage++;
+
+                    if (parsedImagesPerPage >= MAX_IMAGE_IN_HTML) {
+                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_EXCEDED).increment(1);
+                        this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_NOT_PARSED).increment(imgs.size() - parsedImagesPerPage);
+                        break;
+                    }
                 }
             } catch (Exception e) {
-                logger.error(String.format("Error parsing HTML img record: {}", e.getMessage()));
+                logger.error(String.format("Error parsing HTML img record: %s", e.getMessage()));
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(pageImages);
             }
 
@@ -405,7 +416,7 @@ public class ImageInformationExtractor {
                 }
 
             } catch (Exception e) {
-                logger.error(String.format("Error parsing HTML img record: {}", e.getMessage()));
+                logger.error(String.format("Error parsing HTML img record: %s", e.getMessage()));
                 this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(pageImages);
             }
 
@@ -531,13 +542,13 @@ public class ImageInformationExtractor {
         // No need for additional checks, as imgCaption will be empty if other conditions fail
         if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
             // Crop until closest empty space near the chosen text border (MAX_PARENT_CAPTION_SIZE chars in the end of the caption)
-            int lastSpace = imgCaption.substring(0, MAX_PARENT_CAPTION_SIZE/2).lastIndexOf(" ");
+            int lastSpace = imgCaption.substring(0, MAX_PARENT_CAPTION_SIZE / 2).lastIndexOf(" ");
             if (lastSpace == -1)
-                lastSpace = MAX_PARENT_CAPTION_SIZE/2;
+                lastSpace = MAX_PARENT_CAPTION_SIZE / 2;
 
             String newImgCaption = imgCaption.substring(0, lastSpace).trim();
 
-            lastSpace = (imgCaption.length() - MAX_PARENT_CAPTION_SIZE/2) + imgCaption.substring(imgCaption.length() - MAX_PARENT_CAPTION_SIZE/2).indexOf(" ");
+            lastSpace = (imgCaption.length() - MAX_PARENT_CAPTION_SIZE / 2) + imgCaption.substring(imgCaption.length() - MAX_PARENT_CAPTION_SIZE / 2).indexOf(" ");
 
             newImgCaption += "\n" + imgCaption.substring(lastSpace).trim();
             imgCaption = newImgCaption.trim();
