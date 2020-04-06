@@ -58,6 +58,8 @@ public class FullImageMetadata {
 
     private String collection;
 
+    private String id;
+
 
     public FullImageMetadata(ImageData image, PageImageData page) {
         this.imgTitle = new HashSet<>();
@@ -102,6 +104,8 @@ public class FullImageMetadata {
 
         this.imgDigest = new HashSet<>();
         this.imgDigest.addAll(image.getContentHash());
+
+        this.id = this.imgDigest.iterator().next();
 
         this.imgSrcBase64 = Base64.getEncoder().encodeToString(image.getBytes());
 
