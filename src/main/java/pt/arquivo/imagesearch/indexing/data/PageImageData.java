@@ -276,8 +276,8 @@ public class PageImageData implements Comparable<LocalDateTime> {
         }
     }
 
-    public void addImgCaptions(List<String> imgCaptionss) {
-        for (String caption : imgCaptionss){
+    public void addImgCaptions(List<String> imgCaptions) {
+        for (String caption : imgCaptions){
             caption = caption.trim();
             if (!caption.isEmpty() && !this.imgCaptions.contains(caption)) {
                 imageMetadataChanges++;
