@@ -151,6 +151,8 @@ public class FullImageMetadata {
 
         this.tagFoundIn.addAll(result.getTagFoundIn());
 
+        this.imgFilenames.addAll(result.getImgFilenames());
+        this.imgCaption.addAll(result.getImgCaption());
 
         this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, result.getImagesInOriginalPage());
 
@@ -241,5 +243,13 @@ public class FullImageMetadata {
 
     public Set<String> getImgDigests() {
         return imgDigest;
+    }
+
+    public Set<String> getImgFilenames() {
+        return imgFilenames;
+    }
+
+    public Set<String> getImgCaption() {
+        return imgCaption;
     }
 }
