@@ -201,7 +201,7 @@ public class ImageParse {
             digest.update(bytesImgOriginal);
             byte[] byteDigest = digest.digest();
             String stringDigest = convertByteArrayToHexString(byteDigest);
-            img.addContentHash(stringDigest);
+            img.setContentHash(stringDigest);
 
             if (img.getUrl().startsWith("data:image")){
                 img.setUrl(stringDigest);

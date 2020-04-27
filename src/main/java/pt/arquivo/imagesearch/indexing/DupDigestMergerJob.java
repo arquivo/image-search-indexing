@@ -1,6 +1,7 @@
 package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -12,6 +13,10 @@ import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.data.ImageData;
+import pt.arquivo.imagesearch.indexing.data.PageImageData;
+import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 
 import java.io.IOException;
 
@@ -55,13 +60,16 @@ public class DupDigestMergerJob {
 
         public void reduce(Text key, Iterable<Text> values, Context context) {
             int counter = 0;
-            Gson gson = new Gson();
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
+                    .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
+                    .create();
             FullImageMetadata result = null;
 
             for (Text val : values) {
                 //RECORDS_MAP may not match RECORDS_MAP_IN due to the RECORDS_EXCEEDED breaking very large entries
                 context.getCounter(COUNTERS.RECORDS_IN).increment(1);
-                FullImageMetadata metadata = merger.parseRecord(val);
+                FullImageMetadata metadata = DupDigestMerger.parseRecord(val);
                 if (result == null) {
                     result = metadata;
                 } else {
@@ -78,16 +86,18 @@ public class DupDigestMergerJob {
 
             }
 
-            if (result.hasImageMetadata())
-                context.getCounter(COUNTERS.RECORDS_WITH_METADATA).increment(1);
-            else
-                context.getCounter(COUNTERS.RECORDS_WITHOUT_METADATA).increment(1);
-
             context.getCounter(COUNTERS.RECORDS_OUT).increment(1);
             logger.info(String.format("Found %d records", counter));
 
             try {
-                context.write(NullWritable.get(), new Text(gson.toJson(result)));
+
+                if (result != null) {
+                    result.assignImagesToPages();
+                    for(ImageData data: result.getImageDatas())
+                        context.write(NullWritable.get(), new Text(gson.toJson(data)));
+                    for(PageImageData data: result.getPageImageDatas())
+                        context.write(NullWritable.get(), new Text(gson.toJson(data)));
+                }
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }

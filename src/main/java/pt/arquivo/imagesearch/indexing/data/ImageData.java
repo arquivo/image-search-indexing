@@ -3,16 +3,18 @@ package pt.arquivo.imagesearch.indexing.data;
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.getLocalDateTimeToTimestamp;
+
 public class ImageData {
-    private static final int MAX_ADD_THRESHOLD = 50;
-    private String imageHashKey;
+    private String imageURLHash;
+    private String contentHash;
 
     private List<LocalDateTime> timestamp;
     private List<String> timestampOriginalFormat;
-    private List<String> contentHash;
 
     private String url;
     private String surt;
@@ -26,11 +28,8 @@ public class ImageData {
     private int height;
     private int size;
 
-    private int matchingImages;
-
-
-    public ImageData(String imageHashKey, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes, int matchingImages) {
-        this.imageHashKey = imageHashKey;
+    public ImageData(String imageURLHash, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes) {
+        this.imageURLHash = imageURLHash;
         this.url = url;
         this.surt = surt;
         this.mimeReported = mimeReported;
@@ -42,11 +41,10 @@ public class ImageData {
         this.timestampOriginalFormat = new LinkedList<>();
         this.timestamp = new LinkedList<>();
 
-        this.timestamp.add(WARCInformationParser.parseLocalDateTime(timestamp));
         this.timestampOriginalFormat.add(timestamp);
-        this.contentHash = new LinkedList<>();
+        this.timestamp.add(WARCInformationParser.parseLocalDateTime(timestamp));
+        this.contentHash = "";
 
-        this.matchingImages = matchingImages;
     }
 
     @Override
@@ -54,12 +52,12 @@ public class ImageData {
         return String.format("\"%s\": %s", mimeReported, url);
     }
 
-    public String getImageHashKey() {
-        return imageHashKey;
+    public String getImageURLHash() {
+        return imageURLHash;
     }
 
-    public void setImageHashKey(String imageHashKey) {
-        this.imageHashKey = imageHashKey;
+    public void setImageURLHash(String imageURLHash) {
+        this.imageURLHash = imageURLHash;
     }
 
     public List<LocalDateTime> getTimestamp() {
@@ -106,24 +104,8 @@ public class ImageData {
         this.collection = collection;
     }
 
-    public List<String> getContentHash() {
+    public String getContentHash() {
         return contentHash;
-    }
-
-    public void addContentHash(String contentHash) {
-        if (this.contentHash.size() <= MAX_ADD_THRESHOLD && !this.contentHash.contains(contentHash))
-            this.contentHash.add(contentHash);
-    }
-
-    public void addContentHashes(List<String> contentHashes) {
-        for (String contentHash : contentHashes)
-            addContentHash(contentHash);
-    }
-
-    public void addTimestampsString(List<String> timestamps) {
-        for (String timestamp : timestamps)
-            if (this.timestampOriginalFormat.size() <= MAX_ADD_THRESHOLD && !this.timestampOriginalFormat.contains(timestamp))
-                this.timestampOriginalFormat.add(timestamp);
     }
 
     public int getWidth() {
@@ -166,16 +148,8 @@ public class ImageData {
         return this.timestamp.size();
     }
 
-    public void addTimestamps(List<LocalDateTime> timestamps) {
-        for (LocalDateTime timestamp : timestamps)
-            if (this.timestamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
-                this.timestamp.add(timestamp);
-    }
-
-    public void addImageData(ImageData other) {
-        this.addTimestamps(other.getTimestamp());
-        this.addTimestampsString(other.getTimestampOriginalFormat());
-        this.addContentHashes(other.getContentHash());
+    public String setContentHash(String contentHash) {
+        return this.contentHash = contentHash;
     }
 
     public List<String> getTimestampsAsStrings() {
@@ -183,5 +157,21 @@ public class ImageData {
         for (LocalDateTime time : this.timestamp)
             results.add(time.toString());
         return results;
+    }
+
+    public boolean equals(ImageData o) {
+        return (o.getContentHash().equals(this.getContentHash()) && o.getSurt().equals(this.getSurt()));
+    }
+
+    public void addTimestamp(ImageData imageData) {
+        this.timestamp.addAll(imageData.timestamp);
+        for (LocalDateTime localDT: imageData.timestamp)
+            this.timestampOriginalFormat.add(getLocalDateTimeToTimestamp(localDT));
+        Collections.sort(timestamp);
+        Collections.sort(timestampOriginalFormat);
+    }
+
+    public String getId() {
+        return timestampOriginalFormat.get(0) + "/" + imageURLHash;
     }
 }

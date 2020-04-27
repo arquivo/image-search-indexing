@@ -18,11 +18,10 @@ public class DupDigestMerger {
 
     private Mapper<LongWritable, Text, Text, Text>.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
-    private Gson gson;
 
     public DupDigestMerger() {
         this.localCounters = new HashMap<>();
-        this.gson = new Gson();
+
     }
 
     public Counter getCounter(Enum<?> counterName) {
@@ -35,11 +34,12 @@ public class DupDigestMerger {
         }
     }
 
-    public FullImageMetadata parseRecord(Text recordJson) {
+    public static FullImageMetadata parseRecord(Text recordJson) {
         FullImageMetadata page = null;
         try {
-            page = gson.fromJson(recordJson.toString(), FullImageMetadata.class);
+            page = new Gson().fromJson(recordJson.toString(), FullImageMetadata.class);
         } catch (JsonSyntaxException ignored) {
+            ignored.printStackTrace();
 
         }
         return page;

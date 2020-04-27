@@ -46,8 +46,9 @@ public class ImageInformationExtractor {
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
 
-    private HashMap<String, PageImageData> imgSrcEntries;
-    private HashMap<String, ImageData> imgFileEntries;
+    //private HashMap<String, PageImageData> imgSrcEntries;
+    //private HashMap<String, ImageData> imgFileEntries;
+    private HashMap<String, FullImageMetadata> entries;
     private String collection;
     private Mapper<LongWritable, Text, Text, Text>.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
@@ -63,9 +64,8 @@ public class ImageInformationExtractor {
     }
 
     private void init(String collection) {
-        imgSrcEntries = new HashMap<>();
-        imgFileEntries = new HashMap<>();
         this.collection = collection;
+        entries = new HashMap<>();
         ImageIO.setUseCache(false);
     }
 
@@ -152,7 +152,7 @@ public class ImageInformationExtractor {
     }
 
 
-    public ImageData saveImageMetadata(String url, String imageHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
+    public ImageData saveImageMetadata(String url, String imageURLHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
 
@@ -175,8 +175,7 @@ public class ImageInformationExtractor {
             this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
         }
 
-        ImageData imageData = new ImageData(imageHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes, 1);
-        ImageData imageDataOld;
+        ImageData imageData = new ImageData(imageURLHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes);
 
         try {
             imageData = ImageParse.getPropImage(imageData);
@@ -197,12 +196,15 @@ public class ImageInformationExtractor {
         } else {
 
             this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED_DUP).increment(1);
-            if ((imageDataOld = imgFileEntries.get(imageData.getSurt())) != null) {
-                imageDataOld.addTimestamps(imageData.getTimestamp());
-            } else {
-                this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
-                imgFileEntries.put(imageData.getSurt(), imageData);
+            FullImageMetadata fullImageMetadata = entries.get(imageData.getSurt());
+            if (fullImageMetadata == null) {
+                fullImageMetadata = new FullImageMetadata();
+                entries.put(imageData.getSurt(), fullImageMetadata);
             }
+            boolean isNew = fullImageMetadata.addImageData(imageData);
+            if (isNew)
+                this.getCounter(ImageIndexerWithDups.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
+
             return imageData;
                 /*Gson gson = new Gson();
                 try {
@@ -617,29 +619,39 @@ public class ImageInformationExtractor {
                                             pageTitle, String pageURLTokens, String foundInTag, boolean alreadyFoundInPage) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageImages, 1, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag);
-        PageImageData pageImageDataOld = null;
+        FullImageMetadata metadata;
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag);
 
-        if (!alreadyFoundInPage)
-            pageImageData.incrementMatchingPages(1);
+        pageImageData.incrementImgReferencesInPage(1);
 
         this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_DUP).increment(1);
-        if ((pageImageDataOld = imgSrcEntries.get(pageImageData.getImgSurt())) == null) {
-            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
-            imgSrcEntries.put(pageImageData.getImgSurt(), pageImageData);
-        } else {
-            boolean imageMetadataChanged = pageImageDataOld.addPageImageData(pageImageData);
-            if (imageMetadataChanged) {
-                this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
-            }
+
+        FullImageMetadata fullImageMetadata = entries.get(pageImageData.getImgSurt());
+        if (fullImageMetadata == null) {
+            fullImageMetadata = new FullImageMetadata();
+            entries.put(pageImageData.getImgSurt(), fullImageMetadata);
         }
+
+        boolean isNew = fullImageMetadata.addPageImageData(pageImageData);
+        if (isNew) {
+            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
+            this.getCounter(ImageIndexerWithDups.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
+        }
+
+
+                /*Gson gson = new Gson();
+                try {
+                    context.write(new Text(imgSurt), new Text(gson.toJson(imageData)));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                */
     }
 
-    public HashMap<String, PageImageData> getImgSrcEntries() {
-        return imgSrcEntries;
+    public HashMap<String, FullImageMetadata> getEntries() {
+        return entries;
     }
 
-    public HashMap<String, ImageData> getImgFileEntries() {
-        return imgFileEntries;
-    }
 }

@@ -1,7 +1,9 @@
 package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.log4j.Level;
+import org.htmlparser.lexer.Page;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
@@ -9,13 +11,15 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+
+import static pt.arquivo.imagesearch.indexing.DupDigestMerger.parseRecord;
 
 public class LocalFullImageIndexer {
 
@@ -56,14 +60,7 @@ public class LocalFullImageIndexer {
 
         public HashMap<String, List<Object>> cleanup() {
             HashMap<String, List<Object>> results = new HashMap<>();
-            for (java.util.Map.Entry<String, PageImageData> entry : indexer.getImgSrcEntries().entrySet()) {
-                String surt = entry.getKey();
-                results.computeIfAbsent(surt, k -> new LinkedList<>());
-                results.get(surt).add(entry.getValue());
-                //context.write(new Text(surt), new Text(gson.toJson(entry.getValue())));
-            }
-
-            for (java.util.Map.Entry<String, ImageData> entry : indexer.getImgFileEntries().entrySet()) {
+            for (java.util.Map.Entry<String, FullImageMetadata> entry : indexer.getEntries().entrySet()) {
                 String surt = entry.getKey();
                 results.computeIfAbsent(surt, k -> new LinkedList<>());
                 results.get(surt).add(entry.getValue());
@@ -91,38 +88,38 @@ public class LocalFullImageIndexer {
             //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
             logger.debug("Reducing: " + key);
             for (Object val : values) {
-                merger.add(val);
+                merger.merge((FullImageMetadata) val);
                 counter++;
+
+                //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
+                    logger.info(String.format("Broke iterating: Found %d pages and %d images", merger.getBestMatch().getPageImageDatas().size(), merger.getBestMatch().getImageDatas().size()));
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
+
             }
-            logger.debug(String.format("Found %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
-            if (merger.getImages().size() != 0 && merger.getPages().size() != 0) {
-                for (PageImageData page : merger.getPages())
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(page.getMatchingPages());
 
-                for (ImageData image : merger.getImages())
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(image.getMatchingImages());
+            logger.debug(String.format("Found %d pages and %d images", merger.getBestMatch().getPageImageDatas().size(), merger.getBestMatch().getImageDatas().size()));
 
+            if (merger.getBestMatch().getImageDatas().size() != 0 && merger.getBestMatch().getPageImageDatas().size() != 0) {
+
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatas().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(merger.getBestMatch().getImageDatas().size());
                 merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
+                if (merger.getBestMatch().getImageDatas().size() != 0) {
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getBestMatch().getImageDatas().size());
+                } else if (merger.getBestMatch().getPageImageDatas().size() != 0) {
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatas().size());
+                }
+
                 return merger.getBestMatch();
-            } else if (merger.getImages().size() != 0) {
-                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                for (ImageData image : merger.getImages())
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(image.getMatchingImages());
 
-            } else if (merger.getPages().size() != 0) {
-
-                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-
-                for (PageImageData page : merger.getPages())
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(page.getMatchingPages());
             }
             return null;
         }
@@ -193,7 +190,10 @@ public class LocalFullImageIndexer {
         assert args.length >= 3 : "Missing output file";
         String outputFile = args[2];
 
-        Gson gson = new Gson();
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
+                .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
+                .create();
 
         LocalFullImageIndexer.Map map = new Map(collection);
 
@@ -215,9 +215,14 @@ public class LocalFullImageIndexer {
         for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
             FullImageMetadata result = reduce.reduce(entry.getKey(), entry.getValue());
             if (result != null) {
-                for(String digest: result.getImgDigests()) {
-                    reduceResults.putIfAbsent(digest, new LinkedList<>());
-                    reduceResults.get(digest).add(result);
+                Set<String> digests = new HashSet<>();
+                for (ImageData imageData : result.getImageDatas()) {
+                    String digest = imageData.getContentHash();
+                    if (!digests.contains(imageData.getContentHash())) {
+                        reduceResults.putIfAbsent(digest, new LinkedList<>());
+                        reduceResults.get(digest).add(result);
+                        digests.add(digest);
+                    }
                 }
             }
         }
@@ -228,8 +233,12 @@ public class LocalFullImageIndexer {
             for (java.util.Map.Entry<String, List<FullImageMetadata>> entry : reduceResults.entrySet()) {
 
                 FullImageMetadata result = reduceDigest.reduce(new Text(entry.getKey()), entry.getValue());
-                if (result != null){
-                    out.println(gson.toJson(result));
+                if (result != null) {
+                    result.assignImagesToPages();
+                    for(ImageData data: result.getImageDatas())
+                        out.println(gson.toJson(data));
+                    for(PageImageData data: result.getPageImageDatas())
+                        out.println(gson.toJson(data));
                 }
             }
         } catch (IOException e) {

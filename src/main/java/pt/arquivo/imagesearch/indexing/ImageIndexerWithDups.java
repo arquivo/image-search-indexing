@@ -19,6 +19,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
+
+import static pt.arquivo.imagesearch.indexing.DupDigestMerger.parseRecord;
 
 public class ImageIndexerWithDups {
 
@@ -135,12 +139,7 @@ public class ImageIndexerWithDups {
         protected void cleanup(Context context) throws IOException, InterruptedException {
             super.cleanup(context);
             Gson gson = new Gson();
-            for (java.util.Map.Entry<String, PageImageData> entry : indexer.getImgSrcEntries().entrySet()) {
-                String surt = entry.getKey();
-                context.write(new Text(surt), new Text(gson.toJson(entry.getValue())));
-            }
-
-            for (java.util.Map.Entry<String, ImageData> entry : indexer.getImgFileEntries().entrySet()) {
+            for (java.util.Map.Entry<String, FullImageMetadata> entry : indexer.getEntries().entrySet()) {
                 String surt = entry.getKey();
                 context.write(new Text(surt), new Text(gson.toJson(entry.getValue())));
             }
@@ -172,51 +171,59 @@ public class ImageIndexerWithDups {
             int counter = 0;
 
             merger.reset();
+            FullImageMetadata result = null;
             //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
             logger.debug("Reducing: " + key);
             for (Text val : values) {
-                merger.add(val);
+                if (result == null)
+                    result = parseRecord(val);
+                else
+                    result.merge(parseRecord(val));
                 counter++;
 
                 //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
+                    logger.info(String.format("Broke iterating: Found %d pages and %d images", result.getPageImageDatas().size(), result.getImageDatas().size()));
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
 
             }
-            logger.debug(String.format("Found %d pages and %d images", merger.getPages().size(), merger.getImages().size()));
+            //logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatas().size(), result.getImageDatas().size()));
 
-            if (merger.getImages().size() != 0 && merger.getPages().size() != 0) {
+            if (result.getImageDatas().size() != 0 && result.getPageImageDatas().size() != 0) {
 
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(merger.getPages().size());
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(merger.getImages().size());
+                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatas().size());
+                merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatas().size());
                 merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
                 try {
-                    FullImageMetadata fim = merger.getBestMatch();
-                    if (fim.getImgDigests().size() > 1)
-                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_MULIPLE_DIGEST).increment(1);
-                    for (String digest : fim.getImgDigests()) {
+                    FullImageMetadata fim = result;
+                    Set<String> digests = new HashSet<>();
+                    String fimJson = gson.toJson(fim);
+                    for (ImageData imageData : fim.getImageDatas()) {
+                        String digest = imageData.getContentHash();
                         merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGESTALL).increment(1);
-                        context.write(new Text(digest), new Text(gson.toJson(fim)));
+                        context.write(new Text(digest), new Text(fimJson));
+                        digests.add(digest);
                     }
+                    if (digests.size() > 1)
+                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_MULIPLE_DIGEST).increment(1);
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
-            } else if (merger.getImages().size() != 0) {
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getImages().size());
-            } else if (merger.getPages().size() != 0) {
-                merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(merger.getPages().size());
+                if (result.getImageDatas().size() != 0) {
+                    merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                    merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatas().size());
+                } else if (result.getPageImageDatas().size() != 0) {
+                    merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                    merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatas().size());
+                }
+
             }
-
         }
-
 
     }
 

@@ -29,6 +29,10 @@ public class WARCInformationParser {
         return LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern(WARCInformationParser.PATTERN));
     }
 
+    public static String getLocalDateTimeToTimestamp(LocalDateTime localDT) {
+        return localDT.format(DateTimeFormatter.ofPattern(WARCInformationParser.PATTERN));
+    }
+
     public static String toSURT(String url) {
         if (url.startsWith("data:") || url.startsWith("hash:"))
             return url;

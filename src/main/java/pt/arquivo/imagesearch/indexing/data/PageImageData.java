@@ -7,8 +7,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
@@ -18,325 +16,168 @@ import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 public class PageImageData implements Comparable<LocalDateTime> {
 
     private static final int MAX_ADD_THRESHOLD = 50;
+
     private String type;
-    private List<String> imgTitles;
-    private List<String> imgAlts;
-    private List<String> imgFilenames;
-    private List<String> imgCaptions;
+    private String imgTitle;
+    private String imgAlt;
+    private String imgFilename;
+    private String imgCaption;
+    private String imgTimestampString;
 
-    private List<String> pageTitles;
-    private List<String> pageURLTokens;
+    private String pageTitle;
+    private String pageURLTokens;
 
-    private String imgSrc;
-    private String imgSrcTokens;
+    private String imgURL;
+    private String imgURLTokens;
     private String imgSurt;
 
-    private List<String> pageTimestamps;
-    private List<String> pageURLs;
+    private LocalDateTime pageTimestamp;
+    private String pageTimestampString;
+    private String pageURL;
+    private String pageURLHash;
 
-    private List<String> pageHosts;
+    private String pageHost;
     private String pageProtocol;
 
-    private List<LocalDateTime> timestamp;
+
 
     // Number of images in the original page
-    private int imagesInOriginalPage;
-
-    // Number of images in all referenced pages
-    private long imagesInAllMatchingPages;
+    private int imagesInPage;
 
     // Total number of matching <img src="">
-    private int totalMatchingImgReferences;
+    private int imgReferencesInPage;
 
-    // Number of pages referencing the image
-    private int matchingPages;
-
-    // Number of times the metadata changed for the image
-    private int imageMetadataChanges;
-
-    // Number of times the metadata changed for the image
-    private int imageFilenameChanges;
-
-    private boolean isInline;
+    private boolean inline;
 
     private Set<String> tagFoundIn;
 
-
-    public PageImageData(String type, String imgTitles, String imgAlts, String imgSrcTokens, String imgCaption, String pageTitles, String pageURLTokens, String imgSrc, String imageSurt, int imagesInOriginalPage, int imagesInAllMatchingPages, int totalMatchingImgReferences, String pageTimestamps, String pageURLs, String pageHost, String pageProtocol, String tagType) {
+    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, int imgReferencesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType) {
         this.type = type;
 
-        this.imgAlts = new LinkedList<>();
-        imgAlts = imgAlts.trim();
-        if (!imgAlts.isEmpty())
-            this.imgAlts.add(imgAlts);
-
+        this.imgAlt = imgAlt;
+        
         this.tagFoundIn = new HashSet<>();
 
         tagFoundIn.add(tagType);
 
-        isInline = imgSrc.startsWith("hash:");
+        inline = imgURL.startsWith("hash:");
 
-        this.imgSrcTokens = "";
+        this.imgURLTokens = "";
 
 
-        this.imgFilenames = new LinkedList<>();
+        this.imgFilename = imgFilename;
 
-        if (!isInline) {
-            this.imgSrcTokens = imgSrcTokens;
+        if (!inline) {
+            this.imgURLTokens = imgURLTokens;
             URL url = null;
             try {
-                url = new URL(imgSrc);
+                url = new URL(imgURL);
                 String filename = FilenameUtils.getBaseName(url.getPath());
                 if (!filename.isEmpty())
-                    this.imgFilenames.add(ImageSearchIndexingUtil.cleanPunctuation(filename));
+                    this.imgFilename = ImageSearchIndexingUtil.cleanPunctuation(filename);
             } catch (MalformedURLException ignored) {
 
             }
         }
 
-        this.imgCaptions = new LinkedList<>();
-        imgCaption = imgCaption.trim();
-        if (!imgCaption.isEmpty())
-            this.imgCaptions.add(imgCaption);
+        this.imgCaption = imgCaption;
 
-        this.pageTitles = new LinkedList<>();
-        pageTitles = pageTitles.trim();
-        if (!pageTitles.isEmpty())
-            this.pageTitles.add(pageTitles);
+        this.pageTitle = pageTitle;
 
+        this.imgTitle = imgTitle;
 
-        this.imgTitles = new LinkedList<>();
-        imgTitles = imgTitles.trim();
-        if (!imgTitles.isEmpty())
-            this.imgTitles.add(imgTitles);
+        this.pageURLTokens = pageURLTokens;
 
-
-        this.pageURLTokens = new LinkedList<>();
-        if (!pageURLTokens.trim().isEmpty())
-            this.pageURLTokens.add(pageURLTokens);
-
-        this.imgSrc = imgSrc;
+        this.imgURL = imgURL;
         this.imgSurt = imageSurt;
 
-        this.imagesInOriginalPage = imagesInOriginalPage;
-        this.imagesInAllMatchingPages = imagesInAllMatchingPages;
+        this.imagesInPage = imagesInPage;
+        this.imgReferencesInPage = imgReferencesInPage;
 
-        this.totalMatchingImgReferences = totalMatchingImgReferences;
-        this.matchingPages = 0;
+        this.pageTimestampString = pageTimestampString;
 
-        this.imageMetadataChanges = 0;
-        this.imageFilenameChanges = 0;
+        this.pageURL = pageURL;
+        this.pageURLHash = ImageSearchIndexingUtil.md5ofString(pageURL);
 
-        this.pageTimestamps = new LinkedList<>();
-        this.pageTimestamps.add(pageTimestamps);
-
-        this.pageURLs = new LinkedList<>();
-        if (!pageURLs.trim().isEmpty())
-            this.pageURLs.add(pageURLs);
-
-        this.pageHosts = new LinkedList<>();
-        if (!pageHost.trim().isEmpty())
-            this.pageHosts.add(pageHost);
+        this.pageHost = pageHost;
 
         this.pageProtocol = pageProtocol;
 
-        this.timestamp = new LinkedList<>();
-        this.timestamp.add(WARCInformationParser.parseLocalDateTime(pageTimestamps));
+        this.pageTimestamp = WARCInformationParser.parseLocalDateTime(pageTimestampString);
     }
 
     @Override
     public int compareTo(LocalDateTime timestamp) {
-        return this.timestamp.get(0).compareTo(timestamp);
+        return this.pageTimestamp.compareTo(timestamp);
     }
 
     @Override
     public String toString() {
-        return String.format("\"%s\": \"%s\", %s", String.join(";", pageTitles), String.join(";", pageURLs), String.join(";", timestamp.toString()));
+        return String.format("\"%s\": \"%s\", %s", pageTitle, pageURL, pageTimestamp.toString());
     }
 
     public String getType() {
         return type;
     }
 
-    public List<String> getImgTitles() {
-        return imgTitles;
+    public String getImgTitle() {
+        return imgTitle;
     }
 
-    public List<String> getImgAlts() {
-        return imgAlts;
+    public String getImgURLTokens() {
+        return imgURLTokens;
     }
 
-    public String getImgSrcTokens() {
-        return imgSrcTokens;
-    }
-
-    public List<String> getPageTitles() {
-        return pageTitles;
-    }
-
-    public List<String> getPageURLTokens() {
+    public String getPageURLTokens() {
         return pageURLTokens;
     }
 
-    public String getImgSrc() {
-        return imgSrc;
+    public String getImgURL() {
+        return imgURL;
     }
 
     public String getImgSurt() {
         return imgSurt;
     }
 
-    public int getPageImages() {
-        return imagesInOriginalPage;
+    public String getPageTimestampString() {
+        return pageTimestampString;
     }
 
-    public List<String> getPageTimestamps() {
-        return pageTimestamps;
+    public String getPageURL() {
+        return pageURL;
     }
 
-    public List<String> getPageURLs() {
-        return pageURLs;
+    public String getImgFilename() {
+        return imgFilename;
     }
 
-    public List<String> getImgFilenames() {
-        return imgFilenames;
+    public String getPageHost() {
+        return pageHost;
     }
 
-    public List<String> getPageHosts() {
-        return pageHosts;
+    public String getImgCaption() {
+        return imgCaption;
     }
-
-    public List<String> getImgCaptions() {
-        return imgCaptions;
-    }
-
-    private void addPageURLTokens(List<String> pageURLTokens) {
-        for (String tokens : pageURLTokens)
-            if (this.pageURLTokens.size() <= MAX_ADD_THRESHOLD && !tokens.isEmpty() && !this.pageURLTokens.contains(tokens))
-                this.pageURLTokens.add(tokens);
-    }
-
-    private void addPageTitle(List<String> pageTitle) {
-        for (String title : pageTitle){
-            title = title.trim();
-            if (this.pageTitles.size() <= MAX_ADD_THRESHOLD && !pageTitle.isEmpty() && !this.pageTitles.contains(title))
-                this.pageTitles.add(title);
-        }
-    }
-    public void addPageURL(List<String> pageURL) {
-        for (String url : pageURL) {
-            url = url.trim();
-            if (this.pageURLs.size() <= MAX_ADD_THRESHOLD && !url.isEmpty() && !this.pageURLs.contains(url))
-                this.pageURLs.add(url);
-        }
-    }
-
-    public void addPageHosts(List<String> pageHosts) {
-        for (String host : pageHosts) {
-            host = host.trim();
-            if (this.pageHosts.size() <= MAX_ADD_THRESHOLD && !host.isEmpty() && !this.pageHosts.contains(host))
-                this.pageHosts.add(host);
-        }
-    }
-
-
-    public void addImgTitle(List<String> imgTitle) {
-        for (String title : imgTitle){
-            title = title.trim();
-            if (!title.isEmpty() && !this.imgTitles.contains(title)) {
-                //TODO: this check is not correct, as not all information is kept
-                //There is a MAX_ADD_THRESHOLD, thus, if the same metadata shows up twice after the length of
-                //the threshold is exceed, the counter will be incremented twice
-                imageMetadataChanges++;
-                if (this.imgTitles.size() <= MAX_ADD_THRESHOLD)
-                    this.imgTitles.add(title);
-            }
-        }
-    }
-
-    public void addImgAlt(List<String> imgAlt) {
-        for (String alt : imgAlt){
-            alt = alt.trim();
-            if (!alt.isEmpty() && !this.imgAlts.contains(alt)) {
-                imageMetadataChanges++;
-                if (this.imgAlts.size() <= MAX_ADD_THRESHOLD)
-                    this.imgAlts.add(alt);
-            }
-        }
-    }
-
-    public void addImgFilenames(List<String> imgFilenames) {
-        for (String filename : imgFilenames){
-            filename = filename.trim();
-            if (!filename.isEmpty() && !this.imgFilenames.contains(filename)) {
-                imageFilenameChanges++;
-                if (this.imgFilenames.size() <= MAX_ADD_THRESHOLD)
-                    this.imgFilenames.add(filename);
-            }
-        }
-    }
-
-    public void addImgCaptions(List<String> imgCaptions) {
-        for (String caption : imgCaptions){
-            caption = caption.trim();
-            if (!caption.isEmpty() && !this.imgCaptions.contains(caption)) {
-                imageMetadataChanges++;
-                if (this.imgCaptions.size() <= MAX_ADD_THRESHOLD)
-                    this.imgCaptions.add(caption);
-            }
-        }
-    }
-
-    public void addPageTimestamps(List<String> pageTstamps) {
-        for (String timestamp : pageTstamps)
-            if (this.pageTimestamps.size() <= MAX_ADD_THRESHOLD && !this.pageTimestamps.contains(timestamp))
-                this.pageTimestamps.add(timestamp);
-    }
-
-    public void addImgTimestamps(List<LocalDateTime> imgTimestamps) {
-        for (LocalDateTime timestamp : imgTimestamps)
-            if (this.timestamp.size() <= MAX_ADD_THRESHOLD && !this.timestamp.contains(timestamp))
-                this.timestamp.add(timestamp);
-    }
-
 
     public String getPageProtocol() {
         return pageProtocol;
     }
 
-    public List<LocalDateTime> getTimestamp() {
-        return timestamp;
+    public LocalDateTime getPageTimestamp() {
+        return pageTimestamp;
     }
 
-    public List<String> getTimestampsAsStrings() {
-        List<String> results = new LinkedList<>();
-        for (LocalDateTime time : this.timestamp)
-            results.add(time.toString());
-        return results;
+    public String getTimestampsAsStrings() {
+        return pageTimestamp.toString();
     }
 
-    /*
     public String getPageMetadata() {
-        Set<String> pt.arquivo.imagesearch.indexing.data = new HashSet<>();
-        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(pageTitle.split(" ")));
-        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(pageURLTokens.split(" ")));
-        return String.join(" ", pt.arquivo.imagesearch.indexing.data.toArray(new String[0]));
+        return (String.join(pageTitle.trim(), pageURLTokens).trim()).trim();
     }
 
     public String getImageMetadata() {
-        Set<String> pt.arquivo.imagesearch.indexing.data = new HashSet<>();
-        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(imgTitle.split(" ")));
-        pt.arquivo.imagesearch.indexing.data.addAll(Arrays.asList(imgAlt.split(" ")));
-        return String.join(" ", pt.arquivo.imagesearch.indexing.data.toArray(new String[0]));
-    }
-     */
-
-    public String getPageMetadata() {
-        return (String.join(" ", pageTitles).trim() + " " + String.join(" ", pageURLTokens).trim()).trim();
-    }
-
-    public String getImageMetadata() {
-        return (String.join(" ", imgTitles).trim() + " " + String.join(" ", imgAlts).trim()).trim();
+        return (String.join(" ", imgTitle.trim(), imgAlt.trim(), imgCaption.trim()).trim()).trim();
     }
 
     public int getPageMetadataSize() {
@@ -347,98 +188,67 @@ public class PageImageData implements Comparable<LocalDateTime> {
         return this.getImageMetadata().length();
     }
 
-    public int getImagesInOriginalPage() {
-        return imagesInOriginalPage;
+    public int getImagesInPage() {
+        return imagesInPage;
     }
 
-    public void setImagesInOriginalPage(int imagesInOriginalPage) {
-        this.imagesInOriginalPage = imagesInOriginalPage;
+    public void setImagesInPage(int imagesInPage) {
+        this.imagesInPage = imagesInPage;
     }
 
-    public long getImagesInAllMatchingPages() {
-        return imagesInAllMatchingPages;
-    }
-
-    public void setImagesInAllMatchingPages(long imagesInAllMatchingPages) {
-        this.imagesInAllMatchingPages = imagesInAllMatchingPages;
-    }
-
-    public void incrementImagesInAllMatchingPages(long imagesInAllMatchingPages) {
-        this.imagesInAllMatchingPages += imagesInAllMatchingPages;
-    }
-
-    public int getTotalMatchingImgReferences() {
-        return totalMatchingImgReferences;
-    }
-
-    public void setTotalMatchingImgReferences(int totalMatchingImgReferences) {
-        this.totalMatchingImgReferences = totalMatchingImgReferences;
-    }
-
-    public void incrementMatchingImageReferences(int totalMatchingImgReferences) {
-        this.totalMatchingImgReferences += totalMatchingImgReferences;
-    }
-
-    public int getMatchingPages() {
-        return matchingPages;
-    }
-
-    public int getImageMetadataChanges() {
-        return imageMetadataChanges;
-    }
-
-    public int getImageFilenameChanges() {
-        return imageFilenameChanges;
-    }
-
-    public void incrementMatchingPages(int matchingPages) {
-        this.matchingPages += matchingPages;
-    }
-
-    public boolean isInline() {
-        return isInline;
+    public boolean getInline() {
+        return inline;
     }
 
     public Set<String> getTagFoundIn() {
         return tagFoundIn;
     }
 
-    public boolean addPageImageData(PageImageData newPageImageData) {
+    public String getImgAlt() {
+        return imgAlt;
+    }
 
-        int initalSize = this.imgAlts.size() + this.imgTitles.size();
+    public String getPageTitle() {
+        return pageTitle;
+    }
 
-        this.addImgAlt(newPageImageData.getImgAlts());
-        this.addImgTitle(newPageImageData.getImgTitles());
+    public int getImgReferencesInPage() {
+        return imgReferencesInPage;
+    }
 
-        this.addPageTitle(newPageImageData.getPageTitles());
-        this.addPageURL(newPageImageData.getPageURLs());
-        this.addPageURLTokens(newPageImageData.getPageURLTokens());
+    public boolean equals(PageImageData o) {
+        return (o.getImageMetadata().equals(this.getImageMetadata()));
+    }
 
-        this.addImgFilenames(newPageImageData.getImgFilenames());
+    public void incrementImgReferencesInPage(int i) {
+        imgReferencesInPage += i;
+    }
 
-        this.addPageTimestamps(newPageImageData.getPageTimestamps());
-        this.addImgTimestamps(newPageImageData.getTimestamp());
+    public void updatePageTimestamp(PageImageData pageImageData) {
+        if (pageImageData.getPageTimestamp().compareTo(this.pageTimestamp) < 0) {
+            pageTimestamp = pageImageData.getPageTimestamp();
+            pageTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(pageTimestamp);
+        }
+    }
 
-        this.addImgCaptions(newPageImageData.getImgCaptions());
+    public String getId() {
+        return pageTimestampString + "/" + pageURLHash;
+    }
 
-        this.tagFoundIn.addAll(newPageImageData.getTagFoundIn());
+    public String getPageURLHash() {
+        return pageURLHash;
+    }
 
-        this.imagesInOriginalPage = Math.max(this.imagesInOriginalPage, newPageImageData.getImagesInOriginalPage());
-        this.imagesInAllMatchingPages += newPageImageData.getImagesInAllMatchingPages();
+    public String getImgTimestamp() {
+        return imgTimestampString;
+    }
 
-        this.totalMatchingImgReferences += newPageImageData.getTotalMatchingImgReferences();
+    public void setImgTimestamp(String imgTimestampString) {
+        this.imgTimestampString = imgTimestampString;
+    }
 
-        //TODO: this may need to be changed, as it will increment if an image is found twice in the same page
-        this.matchingPages += newPageImageData.getMatchingPages();
-
-        this.imageMetadataChanges += newPageImageData.getImageMetadataChanges();
-
-        this.imageFilenameChanges += newPageImageData.getImageFilenameChanges();
-
-        int finalSize = this.imgAlts.size() + this.imgTitles.size();
-
-        return initalSize != finalSize;
-
+    public void setImgTimestamp(LocalDateTime timestamp) {
+        this.imgTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(timestamp);
     }
 }
 
