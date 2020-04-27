@@ -2,6 +2,7 @@ package pt.arquivo.imagesearch.indexing.data;
 
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -9,7 +10,7 @@ import java.util.List;
 
 import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.getLocalDateTimeToTimestamp;
 
-public class ImageData {
+public class ImageData implements Serializable {
     private String imageURLHash;
     private String contentHash;
 

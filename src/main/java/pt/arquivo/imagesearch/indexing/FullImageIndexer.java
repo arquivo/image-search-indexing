@@ -4,12 +4,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 
 public class FullImageIndexer {
 
@@ -37,12 +42,12 @@ public class FullImageIndexer {
 
         job.setMapperClass(ImageIndexerWithDups.Map.class);
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(Text.class);
+        job.setMapOutputValueClass(FullImageMetadata.class);
 
         job.setReducerClass(ImageIndexerWithDups.Reduce.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
-        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputValueClass(FullImageMetadata.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         job.setJobName(jobName);
 
@@ -95,11 +100,11 @@ public class FullImageIndexer {
         jobName = collection + "_DupDigestMergerJob";
         Job jobDigest = Job.getInstance(conf);
         jobDigest.setJarByClass(DupDigestMergerJob.class);
-        jobDigest.setInputFormatClass(KeyValueTextInputFormat.class);
+        jobDigest.setInputFormatClass(SequenceFileInputFormat.class);
 
         jobDigest.setMapperClass(DupDigestMergerJob.Map.class);
         jobDigest.setMapOutputKeyClass(Text.class);
-        jobDigest.setMapOutputValueClass(Text.class);
+        jobDigest.setMapOutputValueClass(FullImageMetadata.class);
 
         jobDigest.setReducerClass(DupDigestMergerJob.Reduce.class);
         jobDigest.setOutputKeyClass(NullWritable.class);
@@ -155,8 +160,8 @@ public class FullImageIndexer {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        if (hdfs.exists(new Path(outputDirIntermediaryResults)))
-            hdfs.delete(new Path(outputDirIntermediaryResults), true);
+        //if (hdfs.exists(new Path(outputDirIntermediaryResults)))
+        //    hdfs.delete(new Path(outputDirIntermediaryResults), true);
 
         System.exit(result ? 0 : 1);
     }

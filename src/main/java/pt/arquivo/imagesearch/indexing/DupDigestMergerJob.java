@@ -2,6 +2,8 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.apache.hadoop.io.Writable;
+import org.hsqldb.types.Binary;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -28,25 +30,25 @@ public class DupDigestMergerJob {
         RECORDS_IN,
         RECORDS_OUT,
         RECORDS_WITH_METADATA,
-        RECORDS_WITHOUT_METADATA
+        RECORDS_WITHOUT_METADATA;
 
     }
 
-    public static class Map extends Mapper<Text, Text, Text, Text> {
+    public static class Map extends Mapper<Text, Writable, Text, Writable> {
 
         private final Logger logger = Logger.getLogger(Map.class);
 
-        public void map(Text key, Text value, Context context) {
+        public void map(Text key, Writable value, Context context) {
             try {
                 context.getCounter(COUNTERS.RECORDS_MAP_IN).increment(1);
                 context.write(key, value);
             } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
+                logger.error(e.getMessage());
             }
         }
     }
 
-    public static class Reduce extends Reducer<Text, Text, NullWritable, Text> {
+    public static class Reduce extends Reducer<Text, Writable, NullWritable, Text> {
 
         private final Logger logger = Logger.getLogger(Reduce.class);
         public String collection;
@@ -58,7 +60,7 @@ public class DupDigestMergerJob {
         }
 
 
-        public void reduce(Text key, Iterable<Text> values, Context context) {
+        public void reduce(Text key, Iterable<Writable> values, Context context) {
             int counter = 0;
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
@@ -66,10 +68,10 @@ public class DupDigestMergerJob {
                     .create();
             FullImageMetadata result = null;
 
-            for (Text val : values) {
+            for (Writable val : values) {
                 //RECORDS_MAP may not match RECORDS_MAP_IN due to the RECORDS_EXCEEDED breaking very large entries
                 context.getCounter(COUNTERS.RECORDS_IN).increment(1);
-                FullImageMetadata metadata = DupDigestMerger.parseRecord(val);
+                FullImageMetadata metadata = (FullImageMetadata) val;
                 if (result == null) {
                     result = metadata;
                 } else {
@@ -93,9 +95,9 @@ public class DupDigestMergerJob {
 
                 if (result != null) {
                     result.assignImagesToPages();
-                    for(ImageData data: result.getImageDatas())
+                    for(ImageData data: result.getImageDatasValues())
                         context.write(NullWritable.get(), new Text(gson.toJson(data)));
-                    for(PageImageData data: result.getPageImageDatas())
+                    for(PageImageData data: result.getPageImageDatasValues())
                         context.write(NullWritable.get(), new Text(gson.toJson(data)));
                 }
             } catch (IOException | InterruptedException e) {
@@ -128,7 +130,7 @@ public class DupDigestMergerJob {
 
         jobDigest.setMapperClass(DupDigestMergerJob.Map.class);
         jobDigest.setMapOutputKeyClass(Text.class);
-        jobDigest.setMapOutputValueClass(Text.class);
+        jobDigest.setMapOutputValueClass(Writable.class);
 
         jobDigest.setReducerClass(DupDigestMergerJob.Reduce.class);
         jobDigest.setOutputKeyClass(NullWritable.class);

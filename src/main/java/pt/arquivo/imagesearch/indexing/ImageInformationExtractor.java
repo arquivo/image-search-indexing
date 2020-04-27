@@ -50,10 +50,10 @@ public class ImageInformationExtractor {
     //private HashMap<String, ImageData> imgFileEntries;
     private HashMap<String, FullImageMetadata> entries;
     private String collection;
-    private Mapper<LongWritable, Text, Text, Text>.Context context;
+    private Mapper.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
 
-    public ImageInformationExtractor(String collection, Mapper<LongWritable, Text, Text, Text>.Context context) {
+    public ImageInformationExtractor(String collection, Mapper.Context context) {
         init(collection);
         this.context = context;
     }

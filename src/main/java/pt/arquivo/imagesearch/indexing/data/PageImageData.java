@@ -3,6 +3,7 @@ package pt.arquivo.imagesearch.indexing.data;
 
 import org.apache.commons.io.FilenameUtils;
 
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -13,7 +14,7 @@ import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 
-public class PageImageData implements Comparable<LocalDateTime> {
+public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     private static final int MAX_ADD_THRESHOLD = 50;
 

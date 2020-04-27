@@ -3,7 +3,6 @@ package pt.arquivo.imagesearch.indexing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.log4j.Level;
-import org.htmlparser.lexer.Page;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
@@ -18,8 +17,6 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
-
-import static pt.arquivo.imagesearch.indexing.DupDigestMerger.parseRecord;
 
 public class LocalFullImageIndexer {
 
@@ -93,29 +90,29 @@ public class LocalFullImageIndexer {
 
                 //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: Found %d pages and %d images", merger.getBestMatch().getPageImageDatas().size(), merger.getBestMatch().getImageDatas().size()));
+                    logger.info(String.format("Broke iterating: Found %d pages and %d images", merger.getBestMatch().getPageImageDatasValues().size(), merger.getBestMatch().getImageDatasValues().size()));
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
 
             }
 
-            logger.debug(String.format("Found %d pages and %d images", merger.getBestMatch().getPageImageDatas().size(), merger.getBestMatch().getImageDatas().size()));
+            logger.debug(String.format("Found %d pages and %d images", merger.getBestMatch().getPageImageDatasValues().size(), merger.getBestMatch().getImageDatasValues().size()));
 
-            if (merger.getBestMatch().getImageDatas().size() != 0 && merger.getBestMatch().getPageImageDatas().size() != 0) {
+            if (merger.getBestMatch().getImageDatasValues().size() != 0 && merger.getBestMatch().getPageImageDatasValues().size() != 0) {
 
-                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatas().size());
-                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(merger.getBestMatch().getImageDatas().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(merger.getBestMatch().getImageDatasValues().size());
                 merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
-                if (merger.getBestMatch().getImageDatas().size() != 0) {
+                if (merger.getBestMatch().getImageDatasValues().size() != 0) {
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getBestMatch().getImageDatas().size());
-                } else if (merger.getBestMatch().getPageImageDatas().size() != 0) {
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getBestMatch().getImageDatasValues().size());
+                } else if (merger.getBestMatch().getPageImageDatasValues().size() != 0) {
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatas().size());
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatasValues().size());
                 }
 
                 return merger.getBestMatch();
@@ -216,7 +213,7 @@ public class LocalFullImageIndexer {
             FullImageMetadata result = reduce.reduce(entry.getKey(), entry.getValue());
             if (result != null) {
                 Set<String> digests = new HashSet<>();
-                for (ImageData imageData : result.getImageDatas()) {
+                for (ImageData imageData : result.getImageDatasValues()) {
                     String digest = imageData.getContentHash();
                     if (!digests.contains(imageData.getContentHash())) {
                         reduceResults.putIfAbsent(digest, new LinkedList<>());
@@ -235,9 +232,9 @@ public class LocalFullImageIndexer {
                 FullImageMetadata result = reduceDigest.reduce(new Text(entry.getKey()), entry.getValue());
                 if (result != null) {
                     result.assignImagesToPages();
-                    for(ImageData data: result.getImageDatas())
+                    for(ImageData data: result.getImageDatasValues())
                         out.println(gson.toJson(data));
-                    for(PageImageData data: result.getPageImageDatas())
+                    for(PageImageData data: result.getPageImageDatasValues())
                         out.println(gson.toJson(data));
                 }
             }

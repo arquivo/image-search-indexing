@@ -2,6 +2,7 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 
+import org.apache.hadoop.io.Writable;
 import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -89,7 +90,7 @@ public class ImageIndexerWithDups {
         URL_IMAGES_PAGES_MULIPLE_DIGEST
     }
 
-    public static class Map extends Mapper<LongWritable, Text, Text, Text> {
+    public static class Map extends Mapper<LongWritable, Text, Text, Writable> {
 
         private final Logger logger = Logger.getLogger(Map.class);
         public String collection;
@@ -141,12 +142,12 @@ public class ImageIndexerWithDups {
             Gson gson = new Gson();
             for (java.util.Map.Entry<String, FullImageMetadata> entry : indexer.getEntries().entrySet()) {
                 String surt = entry.getKey();
-                context.write(new Text(surt), new Text(gson.toJson(entry.getValue())));
+                context.write(new Text(surt), entry.getValue());
             }
         }
     }
 
-    public static class Reduce extends Reducer<Text, Text, Text, Text> {
+    public static class Reduce extends Reducer<Text, Writable, Text, Writable> {
 
         private final Logger logger = Logger.getLogger(Reduce.class);
         public String collection;
@@ -166,7 +167,7 @@ public class ImageIndexerWithDups {
         }
 
 
-        public void reduce(Text key, Iterable<Text> values, Context context) {
+        public void reduce(Text key, Iterable<Writable> values, Context context) {
             Gson gson = new Gson();
             int counter = 0;
 
@@ -174,16 +175,16 @@ public class ImageIndexerWithDups {
             FullImageMetadata result = null;
             //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
             logger.debug("Reducing: " + key);
-            for (Text val : values) {
+            for (Writable val : values) {
                 if (result == null)
-                    result = parseRecord(val);
+                    result = (FullImageMetadata) val;
                 else
-                    result.merge(parseRecord(val));
+                    result.merge((FullImageMetadata) val);
                 counter++;
 
                 //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: Found %d pages and %d images", result.getPageImageDatas().size(), result.getImageDatas().size()));
+                    logger.info(String.format("Broke iterating: Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
@@ -191,22 +192,20 @@ public class ImageIndexerWithDups {
             }
             //logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatas().size(), result.getImageDatas().size()));
 
-            if (result.getImageDatas().size() != 0 && result.getPageImageDatas().size() != 0) {
+            if (result.getImageDatasValues().size() != 0 && result.getPageImageDatasValues().size() != 0) {
 
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatas().size());
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatas().size());
+                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
                 merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
                 try {
-                    FullImageMetadata fim = result;
                     Set<String> digests = new HashSet<>();
-                    String fimJson = gson.toJson(fim);
-                    for (ImageData imageData : fim.getImageDatas()) {
+                    for (ImageData imageData : result.getImageDatasValues()) {
                         String digest = imageData.getContentHash();
                         merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGESTALL).increment(1);
-                        context.write(new Text(digest), new Text(fimJson));
+                        context.write(new Text(digest), result);
                         digests.add(digest);
                     }
                     if (digests.size() > 1)
@@ -214,12 +213,12 @@ public class ImageIndexerWithDups {
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
-                if (result.getImageDatas().size() != 0) {
+                if (result.getImageDatasValues().size() != 0) {
                     merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                    merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatas().size());
-                } else if (result.getPageImageDatas().size() != 0) {
+                    merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
+                } else if (result.getPageImageDatasValues().size() != 0) {
                     merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                    merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatas().size());
+                    merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
                 }
 
             }
@@ -251,11 +250,11 @@ public class ImageIndexerWithDups {
 
         job.setMapperClass(ImageIndexerWithDups.Map.class);
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(Text.class);
+        job.setMapOutputValueClass(FullImageMetadata.class);
 
         job.setReducerClass(ImageIndexerWithDups.Reduce.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(FullImageMetadata.class);
         job.setOutputFormatClass(TextOutputFormat.class);
 
         job.setJobName(jobName);

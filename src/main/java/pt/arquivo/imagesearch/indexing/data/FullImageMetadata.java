@@ -1,12 +1,16 @@
 package pt.arquivo.imagesearch.indexing.data;
 
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.ImageInformationExtractor;
 
+import java.io.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public class FullImageMetadata {
+public class FullImageMetadata implements Writable, Serializable {
+
+    private transient Logger logger = Logger.getLogger(FullImageMetadata.class);
 
     public static final int MAXIMUM_META = 50;
 
@@ -32,10 +36,10 @@ public class FullImageMetadata {
 
 
     public void merge(FullImageMetadata result) {
-        for (ImageData data : result.getImageDatas())
+        for (ImageData data : result.getImageDatasValues())
             addImageData(data);
 
-        for (PageImageData data : result.getPageImageDatas())
+        for (PageImageData data : result.getPageImageDatasValues())
             addPageImageData(data);
     }
 
@@ -68,12 +72,20 @@ public class FullImageMetadata {
         }
     }
 
-    public Collection<ImageData> getImageDatas() {
+    public Collection<ImageData> getImageDatasValues() {
         return imageDatas.values();
     }
 
-    public Collection<PageImageData> getPageImageDatas() {
+    public HashMap<ImageData, ImageData> getImageDatas() {
+        return imageDatas;
+    }
+
+    public Collection<PageImageData> getPageImageDatasValues() {
         return pageImageDatas.values();
+    }
+
+    public HashMap<PageImageData, PageImageData> getPageImageDatas() {
+        return pageImageDatas;
     }
 
     public boolean hasImageMetadata() {
@@ -85,11 +97,11 @@ public class FullImageMetadata {
 
     public void assignImagesToPages() {
         TreeMap<LocalDateTime, ImageData> map = new TreeMap<>();
-        for (ImageData data : this.getImageDatas())
+        for (ImageData data : this.getImageDatasValues())
             for (LocalDateTime timestamp : data.getTimestamp())
                 map.put(timestamp, data);
 
-        for (PageImageData data : this.getPageImageDatas()) {
+        for (PageImageData data : this.getPageImageDatasValues()) {
             LocalDateTime timestamp = data.getPageTimestamp();
 
             LocalDateTime before = map.floorKey(timestamp);
@@ -103,6 +115,79 @@ public class FullImageMetadata {
             data.setImgTimestamp(timestamp);
 
         }
+    }
+
+
+    public int getMatchingImages() {
+        return matchingImages;
+    }
+
+    public int getUrlChanges() {
+        return urlChanges;
+    }
+
+    public int getMatchingPages() {
+        return matchingPages;
+    }
+
+    public int getImagesInPages() {
+        return imagesInPages;
+    }
+
+    public long getMatchingImgReferences() {
+        return matchingImgReferences;
+    }
+
+    public int getImageFilenameChanges() {
+        return imageFilenameChanges;
+    }
+
+    public int getImageMetadataChanges() {
+        return imageMetadataChanges;
+    }
+
+    public int getPageMetadataChanges() {
+        return pageMetadataChanges;
+    }
+
+
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(this);
+        byte[] data = baos.toByteArray();
+        int size = data.length;
+        dataOutput.writeInt(size);
+        dataOutput.write(data);
+    }
+
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+        int size = dataInput.readInt();
+        byte[] data = new byte[size];
+        dataInput.readFully(data);
+        ByteArrayInputStream bais = new ByteArrayInputStream(data);
+        ObjectInputStream ois = new ObjectInputStream(bais);
+        try {
+            FullImageMetadata other = (FullImageMetadata) ois.readObject();
+
+            this.imageDatas = other.getImageDatas();
+            this.pageImageDatas = other.getPageImageDatas();
+
+            this.matchingImages = other.getMatchingImages();
+            this.urlChanges = other.getUrlChanges();
+            this.matchingPages = other.getMatchingPages();
+            this.imagesInPages = other.getImagesInPages();
+            this.matchingImgReferences = other.getMatchingImgReferences();
+            this.imageFilenameChanges = other.getImageFilenameChanges();
+            this.imageMetadataChanges = other.getPageMetadataChanges();
+            this.pageMetadataChanges = other.getPageMetadataChanges();
+
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
     }
 }
 
