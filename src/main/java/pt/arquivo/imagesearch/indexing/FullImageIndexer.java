@@ -160,8 +160,8 @@ public class FullImageIndexer {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        //if (hdfs.exists(new Path(outputDirIntermediaryResults)))
-        //    hdfs.delete(new Path(outputDirIntermediaryResults), true);
+        if (hdfs.exists(new Path(outputDirIntermediaryResults)))
+            hdfs.delete(new Path(outputDirIntermediaryResults), true);
 
         System.exit(result ? 0 : 1);
     }

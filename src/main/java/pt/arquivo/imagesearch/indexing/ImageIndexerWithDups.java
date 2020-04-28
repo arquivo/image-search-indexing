@@ -168,7 +168,6 @@ public class ImageIndexerWithDups {
 
 
         public void reduce(Text key, Iterable<Writable> values, Context context) {
-            Gson gson = new Gson();
             int counter = 0;
 
             merger.reset();
@@ -176,10 +175,7 @@ public class ImageIndexerWithDups {
             //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
             logger.debug("Reducing: " + key);
             for (Writable val : values) {
-                if (result == null)
-                    result = (FullImageMetadata) val;
-                else
-                    result.merge((FullImageMetadata) val);
+                merger.merge((FullImageMetadata) val);
                 counter++;
 
                 //TODO: check behaviour in FAWP. There are many more duplicates here
@@ -190,15 +186,26 @@ public class ImageIndexerWithDups {
                 }
 
             }
-            //logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatas().size(), result.getImageDatas().size()));
+            result = merger.getBestMatch();
+
+            logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
+
 
             if (result.getImageDatasValues().size() != 0 && result.getPageImageDatasValues().size() != 0) {
 
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
-                merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
+
+                if (result.getImageDatasValues().size() != 0) {
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
+                } else if (result.getPageImageDatasValues().size() != 0) {
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                }
 
                 try {
                     Set<String> digests = new HashSet<>();
@@ -207,23 +214,19 @@ public class ImageIndexerWithDups {
                         merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGESTALL).increment(1);
                         context.write(new Text(digest), result);
                         digests.add(digest);
+                        if (digests.size() > 1)
+                            merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_MULIPLE_DIGEST).increment(1);
                     }
-                    if (digests.size() > 1)
-                        merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_MULIPLE_DIGEST).increment(1);
-                } catch (IOException | InterruptedException e) {
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                if (result.getImageDatasValues().size() != 0) {
-                    merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                    merger.getCounter(REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
-                } else if (result.getPageImageDatasValues().size() != 0) {
-                    merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                    merger.getCounter(REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
-                }
+
 
             }
         }
-
     }
 
     public static void main(String[] args) throws Exception {

@@ -106,13 +106,14 @@ public class FullImageMetadata implements Writable, Serializable {
 
             LocalDateTime before = map.floorKey(timestamp);
             LocalDateTime after = map.ceilingKey(timestamp);
-            LocalDateTime correct = null;
+            LocalDateTime correct;
             if (before == null) correct = after;
             else if (after == null) correct = before;
-            else if ((after.compareTo(timestamp)) < (timestamp.compareTo(before))) timestamp = after;
-            else timestamp = before;
-
-            data.setImgTimestamp(timestamp);
+            else if ((after.compareTo(timestamp)) < (timestamp.compareTo(before))) correct = after;
+            else correct = before;
+            ImageData id = map.get(correct);
+            data.setImgTimestamp(correct);
+            data.setImageDigest(id.getContentHash());
 
         }
     }

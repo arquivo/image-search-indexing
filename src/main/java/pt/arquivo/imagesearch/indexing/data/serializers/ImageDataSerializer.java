@@ -11,6 +11,7 @@ public class ImageDataSerializer implements JsonSerializer<ImageData> {
     @Override
     public JsonElement serialize(ImageData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();
+        obj.addProperty("contentHash", src.getContentHash());
         obj.addProperty("type", "image");
         obj.addProperty("id", src.getId());
         obj.addProperty("imageURLHash", src.getImageURLHash());

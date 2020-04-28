@@ -81,6 +81,7 @@ public class LocalFullImageIndexer {
 
             int counter = 0;
 
+            FullImageMetadata result = null;
             merger.reset();
             //TODO: check http://codingjunkie.net/secondary-sort  to see if it helps not having to iterate all records
             logger.debug("Reducing: " + key);
@@ -90,32 +91,33 @@ public class LocalFullImageIndexer {
 
                 //TODO: check behaviour in FAWP. There are many more duplicates here
                 if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: Found %d pages and %d images", merger.getBestMatch().getPageImageDatasValues().size(), merger.getBestMatch().getImageDatasValues().size()));
+                    result = merger.getBestMatch();
+                    logger.info(String.format("Broke iterating: Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.IMAGES_PAGES_EXCEEDED).increment(1);
                     break;
                 }
 
             }
+            result = merger.getBestMatch();
+            logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
 
-            logger.debug(String.format("Found %d pages and %d images", merger.getBestMatch().getPageImageDatasValues().size(), merger.getBestMatch().getImageDatasValues().size()));
+            if (result.getImageDatasValues().size() != 0 && result.getPageImageDatasValues().size() != 0) {
 
-            if (merger.getBestMatch().getImageDatasValues().size() != 0 && merger.getBestMatch().getPageImageDatasValues().size() != 0) {
-
-                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatasValues().size());
-                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(merger.getBestMatch().getImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
                 merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
 
-                if (merger.getBestMatch().getImageDatasValues().size() != 0) {
+                if (result.getImageDatasValues().size() != 0) {
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(merger.getBestMatch().getImageDatasValues().size());
-                } else if (merger.getBestMatch().getPageImageDatasValues().size() != 0) {
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
+                } else if (result.getPageImageDatasValues().size() != 0) {
                     merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(merger.getBestMatch().getPageImageDatasValues().size());
+                    merger.getCounter(ImageIndexerWithDups.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
                 }
 
-                return merger.getBestMatch();
+                return result;
 
             }
             return null;
@@ -139,7 +141,6 @@ public class LocalFullImageIndexer {
 
         public FullImageMetadata reduce(Text key, Iterable<FullImageMetadata> values) {
             int counter = 0;
-            Gson gson = new Gson();
             FullImageMetadata result = null;
             logger.debug("Reducing: " + key);
 
@@ -208,11 +209,10 @@ public class LocalFullImageIndexer {
 
         LocalFullImageIndexer.Reduce reduce = new Reduce();
 
-
+        Set<String> digests = new HashSet<>();
         for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
             FullImageMetadata result = reduce.reduce(entry.getKey(), entry.getValue());
             if (result != null) {
-                Set<String> digests = new HashSet<>();
                 for (ImageData imageData : result.getImageDatasValues()) {
                     String digest = imageData.getContentHash();
                     if (!digests.contains(imageData.getContentHash())) {

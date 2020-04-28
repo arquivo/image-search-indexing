@@ -45,6 +45,7 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
     @Override
     public JsonElement serialize(PageImageData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();
+        obj.addProperty("contentHash", src.getImageDigest());
         obj.addProperty("type", "page");
         obj.addProperty("id", src.getId());
         obj.addProperty("imgTitle", src.getImgTitle());
