@@ -3,7 +3,6 @@ package pt.arquivo.imagesearch.indexing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.hadoop.io.Writable;
-import org.hsqldb.types.Binary;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -19,6 +18,7 @@ import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
+import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 
 import java.io.IOException;
 
@@ -30,8 +30,17 @@ public class DupDigestMergerJob {
         RECORDS_IN,
         RECORDS_OUT,
         RECORDS_WITH_METADATA,
-        RECORDS_WITHOUT_METADATA;
+        RECORDS_WITHOUT_METADATA,
+        URL_IMAGES_PAGESALL,
+        URL_IMAGESALL_PAGES,
+        URL_IMAGES_PAGES
 
+    }
+
+    public enum REDUCE_COUNTERS {
+        URL_IMAGES_PAGESALL,
+        URL_IMAGESALL_PAGES,
+        URL_IMAGES_PAGES
     }
 
     public static class Map extends Mapper<Text, Writable, Text, Writable> {
@@ -52,61 +61,54 @@ public class DupDigestMergerJob {
 
         private final Logger logger = Logger.getLogger(Reduce.class);
         public String collection;
-        private DupDigestMerger merger;
+        private ImageInformationMerger merger;
 
         @Override
         public void setup(Reducer.Context context) {
-            merger = new DupDigestMerger();
+            merger = new ImageInformationMerger(context);
         }
 
 
         public void reduce(Text key, Iterable<Writable> values, Context context) {
-            int counter = 0;
+            logger.debug("Reducing: " + key);
+
+            merger.reset();
+            int counter = merger.mergeAllHadoop(values);
+            FullImageMetadata result = merger.getBestMatch();
+
+            merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_OUT).increment(1);
+            merger.getCounter(DupDigestMergerJob.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+            merger.getCounter(DupDigestMergerJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
+            merger.getCounter(DupDigestMergerJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
+
+            logger.info(String.format("Found %d records", counter));
+
+            if (result.hasImageMetadata())
+                merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_WITH_METADATA).increment(1);
+            else
+                merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_WITHOUT_METADATA).increment(1);
+
+            logger.debug("Reducing: " + key);
+
+            exportToJson(context, result);
+
+        }
+
+        private void exportToJson(Reducer<Text, Writable, NullWritable, Text>.Context context, FullImageMetadata result) {
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
                     .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
                     .create();
-            FullImageMetadata result = null;
-
-            for (Writable val : values) {
-                //RECORDS_MAP may not match RECORDS_MAP_IN due to the RECORDS_EXCEEDED breaking very large entries
-                context.getCounter(COUNTERS.RECORDS_IN).increment(1);
-                FullImageMetadata metadata = (FullImageMetadata) val;
-                if (result == null) {
-                    result = metadata;
-                } else {
-                    result.merge(metadata);
-                }
-
-                //TODO: check behaviour in FAWP. There are many more duplicates here
-                if (counter >= 1000) {
-                    logger.info(String.format("Broke iterating: %d records", counter));
-                    context.getCounter(COUNTERS.RECORDS_EXCEEDED).increment(1);
-                    break;
-                }
-                counter++;
-
-            }
-
-            context.getCounter(COUNTERS.RECORDS_OUT).increment(1);
-            logger.info(String.format("Found %d records", counter));
 
             try {
-
-                if (result != null) {
-                    result.assignImagesToPages();
-                    for(ImageData data: result.getImageDatasValues())
-                        context.write(NullWritable.get(), new Text(gson.toJson(data)));
-                    for(PageImageData data: result.getPageImageDatasValues())
-                        context.write(NullWritable.get(), new Text(gson.toJson(data)));
-                }
+                for (ImageData data : result.getImageDatasValues())
+                    context.write(NullWritable.get(), new Text(gson.toJson(data)));
+                for (PageImageData data : result.getPageImageDatasValues())
+                    context.write(NullWritable.get(), new Text(gson.toJson(data)));
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
-
         }
-
-
     }
 
     public static void main(String[] args) throws Exception {

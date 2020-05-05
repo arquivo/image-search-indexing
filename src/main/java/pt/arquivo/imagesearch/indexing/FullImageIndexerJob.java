@@ -4,9 +4,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
@@ -16,7 +14,7 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 
-public class FullImageIndexer {
+public class FullImageIndexerJob {
 
     public static void main(String[] args) throws Exception {
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
@@ -37,14 +35,14 @@ public class FullImageIndexer {
         conf.set("collection", collection);
 
         Job job = Job.getInstance(conf);
-        job.setJarByClass(FullImageIndexer.class);
+        job.setJarByClass(FullImageIndexerJob.class);
         job.setInputFormatClass(NLineInputFormat.class);
 
-        job.setMapperClass(ImageIndexerWithDups.Map.class);
+        job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(FullImageMetadata.class);
 
-        job.setReducerClass(ImageIndexerWithDups.Reduce.class);
+        job.setReducerClass(ImageIndexerWithDupsJob.Reduce.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(FullImageMetadata.class);
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
@@ -72,21 +70,21 @@ public class FullImageIndexer {
         boolean result = job.waitForCompletion(true);
 
 
-        System.out.println("ImageIndexerWithDups$IMAGE_COUNTERS");
+        System.out.println("ImageIndexerWithDupsJob$IMAGE_COUNTERS");
         Counters cn = job.getCounters();
-        CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$IMAGE_COUNTERS");
+        CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$IMAGE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("ImageIndexerWithDups$PAGE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$PAGE_COUNTERS");
+        System.out.println("ImageIndexerWithDupsJob$PAGE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$PAGE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("ImageIndexerWithDups$REDUCE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$REDUCE_COUNTERS");
+        System.out.println("ImageIndexerWithDupsJob$REDUCE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$REDUCE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
@@ -134,21 +132,21 @@ public class FullImageIndexer {
 
         result = jobDigest.waitForCompletion(true);
 
-        System.out.println("ImageIndexerWithDups$IMAGE_COUNTERS");
+        System.out.println("ImageIndexerWithDupsJob$IMAGE_COUNTERS");
         cn = job.getCounters();
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$IMAGE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$IMAGE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("ImageIndexerWithDups$PAGE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$PAGE_COUNTERS");
+        System.out.println("ImageIndexerWithDupsJob$PAGE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$PAGE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
-        System.out.println("ImageIndexerWithDups$REDUCE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDups$REDUCE_COUNTERS");
+        System.out.println("ImageIndexerWithDupsJob$REDUCE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$REDUCE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
@@ -156,6 +154,13 @@ public class FullImageIndexer {
         System.out.println("DupDigestMergerJob$COUNTERS");
         cn = jobDigest.getCounters();
         counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
+        for (Counter c : counterGroup) {
+            System.out.println("\t" + c.getName() + ": " + c.getValue());
+        }
+
+        System.out.println("DupDigestMergerJob$REDUCE_COUNTERS");
+        cn = jobDigest.getCounters();
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$REDUCE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

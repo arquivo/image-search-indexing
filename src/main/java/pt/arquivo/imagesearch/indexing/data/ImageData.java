@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.getLocalDateTimeToTimestamp;
+import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.logger;
 
 public class ImageData implements Serializable {
     private String imageURLHash;
@@ -153,21 +154,33 @@ public class ImageData implements Serializable {
         return this.contentHash = contentHash;
     }
 
-    public List<String> getTimestampsAsStrings() {
-        List<String> results = new LinkedList<>();
-        for (LocalDateTime time : this.timestamp)
-            results.add(time.toString());
-        return results;
-    }
-
     public boolean equals(ImageData o) {
         return (o.getContentHash().equals(this.getContentHash()) && o.getSurt().equals(this.getSurt()));
     }
 
     public void addTimestamp(ImageData imageData) {
-        this.timestamp.addAll(imageData.timestamp);
-        for (LocalDateTime localDT: imageData.timestamp)
-            this.timestampOriginalFormat.add(getLocalDateTimeToTimestamp(localDT));
+        for (LocalDateTime localDT : imageData.timestamp) {
+            int compare = localDT.compareTo(timestamp.get(0));
+            if (compare < 0 || (compare == 0 && imageData.getUrl().length() < this.getUrl().length()) || (compare == 0 && imageData.getUrl().length() == this.getUrl().length() && imageData.getImageURLHash().compareTo(this.getImageURLHash()) < 0)) {
+                imageURLHash = imageData.getImageURLHash();
+                contentHash = imageData.getContentHash();
+                url = imageData.getUrl();
+                surt = imageData.getSurt();
+                mimeReported = imageData.getMimeReported();
+                mimeDetected = imageData.getMimeDetected();
+                collection = imageData.getCollection();
+                bytes = imageData.getBytes();
+                width = imageData.getWidth();
+                height = imageData.getHeight();
+                size = imageData.getSize();
+            }
+            if (!timestamp.contains(localDT)) {
+                this.timestamp.add(localDT);
+                this.timestampOriginalFormat.add(getLocalDateTimeToTimestamp(localDT));
+                Collections.sort(timestamp);
+                Collections.sort(timestampOriginalFormat);
+            }
+        }
         Collections.sort(timestamp);
         Collections.sort(timestampOriginalFormat);
     }

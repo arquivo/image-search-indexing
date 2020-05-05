@@ -2,7 +2,8 @@ package pt.arquivo.imagesearch.indexing.data;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
-import pt.arquivo.imagesearch.indexing.ImageInformationExtractor;
+import pt.arquivo.imagesearch.indexing.data.comparators.ImageDataComparator;
+import pt.arquivo.imagesearch.indexing.data.comparators.PageImageDataComparator;
 
 import java.io.*;
 import java.time.LocalDateTime;
@@ -14,8 +15,8 @@ public class FullImageMetadata implements Writable, Serializable {
 
     public static final int MAXIMUM_META = 50;
 
-    private HashMap<ImageData, ImageData> imageDatas;
-    private HashMap<PageImageData, PageImageData> pageImageDatas;
+    private TreeMap<ImageData, ImageData> imageDatas;
+    private TreeMap<PageImageData, PageImageData> pageImageDatas;
 
     private int matchingImages;
     private int urlChanges;
@@ -30,24 +31,43 @@ public class FullImageMetadata implements Writable, Serializable {
     private int pageMetadataChanges;
 
     public FullImageMetadata() {
-        this.imageDatas = new HashMap<>();
-        this.pageImageDatas = new HashMap<>();
+        this.imageDatas = new TreeMap<>(new ImageDataComparator());
+        this.pageImageDatas = new TreeMap<>(new PageImageDataComparator());
+    }
+
+    public FullImageMetadata(FullImageMetadata metadata) {
+        imageDatas = (TreeMap<ImageData, ImageData>) metadata.getImageDatas().clone();
+        pageImageDatas = (TreeMap<PageImageData, PageImageData>) metadata.getPageImageDatas().clone();
+
+        matchingImages = metadata.getMatchingImages();
+        urlChanges = metadata.getUrlChanges();
+
+        matchingPages = metadata.getMatchingPages();
+        imagesInPages = metadata.getImagesInPages();
+        matchingImgReferences = metadata.getMatchingImgReferences();
+        imageFilenameChanges = metadata.getImageFilenameChanges();
+
+        imageMetadataChanges = metadata.getImageMetadataChanges();
+        pageMetadataChanges = metadata.getPageMetadataChanges();
     }
 
 
     public void merge(FullImageMetadata result) {
+
         for (ImageData data : result.getImageDatasValues())
-            addImageData(data);
+            this.addImageData(data);
 
         for (PageImageData data : result.getPageImageDatasValues())
-            addPageImageData(data);
+            this.addPageImageData(data);
     }
 
     public boolean addImageData(ImageData imageData) {
         this.matchingImages++;
 
-        if (imageDatas.get(imageData) != null) {
-            imageDatas.get(imageData).addTimestamp(imageData);
+        ImageData id = imageDatas.get(imageData);
+        if (id != null) {
+            id.addTimestamp(imageData);
+            imageDatas.put(imageData, id);
             return false;
         } else {
             imageDatas.put(imageData, imageData);
@@ -63,6 +83,9 @@ public class FullImageMetadata implements Writable, Serializable {
 
         if (pageImageDatas.get(pageImageData) != null) {
             pageImageDatas.get(pageImageData).updatePageTimestamp(pageImageData);
+            PageImageData updated = pageImageDatas.get(pageImageData);
+            // add entry in case image changed
+            pageImageDatas.put(pageImageData, updated);
             return false;
         } else {
             this.imageMetadataChanges++;
@@ -76,7 +99,7 @@ public class FullImageMetadata implements Writable, Serializable {
         return imageDatas.values();
     }
 
-    public HashMap<ImageData, ImageData> getImageDatas() {
+    public TreeMap<ImageData, ImageData> getImageDatas() {
         return imageDatas;
     }
 
@@ -84,18 +107,21 @@ public class FullImageMetadata implements Writable, Serializable {
         return pageImageDatas.values();
     }
 
-    public HashMap<PageImageData, PageImageData> getPageImageDatas() {
+    public TreeMap<PageImageData, PageImageData> getPageImageDatas() {
         return pageImageDatas;
     }
 
     public boolean hasImageMetadata() {
         for (PageImageData pid : pageImageDatas.values())
-            if (!pid.getImageMetadata().isEmpty() || !pid.getImageMetadata().isEmpty())
+            if (!pid.getImageMetadata().isEmpty() || !pid.getPageMetadata().isEmpty())
                 return true;
         return false;
     }
 
     public void assignImagesToPages() {
+        if (imageDatas.isEmpty())
+            return;
+
         TreeMap<LocalDateTime, ImageData> map = new TreeMap<>();
         for (ImageData data : this.getImageDatasValues())
             for (LocalDateTime timestamp : data.getTimestamp())
@@ -114,7 +140,6 @@ public class FullImageMetadata implements Writable, Serializable {
             ImageData id = map.get(correct);
             data.setImgTimestamp(correct);
             data.setImageDigest(id.getContentHash());
-
         }
     }
 
@@ -182,7 +207,7 @@ public class FullImageMetadata implements Writable, Serializable {
             this.imagesInPages = other.getImagesInPages();
             this.matchingImgReferences = other.getMatchingImgReferences();
             this.imageFilenameChanges = other.getImageFilenameChanges();
-            this.imageMetadataChanges = other.getPageMetadataChanges();
+            this.imageMetadataChanges = other.getImageMetadataChanges();
             this.pageMetadataChanges = other.getPageMetadataChanges();
 
         } catch (ClassNotFoundException e) {
@@ -190,5 +215,17 @@ public class FullImageMetadata implements Writable, Serializable {
         }
 
     }
-}
 
+    public String toString() {
+        //private TreeMap<ImageData, ImageData> imageDatas;
+        //private TreeMap<PageImageData, PageImageData> pageImageDatas;
+        String result = "";
+        for (ImageData i : imageDatas.values())
+            for (String t : i.getTimestampOriginalFormat())
+                result += t + " ";
+        result += "## ";
+        for (PageImageData i : pageImageDatas.values())
+            result += i.getPageTimestamp() + " ";
+        return result;
+    }
+}

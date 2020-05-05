@@ -1,4 +1,4 @@
-package pt.arquivo.imagesearch.indexing;
+package pt.arquivo.imagesearch.indexing.utils;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;

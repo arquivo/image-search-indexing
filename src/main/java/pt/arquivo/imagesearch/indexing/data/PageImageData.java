@@ -224,9 +224,30 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     }
 
     public void updatePageTimestamp(PageImageData pageImageData) {
-        if (pageImageData.getPageTimestamp().compareTo(this.pageTimestamp) < 0) {
+        int comparison = pageImageData.getPageTimestamp().compareTo(this.pageTimestamp);
+        // if two pages with the same metadata are parsed, store the oldest one
+        if (comparison < 0) {
             pageTimestamp = pageImageData.getPageTimestamp();
             pageTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(pageTimestamp);
+            pageURL = pageImageData.getPageURL();
+            pageURLTokens = pageImageData.getPageURLTokens();
+            pageURLHash = pageImageData.getPageURLHash();
+            pageTitle = pageImageData.getPageTitle();
+            pageHost = pageImageData.getPageHost();
+            pageProtocol = pageImageData.getPageProtocol();
+            imagesInPage = pageImageData.getImagesInPage();
+            imgReferencesInPage = pageImageData.getImgReferencesInPage();
+            // if two pages with the same timestamp and metadata are parsed, store the one with the shortest URL
+            // usefull for donated collections
+        } else if (comparison == 0 && pageImageData.getPageURL().length() < pageURL.length()){
+            pageURL = pageImageData.getPageURL();
+            pageURLTokens = pageImageData.getPageURLTokens();
+            pageURLHash = pageImageData.getPageURLHash();
+            pageTitle = pageImageData.getPageTitle();
+            pageHost = pageImageData.getPageHost();
+            pageProtocol = pageImageData.getPageProtocol();
+            imagesInPage = pageImageData.getImagesInPage();
+            imgReferencesInPage = pageImageData.getImgReferencesInPage();
         }
     }
 
