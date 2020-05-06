@@ -181,8 +181,9 @@ public class LocalFullImageIndexer {
                 for (ImageData imageData : result.getImageDatasValues()) {
                     String digest = imageData.getContentHash();
                     if (!digests.contains(imageData.getContentHash())) {
+                        FullImageMetadata resultDigest = new FullImageMetadata(result, imageData);
                         reduceResults.putIfAbsent(digest, new LinkedList<>());
-                        reduceResults.get(digest).add(result);
+                        reduceResults.get(digest).add(resultDigest);
                         digests.add(digest);
                     }
                 }

@@ -164,12 +164,12 @@ public class ImageData implements Serializable {
             if (compare < 0 || (compare == 0 && imageData.getUrl().length() < this.getUrl().length()) || (compare == 0 && imageData.getUrl().length() == this.getUrl().length() && imageData.getImageURLHash().compareTo(this.getImageURLHash()) < 0)) {
                 imageURLHash = imageData.getImageURLHash();
                 contentHash = imageData.getContentHash();
+                bytes = imageData.getBytes();
                 url = imageData.getUrl();
                 surt = imageData.getSurt();
                 mimeReported = imageData.getMimeReported();
                 mimeDetected = imageData.getMimeDetected();
                 collection = imageData.getCollection();
-                bytes = imageData.getBytes();
                 width = imageData.getWidth();
                 height = imageData.getHeight();
                 size = imageData.getSize();

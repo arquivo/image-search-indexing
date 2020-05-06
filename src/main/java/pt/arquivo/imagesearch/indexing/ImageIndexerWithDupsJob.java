@@ -184,7 +184,8 @@ public class ImageIndexerWithDupsJob {
                         String digest = imageData.getContentHash();
                         merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_DIGESTALL).increment(1);
                         if (!digests.contains(imageData.getContentHash())) {
-                            context.write(new Text(digest), result);
+                            FullImageMetadata resultDigest = new FullImageMetadata(result, imageData);
+                            context.write(new Text(digest), resultDigest);
                             digests.add(digest);
                             merger.getCounter(REDUCE_COUNTERS.URL_IMAGES_PAGES_MULIPLE_DIGEST).increment(1);
                         }

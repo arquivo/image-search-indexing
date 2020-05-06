@@ -5,6 +5,7 @@ import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.comparators.ImageDataComparator;
 import pt.arquivo.imagesearch.indexing.data.comparators.PageImageDataComparator;
 
+import java.awt.*;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -51,6 +52,29 @@ public class FullImageMetadata implements Writable, Serializable {
         pageMetadataChanges = metadata.getPageMetadataChanges();
     }
 
+    public FullImageMetadata(FullImageMetadata metadata, ImageData imageData) {
+
+        imageDatas = new TreeMap<>(new ImageDataComparator());
+        imageDatas.put(imageData, imageData);
+
+        pageImageDatas = new TreeMap<>(new PageImageDataComparator());
+        for (PageImageData pageImageData: metadata.pageImageDatas.values()){
+            if (imageData.getTimestampOriginalFormat().contains(pageImageData.getImgTimestamp())){
+                pageImageDatas.put(pageImageData, pageImageData);
+            }
+        }
+
+        matchingImages = metadata.getMatchingImages();
+        urlChanges = metadata.getUrlChanges();
+
+        matchingPages = metadata.getMatchingPages();
+        imagesInPages = metadata.getImagesInPages();
+        matchingImgReferences = metadata.getMatchingImgReferences();
+        imageFilenameChanges = metadata.getImageFilenameChanges();
+
+        imageMetadataChanges = metadata.getImageMetadataChanges();
+        pageMetadataChanges = metadata.getPageMetadataChanges();
+    }
 
     public void merge(FullImageMetadata result) {
 
