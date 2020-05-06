@@ -95,7 +95,7 @@ public class FullImageMetadata implements Writable, Serializable {
             this.addPageImageData(data);
             counter++;
             if (counter >= 10000) {
-                logger.info(String.format("Broke iterating: %d/%d image records", counter, result.getPageImageDatasValues().size()));
+                logger.info(String.format("Broke iterating: %d/%d page image records", counter, result.getPageImageDatasValues().size()));
                 break;
             }
         }
