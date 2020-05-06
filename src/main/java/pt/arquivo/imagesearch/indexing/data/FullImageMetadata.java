@@ -2,6 +2,7 @@ package pt.arquivo.imagesearch.indexing.data;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.DupDigestMergerJob;
 import pt.arquivo.imagesearch.indexing.data.comparators.ImageDataComparator;
 import pt.arquivo.imagesearch.indexing.data.comparators.PageImageDataComparator;
 
@@ -78,11 +79,27 @@ public class FullImageMetadata implements Writable, Serializable {
 
     public void merge(FullImageMetadata result) {
 
-        for (ImageData data : result.getImageDatasValues())
+        int counter = 0;
+        for (ImageData data : result.getImageDatasValues()){
             this.addImageData(data);
+            counter++;
+            if (counter >= 10000) {
+                logger.info(String.format("Broke iterating: %d image records", counter));
+                break;
+            }
 
-        for (PageImageData data : result.getPageImageDatasValues())
+        }
+
+        counter = 0;
+        for (PageImageData data : result.getPageImageDatasValues()){
             this.addPageImageData(data);
+            counter++;
+            if (counter >= 10000) {
+                logger.info(String.format("Broke iterating: %d image records", counter));
+                break;
+            }
+        }
+
     }
 
     public boolean addImageData(ImageData imageData) {

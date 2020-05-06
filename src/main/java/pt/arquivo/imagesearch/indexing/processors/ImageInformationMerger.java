@@ -73,11 +73,6 @@ public class ImageInformationMerger {
         int counter = 0;
         for (FullImageMetadata metadata : values) {
             merge(metadata);
-            if (counter >= 1000) {
-                logger.info(String.format("Broke iterating: %d records", counter));
-                getCounter(DupDigestMergerJob.COUNTERS.RECORDS_EXCEEDED).increment(1);
-                break;
-            }
             counter++;
         }
         return counter;
@@ -88,12 +83,9 @@ public class ImageInformationMerger {
         for (Writable value : values) {
             FullImageMetadata metadata = (FullImageMetadata) value;
             merge(metadata);
-            if (counter >= 1000) {
-                logger.info(String.format("Broke iterating: %d records", counter));
-                getCounter(DupDigestMergerJob.COUNTERS.RECORDS_EXCEEDED).increment(1);
-                break;
-            }
             counter++;
+            if (counter >= 10000)
+                break;
         }
         return counter;
     }
@@ -103,12 +95,9 @@ public class ImageInformationMerger {
         for (Object value : values) {
             FullImageMetadata metadata = (FullImageMetadata) value;
             merge(metadata);
-            if (counter >= 1000) {
-                logger.info(String.format("Broke iterating: %d records", counter));
-                getCounter(DupDigestMergerJob.COUNTERS.RECORDS_EXCEEDED).increment(1);
-                break;
-            }
             counter++;
+            if (counter >= 10000)
+                break;
         }
         return counter;
     }
