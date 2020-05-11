@@ -128,8 +128,6 @@ public class LocalFullImageIndexer {
             merger.getCounter(DupDigestMergerJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
             merger.getCounter(DupDigestMergerJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
 
-            logger.info(String.format("Found %d records", counter));
-
             if (result.hasImageMetadata())
                 merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_WITH_METADATA).increment(1);
             else
