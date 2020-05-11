@@ -12,6 +12,10 @@ import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.getLoc
 import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.logger;
 
 public class ImageData implements Serializable {
+
+    private String warc;
+    private long warcOffset;
+
     private String imageURLHash;
     private String contentHash;
 
@@ -30,7 +34,7 @@ public class ImageData implements Serializable {
     private int height;
     private int size;
 
-    public ImageData(String imageURLHash, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes) {
+    public ImageData(String imageURLHash, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes, String warc, long warcOffset) {
         this.imageURLHash = imageURLHash;
         this.url = url;
         this.surt = surt;
@@ -46,6 +50,9 @@ public class ImageData implements Serializable {
         this.timestampOriginalFormat.add(timestamp);
         this.timestamp.add(WARCInformationParser.parseLocalDateTime(timestamp));
         this.contentHash = "";
+
+        this.warc = warc;
+        this.warcOffset = warcOffset;
 
     }
 
@@ -187,5 +194,21 @@ public class ImageData implements Serializable {
 
     public String getId() {
         return timestampOriginalFormat.get(0) + "/" + imageURLHash;
+    }
+
+    public String getWarc() {
+        return warc;
+    }
+
+    public void setWarc(String warc) {
+        this.warc = warc;
+    }
+
+    public long getWarcOffset() {
+        return warcOffset;
+    }
+
+    public void setWarcOffset(long warcOffset) {
+        this.warcOffset = warcOffset;
     }
 }

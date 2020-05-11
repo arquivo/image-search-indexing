@@ -18,6 +18,10 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     private static final int MAX_ADD_THRESHOLD = 50;
 
+
+    private String warc;
+    private long warcOffset;
+
     private String type;
     private String imgTitle;
     private String imgAlt;
@@ -35,6 +39,9 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private int imgHeight;
     private int imgWidth;
     private String imgMimeType;
+
+    private String imgWarc;
+    private long imgWarcOffset;
 
     private LocalDateTime pageTimestamp;
     private String pageTimestampString;
@@ -57,11 +64,12 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private Set<String> tagFoundIn;
     private String imageDigest;
 
-    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, int imgReferencesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType) {
+    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, int imgReferencesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset) {
+
         this.type = type;
 
         this.imgAlt = imgAlt;
-        
+
         this.tagFoundIn = new HashSet<>();
 
         tagFoundIn.add(tagType);
@@ -107,6 +115,9 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.pageProtocol = pageProtocol;
 
         this.pageTimestamp = WARCInformationParser.parseLocalDateTime(pageTimestampString);
+
+        this.warc = warc;
+        this.warcOffset = warcOffset;
     }
 
     @Override
@@ -297,6 +308,8 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.setImgWidth(id.getWidth());
         this.setImgMimeType(id.getMimeDetected());
         this.setImgId(id.getId());
+        this.setImgWarc(id.getWarc());
+        this.setImgWarcOffset(id.getWarcOffset());
     }
 
     public String getImgMimeType() {
@@ -313,6 +326,38 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public void setImgId(String imgId) {
         this.imgId = imgId;
+    }
+
+    public String getWarc() {
+        return warc;
+    }
+
+    public void setWarc(String warc) {
+        this.warc = warc;
+    }
+
+    public long getWarcOffset() {
+        return warcOffset;
+    }
+
+    public void setWarcOffset(long warcOffset) {
+        this.warcOffset = warcOffset;
+    }
+
+    public String getImgWarc() {
+        return imgWarc;
+    }
+
+    public void setImgWarc(String imgWarc) {
+        this.imgWarc = imgWarc;
+    }
+
+    public long getImgWarcOffset() {
+        return imgWarcOffset;
+    }
+
+    public void setImgWarcOffset(long imgWarcOffset) {
+        this.imgWarcOffset = imgWarcOffset;
     }
 }
 

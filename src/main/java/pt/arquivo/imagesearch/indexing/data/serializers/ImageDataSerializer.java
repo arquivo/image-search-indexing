@@ -28,6 +28,8 @@ public class ImageDataSerializer implements JsonSerializer<ImageData> {
         obj.addProperty("size", src.getSize());
         obj.addProperty("safe", 1);
         obj.addProperty("spam", 0);
+        obj.addProperty("warcName", src.getWarc());
+        obj.addProperty("warcOffset", src.getWarcOffset());
 
         return obj;
     }

@@ -78,6 +78,12 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("isInline", src.getInline());
         obj.add("tagFoundIn", context.serialize((src.getTagFoundIn())));
 
+        obj.addProperty("warcName", src.getWarc());
+        obj.addProperty("warcOffset", src.getWarcOffset());
+
+        obj.addProperty("imgWarcName", src.getImgWarc());
+        obj.addProperty("imgWarcOffset", src.getImgWarcOffset());
+
         return obj;
     }
 }

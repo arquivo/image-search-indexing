@@ -23,6 +23,7 @@ import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import javax.imageio.ImageIO;
 import java.io.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.*;
@@ -89,15 +90,26 @@ public class ImageInformationExtractor {
 
     public void parseWarcEntryRecord(String arcURL) {
         ImageSearchIndexingUtil.readWarcRecords(arcURL, this, (record) -> {
+            String warcName = "";
+            try {
+                File url = new File(arcURL);
+                warcName = url.getName();
+            } catch (Throwable ignored) {
+                try {
+                    URL url = new URL(arcURL);
+                    warcName = url.getFile();
+                } catch (MalformedURLException ignored1) {
 
+                }
+            }
             String mimetype = record.getContentMimetype();
             if (mimetype != null) {
                 if (mimetype.contains("image")) {
-                    createImageDB(arcURL, record, context);
+                    createImageDB(arcURL, record, context, warcName, record.getWARCRecord().getHeader().getOffset());
                 }
                 if (mimetype.contains("html")) { /*only processing images*/
                     logger.debug("Searching images in html record");
-                    parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs());
+                    parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs(), warcName, record.getWARCRecord().getHeader().getOffset());
                 }
             }
         });
@@ -106,9 +118,16 @@ public class ImageInformationExtractor {
 
     public void parseArcEntry(String arcURL) {
         ImageSearchIndexingUtil.readArcRecords(arcURL, this, record -> {
+            String warcName = "";
+            try {
+                URL url = new URL(arcURL);
+                warcName = url.getFile();
+            } catch (MalformedURLException ignored) {
+
+            }
             boolean isImage = record.getMetaData().getMimetype().contains("image");
             if (isImage) {
-                createImageDB(arcURL, record, context);
+                createImageDB(arcURL, record, context, warcName, record.getMetaData().getOffset());
             }
             if (record.getMetaData().getMimetype().contains("html")) {
                 byte[] recordContentBytes;
@@ -119,13 +138,13 @@ public class ImageInformationExtractor {
                     return;
                 }
                 logger.debug("Searching images in html record");
-                parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate());
+                parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate(), warcName, record.getMetaData().getOffset());
             }
         });
 
     }
 
-    public ImageData saveImageMetadataInline(String url, String timestamp, Mapper.Context context) {
+    public ImageData saveImageMetadataInline(String url, String timestamp, Mapper.Context context, String warcName, long warcOffset) {
         try {
             String[] surl = url.split(",");
 
@@ -144,7 +163,7 @@ public class ImageInformationExtractor {
                 }
             }
 
-            return saveImageMetadata("hash:" + imageURLHashKey, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context);
+            return saveImageMetadata("hash:" + imageURLHashKey, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context, warcName, warcOffset);
         } catch (Exception e) {
             logger.error(String.format("Malformed inline image"));
             return null;
@@ -152,7 +171,7 @@ public class ImageInformationExtractor {
     }
 
 
-    public ImageData saveImageMetadata(String url, String imageURLHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context) {
+    public ImageData saveImageMetadata(String url, String imageURLHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context, String warcName, long warcOffset) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
 
@@ -175,7 +194,7 @@ public class ImageInformationExtractor {
             this.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.IMAGES_IN_WARC_MIME_INVALID).increment(1);
         }
 
-        ImageData imageData = new ImageData(imageURLHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes);
+        ImageData imageData = new ImageData(imageURLHashKey, timestamp, url, imgSurt, reportedMimeType, detectedMimeType, this.collection, contentBytes, warcName, warcOffset);
 
         try {
             imageData = ImageParse.getPropImage(imageData);
@@ -219,7 +238,7 @@ public class ImageInformationExtractor {
         return null;
     }
 
-    public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Mapper.Context context) {
+    public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Mapper.Context context, String warcName, long warcOffset) {
         String url = "";
         String timestamp = "";
         try {
@@ -240,7 +259,7 @@ public class ImageInformationExtractor {
                 return;
             }
 
-            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
+            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context, warcName, warcOffset);
 
         } catch (Exception e) {
             logger.error(String.format("Error parsing image url: %s/%s with error message %s", timestamp, url, e.getMessage()));
@@ -248,7 +267,7 @@ public class ImageInformationExtractor {
         }
     }
 
-    public ImageData createImageDB(String arcURL, ARCRecord record, Mapper.Context context) {
+    public ImageData createImageDB(String arcURL, ARCRecord record, Mapper.Context context, String warcName, long warcOffset) {
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
         String mime = record.getMetaData().getMimetype();
@@ -266,11 +285,11 @@ public class ImageInformationExtractor {
             return null;
         }
 
-        return saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context);
+        return saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context, warcName, warcOffset);
     }
 
     public void parseImagesFromHtmlRecord(Mapper.Context context, byte[] arcRecordBytes, String pageURL, String
-            pageTstamp) {
+            pageTstamp, String warcName, long warcOffset) {
         try {
             logger.debug("Parsing Images from HTML in (W)ARCrecord");
             logger.debug("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
@@ -326,7 +345,7 @@ public class ImageInformationExtractor {
                         logger.debug("Getting information for: " + imgSrc);
                         if (imgRelSrc.startsWith(DATA_IMAGE_URL_PREFIX)) {
                             logger.debug("Inline image");
-                            ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context);
+                            ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context, warcName, warcOffset);
                             this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
                             if (acceptedRecord == null)
                                 continue;
@@ -350,7 +369,7 @@ public class ImageInformationExtractor {
 
                         String imgCaption = extractCaptionFromParent(el);
 
-                        insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage);
+                        insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage, warcName, warcOffset);
 
                         logger.debug("Written to file - successfully indexed image record");
                     }
@@ -411,7 +430,7 @@ public class ImageInformationExtractor {
                     }
 
 
-                    insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", alreadyFoundInPage);
+                    insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", alreadyFoundInPage, warcName, warcOffset);
 
                     logger.debug("Written to file - successfully indexed image record");
 
@@ -467,7 +486,7 @@ public class ImageInformationExtractor {
 
                 String imgSrcTokens = getURLSrcTokens(imgSrc);
 
-                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", false);
+                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", false, warcName, warcOffset);
 
                 logger.debug("Written to file - successfully indexed image record");
 
@@ -616,10 +635,10 @@ public class ImageInformationExtractor {
 
     private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                     String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
-                                            pageTitle, String pageURLTokens, String foundInTag, boolean alreadyFoundInPage) {
+                                            pageTitle, String pageURLTokens, String foundInTag, boolean alreadyFoundInPage, String warc, long warcOffset) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag);
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset);
 
         pageImageData.incrementImgReferencesInPage(1);
 
