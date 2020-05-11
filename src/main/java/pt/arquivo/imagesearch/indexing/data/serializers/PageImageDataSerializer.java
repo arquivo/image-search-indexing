@@ -48,20 +48,23 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("contentHash", src.getImageDigest());
         obj.addProperty("type", "page");
         obj.addProperty("id", src.getId());
+
         obj.addProperty("imgTitle", src.getImgTitle());
         obj.addProperty("imgAlt", src.getImgAlt());
         obj.addProperty("imgFilename", src.getImgFilename());
         obj.addProperty("imgCaption", src.getImgCaption());
-        obj.addProperty("imgTimestamp", src.getImgTimestamp());
-        obj.addProperty("imgHeight", src.getImgHeight());
-        obj.addProperty("imgWidth", src.getImgWidth());
-
         obj.addProperty("imgURL", src.getImgURL());
         obj.addProperty("imgURLTokens", src.getImgURLTokens());
         obj.addProperty("imgSurt", src.getImgSurt());
 
         obj.addProperty("pageTitle", src.getPageTitle());
         obj.addProperty("pageURLTokens", src.getPageURLTokens());
+
+        obj.addProperty("imgId", src.getImgId());
+        obj.addProperty("imgTimestamp", src.getImgTimestamp());
+        obj.addProperty("imgHeight", src.getImgHeight());
+        obj.addProperty("imgWidth", src.getImgWidth());
+        obj.addProperty("imgMimeType", src.getImgMimeType());
 
         obj.addProperty("pageHost", src.getPageHost());
         obj.addProperty("pageProtocol", src.getPageProtocol());

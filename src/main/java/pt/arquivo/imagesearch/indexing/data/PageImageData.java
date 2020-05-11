@@ -28,11 +28,13 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private String pageTitle;
     private String pageURLTokens;
 
+    private String imgId;
     private String imgURL;
     private String imgURLTokens;
     private String imgSurt;
     private int imgHeight;
     private int imgWidth;
+    private String imgMimeType;
 
     private LocalDateTime pageTimestamp;
     private String pageTimestampString;
@@ -293,6 +295,24 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.setImageDigest(id.getContentHash());
         this.setImgHeight(id.getHeight());
         this.setImgWidth(id.getWidth());
+        this.setImgMimeType(id.getMimeDetected());
+        this.setImgId(id.getId());
+    }
+
+    public String getImgMimeType() {
+        return imgMimeType;
+    }
+
+    public void setImgMimeType(String imgMimeType) {
+        this.imgMimeType = imgMimeType;
+    }
+
+    public String getImgId() {
+        return imgId;
+    }
+
+    public void setImgId(String imgId) {
+        this.imgId = imgId;
     }
 }
 
