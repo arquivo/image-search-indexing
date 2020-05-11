@@ -53,6 +53,8 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("imgFilename", src.getImgFilename());
         obj.addProperty("imgCaption", src.getImgCaption());
         obj.addProperty("imgTimestamp", src.getImgTimestamp());
+        obj.addProperty("imgHeight", src.getImgHeight());
+        obj.addProperty("imgWidth", src.getImgWidth());
 
         obj.addProperty("imgURL", src.getImgURL());
         obj.addProperty("imgURLTokens", src.getImgURLTokens());

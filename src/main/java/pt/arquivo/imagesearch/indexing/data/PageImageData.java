@@ -31,6 +31,8 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private String imgURL;
     private String imgURLTokens;
     private String imgSurt;
+    private int imgHeight;
+    private int imgWidth;
 
     private LocalDateTime pageTimestamp;
     private String pageTimestampString;
@@ -226,20 +228,11 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     public void updatePageTimestamp(PageImageData pageImageData) {
         int comparison = pageImageData.getPageTimestamp().compareTo(this.pageTimestamp);
         // if two pages with the same metadata are parsed, store the oldest one
-        if (comparison < 0) {
+        // if two pages with the same timestamp and metadata are parsed, store the one with the shortest URL
+        // usefull for donated collections
+        if (comparison < 0 || (comparison == 0 && pageImageData.getPageURL().length() < pageURL.length())) {
             pageTimestamp = pageImageData.getPageTimestamp();
             pageTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(pageTimestamp);
-            pageURL = pageImageData.getPageURL();
-            pageURLTokens = pageImageData.getPageURLTokens();
-            pageURLHash = pageImageData.getPageURLHash();
-            pageTitle = pageImageData.getPageTitle();
-            pageHost = pageImageData.getPageHost();
-            pageProtocol = pageImageData.getPageProtocol();
-            imagesInPage = pageImageData.getImagesInPage();
-            imgReferencesInPage = pageImageData.getImgReferencesInPage();
-            // if two pages with the same timestamp and metadata are parsed, store the one with the shortest URL
-            // usefull for donated collections
-        } else if (comparison == 0 && pageImageData.getPageURL().length() < pageURL.length()){
             pageURL = pageImageData.getPageURL();
             pageURLTokens = pageImageData.getPageURLTokens();
             pageURLHash = pageImageData.getPageURLHash();
@@ -277,6 +270,29 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public String getImageDigest() {
         return imageDigest;
+    }
+
+    public int getImgHeight() {
+        return imgHeight;
+    }
+
+    public int getImgWidth() {
+        return imgWidth;
+    }
+
+    public void setImgWidth(int imgWidth) {
+        this.imgWidth = imgWidth;
+    }
+
+    public void setImgHeight(int imgHeight) {
+        this.imgHeight = imgHeight;
+    }
+
+    public void assignImageToPage(ImageData id, LocalDateTime correct) {
+        this.setImgTimestamp(correct);
+        this.setImageDigest(id.getContentHash());
+        this.setImgHeight(id.getHeight());
+        this.setImgWidth(id.getWidth());
     }
 }
 

@@ -179,8 +179,7 @@ public class FullImageMetadata implements Writable, Serializable {
             else if ((after.compareTo(timestamp)) < (timestamp.compareTo(before))) correct = after;
             else correct = before;
             ImageData id = map.get(correct);
-            data.setImgTimestamp(correct);
-            data.setImageDigest(id.getContentHash());
+            data.assignImageToPage(id, correct);
         }
     }
 
