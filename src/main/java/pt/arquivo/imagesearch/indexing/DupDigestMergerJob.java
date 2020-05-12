@@ -25,7 +25,6 @@ import java.io.IOException;
 public class DupDigestMergerJob {
 
     public enum COUNTERS {
-        RECORDS_EXCEEDED,
         RECORDS_MAP_IN,
         RECORDS_IN,
         RECORDS_OUT,

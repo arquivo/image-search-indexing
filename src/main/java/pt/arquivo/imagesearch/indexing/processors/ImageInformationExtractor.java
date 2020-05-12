@@ -493,7 +493,7 @@ public class ImageInformationExtractor {
             }
 
 
-            if (imgs.size() == 0)
+            if (imgs.size() > 0)
                 this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
 
         } catch (Exception e) {
@@ -638,7 +638,7 @@ public class ImageInformationExtractor {
                                             pageTitle, String pageURLTokens, String foundInTag, boolean alreadyFoundInPage, String warc, long warcOffset) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset);
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset, collection);
 
         pageImageData.incrementImgReferencesInPage(1);
 
@@ -653,7 +653,6 @@ public class ImageInformationExtractor {
         boolean isNew = entries.get(pageImageData.getImgSurt()).addPageImageData(pageImageData);
         if (isNew) {
             this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_SENT).increment(1);
-            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_METADATA_CHANGED).increment(1);
         }
     }
 

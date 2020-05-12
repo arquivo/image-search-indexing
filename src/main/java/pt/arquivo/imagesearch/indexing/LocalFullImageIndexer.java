@@ -78,6 +78,10 @@ public class LocalFullImageIndexer {
             merger = new ImageInformationMerger();
         }
 
+        public Counter getCounter(Enum<?> counterName) {
+            return merger.getCounter(counterName);
+        }
+
 
         public FullImageMetadata reduce(String key, List<Object> values) {
 
@@ -171,6 +175,7 @@ public class LocalFullImageIndexer {
         HashMap<String, List<FullImageMetadata>> reduceResults = new HashMap<>();
 
         LocalFullImageIndexer.Reduce reduce = new Reduce();
+        LocalFullImageIndexer.ReduceDigest reduceDigest = new ReduceDigest();
 
         for (java.util.Map.Entry<String, List<Object>> entry : mapResults.entrySet()) {
             FullImageMetadata result = reduce.reduce(entry.getKey(), entry.getValue());
@@ -179,6 +184,7 @@ public class LocalFullImageIndexer {
                 for (ImageData imageData : result.getImageDatasValues()) {
                     String digest = imageData.getContentHash();
                     if (!digests.contains(imageData.getContentHash())) {
+                        reduce.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_MAP_IN).increment(1);
                         FullImageMetadata resultDigest = new FullImageMetadata(result, imageData);
                         reduceResults.putIfAbsent(digest, new LinkedList<>());
                         reduceResults.get(digest).add(resultDigest);
@@ -188,7 +194,7 @@ public class LocalFullImageIndexer {
             }
         }
 
-        LocalFullImageIndexer.ReduceDigest reduceDigest = new ReduceDigest();
+
 
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))) {
             for (java.util.Map.Entry<String, List<FullImageMetadata>> entry : reduceResults.entrySet()) {

@@ -15,7 +15,7 @@ public class FullImageMetadata implements Writable, Serializable {
 
     private transient Logger logger = Logger.getLogger(FullImageMetadata.class);
 
-    public static final int MAXIMUM_META = 50;
+    public static final int MAXIMUM_META = 500;
 
     private TreeMap<ImageData, ImageData> imageDatas;
     private TreeMap<PageImageData, PageImageData> pageImageDatas;
@@ -60,7 +60,7 @@ public class FullImageMetadata implements Writable, Serializable {
 
         pageImageDatas = new TreeMap<>(new PageImageDataComparator());
         for (PageImageData pageImageData: metadata.pageImageDatas.values()){
-            if (imageData.getTimestampOriginalFormat().contains(pageImageData.getImgTimestamp())){
+            if (imageData.getTimestamp().contains(pageImageData.getImgTimestamp())){
                 pageImageDatas.put(pageImageData, pageImageData);
             }
         }
@@ -79,25 +79,19 @@ public class FullImageMetadata implements Writable, Serializable {
 
     public void merge(FullImageMetadata result) {
 
-        int counter = 0;
         for (ImageData data : result.getImageDatasValues()){
-            this.addImageData(data);
-            counter++;
-            if (counter >= 10000) {
-                logger.info(String.format("Broke iterating: %d/%d image records", counter, result.getImageDatasValues().size()));
+            if (this.imageDatas.size() < MAXIMUM_META) {
+                this.addImageData(data);
+            } else
                 break;
-            }
-
         }
 
-        counter = 0;
         for (PageImageData data : result.getPageImageDatasValues()){
-            this.addPageImageData(data);
-            counter++;
-            if (counter >= 10000) {
-                logger.info(String.format("Broke iterating: %d/%d page image records", counter, result.getPageImageDatasValues().size()));
-                break;
+            if (this.pageImageDatas.size() < MAXIMUM_META) {
+                this.addPageImageData(data);
             }
+            else
+                break;
         }
 
     }
@@ -254,18 +248,5 @@ public class FullImageMetadata implements Writable, Serializable {
             e.printStackTrace();
         }
 
-    }
-
-    public String toString() {
-        //private TreeMap<ImageData, ImageData> imageDatas;
-        //private TreeMap<PageImageData, PageImageData> pageImageDatas;
-        String result = "";
-        for (ImageData i : imageDatas.values())
-            for (String t : i.getTimestampOriginalFormat())
-                result += t + " ";
-        result += "## ";
-        for (PageImageData i : pageImageDatas.values())
-            result += i.getPageTimestamp() + " ";
-        return result;
     }
 }

@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.getLocalDateTimeToTimestamp;
 import static pt.arquivo.imagesearch.indexing.utils.WARCInformationParser.logger;
@@ -141,10 +142,6 @@ public class ImageData implements Serializable {
         this.bytes = bytes;
     }
 
-    public List<String> getTimestampOriginalFormat() {
-        return timestampOriginalFormat;
-    }
-
     public String getURLWithTimestamp() {
         return timestampOriginalFormat.get(0) + "/" + this.url;
     }
@@ -211,4 +208,6 @@ public class ImageData implements Serializable {
     public void setWarcOffset(long warcOffset) {
         this.warcOffset = warcOffset;
     }
+
+
 }

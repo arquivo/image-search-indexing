@@ -18,6 +18,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     private static final int MAX_ADD_THRESHOLD = 50;
 
+    private String collection;
 
     private String warc;
     private long warcOffset;
@@ -27,13 +28,14 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private String imgAlt;
     private String imgFilename;
     private String imgCaption;
-    private String imgTimestampString;
+    private LocalDateTime imgTimestamp;
 
     private String pageTitle;
     private String pageURLTokens;
 
     private String imgId;
     private String imgURL;
+    private String imgURLHash;
     private String imgURLTokens;
     private String imgSurt;
     private int imgHeight;
@@ -64,7 +66,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private Set<String> tagFoundIn;
     private String imageDigest;
 
-    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, int imgReferencesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset) {
+    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, int imgReferencesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset, String collection) {
 
         this.type = type;
 
@@ -100,12 +102,11 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.pageURLTokens = pageURLTokens;
 
         this.imgURL = imgURL;
+        this.imgURLHash = ImageSearchIndexingUtil.md5ofString(imgURL);
         this.imgSurt = imageSurt;
 
         this.imagesInPage = imagesInPage;
         this.imgReferencesInPage = imgReferencesInPage;
-
-        this.pageTimestampString = pageTimestampString;
 
         this.pageURL = pageURL;
         this.pageURLHash = ImageSearchIndexingUtil.md5ofString(pageURL);
@@ -114,10 +115,13 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
         this.pageProtocol = pageProtocol;
 
+        this.pageTimestampString = pageTimestampString;
         this.pageTimestamp = WARCInformationParser.parseLocalDateTime(pageTimestampString);
 
         this.warc = warc;
         this.warcOffset = warcOffset;
+
+        this.collection = collection;
     }
 
     @Override
@@ -265,16 +269,16 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         return pageURLHash;
     }
 
-    public String getImgTimestamp() {
-        return imgTimestampString;
+    public String getImgTimestampString() {
+        return imgTimestamp.toString();
     }
 
-    public void setImgTimestamp(String imgTimestampString) {
-        this.imgTimestampString = imgTimestampString;
+    public LocalDateTime getImgTimestamp() {
+        return imgTimestamp;
     }
 
-    public void setImgTimestamp(LocalDateTime timestamp) {
-        this.imgTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(timestamp);
+    public void setImgTimestamp(LocalDateTime imgTimestamp) {
+        this.imgTimestamp = imgTimestamp;
     }
 
     public void setImageDigest(String imageDigest) {
@@ -358,6 +362,22 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public void setImgWarcOffset(long imgWarcOffset) {
         this.imgWarcOffset = imgWarcOffset;
+    }
+
+    public String getImgURLHash() {
+        return imgURLHash;
+    }
+
+    public void setImgURLHash(String imgURLHash) {
+        this.imgURLHash = imgURLHash;
+    }
+
+    public String getCollection() {
+        return collection;
+    }
+
+    public void setCollection(String collection) {
+        this.collection = collection;
     }
 }
 

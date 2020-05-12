@@ -2,6 +2,7 @@ package pt.arquivo.imagesearch.indexing.utils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -210,6 +211,13 @@ public class ImageSearchIndexingUtil {
 
     public static String cleanPunctuation(String toParse) {
         return String.join(" ", toParse.split(SPLIT_PATTERN));
+    }
+
+    public static List<String> getTimestampStandardFormat(List<LocalDateTime> timestamps) {
+        List<String> output = new LinkedList<>();
+        for(LocalDateTime l: timestamps)
+            output.add(l.toString());
+        return output;
     }
 
 }
