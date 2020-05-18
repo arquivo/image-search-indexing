@@ -46,12 +46,13 @@ public class LocalFullImageIndexer {
             }
 
             String[] surl = url.getPath().split("/");
-            String filename = System.currentTimeMillis() + "_" + surl[surl.length - 1];
+            String arcName = surl[surl.length - 1];
+            String filename = System.currentTimeMillis() + "_" + arcName;
             File dest = new File("/tmp/" + filename);
 
             try {
                 FileUtils.copyURLToFile(url, dest);
-                indexer.parseRecord(dest.getPath());
+                indexer.parseRecord(arcName, dest.getPath());
             } catch (IOException e) {
                 e.printStackTrace();
             }

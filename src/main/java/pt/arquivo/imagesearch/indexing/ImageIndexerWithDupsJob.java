@@ -1,7 +1,5 @@
 package pt.arquivo.imagesearch.indexing;
 
-import com.google.gson.Gson;
-
 import org.apache.hadoop.io.Writable;
 import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FileUtils;
@@ -23,7 +21,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Set;
 
 public class ImageIndexerWithDupsJob {
@@ -116,7 +113,8 @@ public class ImageIndexerWithDupsJob {
 
                 }
                 String[] surl = url.getPath().split("/");
-                String filename = System.currentTimeMillis() + "_" + surl[surl.length - 1];
+                String arcName = surl[surl.length - 1];
+                String filename = System.currentTimeMillis() + "_" + arcName;
                 File dest = new File("/tmp/" + filename);
 
                 try {
@@ -126,7 +124,7 @@ public class ImageIndexerWithDupsJob {
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
                 }
 
-                indexer.parseRecord(dest.getPath());
+                indexer.parseRecord(arcName, dest.getPath());
                 FileUtils.deleteQuietly(dest);
 
             }

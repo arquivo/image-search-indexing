@@ -80,28 +80,17 @@ public class ImageInformationExtractor {
         }
     }
 
-    public void parseRecord(String arcURL) {
+    public void parseRecord(String arcName, String arcURL) {
         if (arcURL.endsWith("warc.gz") || arcURL.endsWith("warc")) {
-            parseWarcEntryRecord(arcURL);
+            parseWarcEntryRecord(arcName, arcURL);
         } else {
-            parseArcEntry(arcURL);
+            parseArcEntry(arcName, arcURL);
         }
     }
 
-    public void parseWarcEntryRecord(String arcURL) {
+    public void parseWarcEntryRecord(String warcName, String arcURL) {
         ImageSearchIndexingUtil.readWarcRecords(arcURL, this, (record) -> {
-            String warcName = "";
-            try {
-                File url = new File(arcURL);
-                warcName = url.getName();
-            } catch (Throwable ignored) {
-                try {
-                    URL url = new URL(arcURL);
-                    warcName = url.getFile();
-                } catch (MalformedURLException ignored1) {
 
-                }
-            }
             String mimetype = record.getContentMimetype();
             if (mimetype != null) {
                 if (mimetype.contains("image")) {
@@ -116,15 +105,9 @@ public class ImageInformationExtractor {
 
     }
 
-    public void parseArcEntry(String arcURL) {
+    public void parseArcEntry(String warcName, String arcURL) {
         ImageSearchIndexingUtil.readArcRecords(arcURL, this, record -> {
-            String warcName = "";
-            try {
-                URL url = new URL(arcURL);
-                warcName = url.getFile();
-            } catch (MalformedURLException ignored) {
 
-            }
             boolean isImage = record.getMetaData().getMimetype().contains("image");
             if (isImage) {
                 createImageDB(arcURL, record, context, warcName, record.getMetaData().getOffset());
