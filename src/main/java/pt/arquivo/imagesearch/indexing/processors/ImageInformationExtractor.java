@@ -369,7 +369,7 @@ public class ImageInformationExtractor {
 
                         String imgCaption = extractCaptionFromParent(el);
 
-                        insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", alreadyFoundInPage, warcName, warcOffset);
+                        insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", warcName, warcOffset);
 
                         logger.debug("Written to file - successfully indexed image record");
                     }
@@ -638,9 +638,7 @@ public class ImageInformationExtractor {
                                             pageTitle, String pageURLTokens, String foundInTag, String warc, long warcOffset) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
-        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset, collection);
-
-        pageImageData.incrementImgReferencesInPage(1);
+        PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset, collection);
 
         this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_SENT_DUP).increment(1);
 

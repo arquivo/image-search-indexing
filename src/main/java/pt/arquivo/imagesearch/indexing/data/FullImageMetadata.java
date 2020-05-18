@@ -20,14 +20,10 @@ public class FullImageMetadata implements Writable, Serializable {
     private TreeMap<ImageData, ImageData> imageDatas;
     private TreeMap<PageImageData, PageImageData> pageImageDatas;
 
-    private int matchingImages;
-    private int urlChanges;
+    private int uniqueDigestsOnURL;
 
-    // Aggregation metadata
+    private int matchingImages;
     private int matchingPages;
-    private int imagesInPages;
-    private long matchingImgReferences;
-    private int imageFilenameChanges;
 
     private int imageMetadataChanges;
     private int pageMetadataChanges;
@@ -35,22 +31,24 @@ public class FullImageMetadata implements Writable, Serializable {
     public FullImageMetadata() {
         this.imageDatas = new TreeMap<>(new ImageDataComparator());
         this.pageImageDatas = new TreeMap<>(new PageImageDataComparator());
+        this.imageMetadataChanges = 0;
+        this.pageMetadataChanges = 1;
+        this.matchingImages = 0;
+        this.matchingPages = 0;
+        this.uniqueDigestsOnURL = 0;
     }
 
     public FullImageMetadata(FullImageMetadata metadata) {
         imageDatas = (TreeMap<ImageData, ImageData>) metadata.getImageDatas().clone();
         pageImageDatas = (TreeMap<PageImageData, PageImageData>) metadata.getPageImageDatas().clone();
 
-        matchingImages = metadata.getMatchingImages();
-        urlChanges = metadata.getUrlChanges();
-
-        matchingPages = metadata.getMatchingPages();
-        imagesInPages = metadata.getImagesInPages();
-        matchingImgReferences = metadata.getMatchingImgReferences();
-        imageFilenameChanges = metadata.getImageFilenameChanges();
-
         imageMetadataChanges = metadata.getImageMetadataChanges();
         pageMetadataChanges = metadata.getPageMetadataChanges();
+
+        matchingImages = metadata.getMatchingImages();
+        matchingPages = metadata.getMatchingPages();
+
+        uniqueDigestsOnURL = metadata.getUniqueDigestsOnURL();
     }
 
     public FullImageMetadata(FullImageMetadata metadata, ImageData imageData) {
@@ -65,35 +63,38 @@ public class FullImageMetadata implements Writable, Serializable {
             }
         }
 
-        matchingImages = metadata.getMatchingImages();
-        urlChanges = metadata.getUrlChanges();
+        uniqueDigestsOnURL = metadata.getUniqueDigestsOnURL();
 
+        matchingImages = metadata.getMatchingImages();
         matchingPages = metadata.getMatchingPages();
-        imagesInPages = metadata.getImagesInPages();
-        matchingImgReferences = metadata.getMatchingImgReferences();
-        imageFilenameChanges = metadata.getImageFilenameChanges();
 
         imageMetadataChanges = metadata.getImageMetadataChanges();
         pageMetadataChanges = metadata.getPageMetadataChanges();
     }
 
     public void merge(FullImageMetadata result) {
+        int matchingImagesOriginal = this.matchingImages;
+        int matchingPagesOriginal = this.matchingPages;
 
         for (ImageData data : result.getImageDatasValues()){
             if (this.imageDatas.size() < MAXIMUM_META) {
                 this.addImageData(data);
-            } else
+            } else {
                 break;
+            }
         }
 
         for (PageImageData data : result.getPageImageDatasValues()){
             if (this.pageImageDatas.size() < MAXIMUM_META) {
                 this.addPageImageData(data);
-            }
-            else
+            } else {
                 break;
+            }
         }
-
+        //This line avoids double counting the newly added pages and images
+        //and enables counting images that were not parsec due to the MAXIMUM_META limit
+        this.matchingImages = matchingImagesOriginal + result.getMatchingImages();
+        this.matchingPages = matchingPagesOriginal + result.getMatchingPages();
     }
 
     public boolean addImageData(ImageData imageData) {
@@ -105,27 +106,27 @@ public class FullImageMetadata implements Writable, Serializable {
             imageDatas.put(imageData, id);
             return false;
         } else {
+            this.uniqueDigestsOnURL += 1;
             imageDatas.put(imageData, imageData);
             return true;
         }
     }
 
-    public boolean addPageImageData(PageImageData pageImageData) {
+    public boolean addPageImageData(PageImageData newPageImageData) {
         this.matchingPages++;
 
-        this.matchingImgReferences += pageImageData.getImgReferencesInPage();
-        this.imagesInPages += pageImageData.getImagesInPage();
+        PageImageData pageImageData = pageImageDatas.get(newPageImageData);
+        if (pageImageData != null) {
+            if (!pageImageData.getPageMetadata().equals(newPageImageData.getPageMetadata()))
+                this.pageMetadataChanges++;
 
-        if (pageImageDatas.get(pageImageData) != null) {
-            pageImageDatas.get(pageImageData).updatePageTimestamp(pageImageData);
-            PageImageData updated = pageImageDatas.get(pageImageData);
+            pageImageData.updatePageTimestamp(newPageImageData);
             // add entry in case image changed
-            pageImageDatas.put(pageImageData, updated);
+            pageImageDatas.put(newPageImageData, pageImageData);
             return false;
         } else {
             this.imageMetadataChanges++;
-            this.pageMetadataChanges++;
-            pageImageDatas.put(pageImageData, pageImageData);
+            pageImageDatas.put(newPageImageData, newPageImageData);
             return true;
         }
     }
@@ -174,6 +175,7 @@ public class FullImageMetadata implements Writable, Serializable {
             else correct = before;
             ImageData id = map.get(correct);
             data.assignImageToPage(id, correct);
+            data.assignMetadataToPage(this);
         }
     }
 
@@ -182,24 +184,8 @@ public class FullImageMetadata implements Writable, Serializable {
         return matchingImages;
     }
 
-    public int getUrlChanges() {
-        return urlChanges;
-    }
-
     public int getMatchingPages() {
         return matchingPages;
-    }
-
-    public int getImagesInPages() {
-        return imagesInPages;
-    }
-
-    public long getMatchingImgReferences() {
-        return matchingImgReferences;
-    }
-
-    public int getImageFilenameChanges() {
-        return imageFilenameChanges;
     }
 
     public int getImageMetadataChanges() {
@@ -208,6 +194,14 @@ public class FullImageMetadata implements Writable, Serializable {
 
     public int getPageMetadataChanges() {
         return pageMetadataChanges;
+    }
+
+    public int getUniqueDigestsOnURL() {
+        return uniqueDigestsOnURL;
+    }
+
+    public void setUniqueDigestsOnURL(int uniqueDigestsOnURL) {
+        this.uniqueDigestsOnURL = uniqueDigestsOnURL;
     }
 
 
@@ -236,13 +230,11 @@ public class FullImageMetadata implements Writable, Serializable {
             this.pageImageDatas = other.getPageImageDatas();
 
             this.matchingImages = other.getMatchingImages();
-            this.urlChanges = other.getUrlChanges();
             this.matchingPages = other.getMatchingPages();
-            this.imagesInPages = other.getImagesInPages();
-            this.matchingImgReferences = other.getMatchingImgReferences();
-            this.imageFilenameChanges = other.getImageFilenameChanges();
             this.imageMetadataChanges = other.getImageMetadataChanges();
             this.pageMetadataChanges = other.getPageMetadataChanges();
+
+            this.uniqueDigestsOnURL = other.getUniqueDigestsOnURL();
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

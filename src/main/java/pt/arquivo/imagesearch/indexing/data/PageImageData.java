@@ -52,19 +52,22 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private String pageProtocol;
 
 
+    private int matchingImages;
+    private int matchingPages;
 
+    private int imageMetadataChanges;
+    private int pageMetadataChanges;
     // Number of images in the original page
     private int imagesInPage;
+    private int uniqueDigestsOnURL;
 
-    // Total number of matching <img src="">
-    private int imgReferencesInPage;
 
     private boolean inline;
 
     private Set<String> tagFoundIn;
     private String imageDigest;
 
-    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, int imgReferencesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset, String collection) {
+    public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset, String collection) {
 
         this.type = type;
 
@@ -103,7 +106,6 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.imgSurt = imageSurt;
 
         this.imagesInPage = imagesInPage;
-        this.imgReferencesInPage = imgReferencesInPage;
 
         this.pageURL = pageURL;
 
@@ -226,16 +228,8 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         return pageTitle;
     }
 
-    public int getImgReferencesInPage() {
-        return imgReferencesInPage;
-    }
-
     public boolean equals(PageImageData o) {
         return (o.getImageMetadata().equals(this.getImageMetadata()));
-    }
-
-    public void incrementImgReferencesInPage(int i) {
-        imgReferencesInPage += i;
     }
 
     public void updatePageTimestamp(PageImageData pageImageData) {
@@ -252,7 +246,6 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
             pageHost = pageImageData.getPageHost();
             pageProtocol = pageImageData.getPageProtocol();
             imagesInPage = pageImageData.getImagesInPage();
-            imgReferencesInPage = pageImageData.getImgReferencesInPage();
         }
     }
 
@@ -309,6 +302,14 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.setImgId(id.getId());
         this.setImgWarc(id.getWarc());
         this.setImgWarcOffset(id.getWarcOffset());
+    }
+
+    public void assignMetadataToPage(FullImageMetadata fullImageMetadata) {
+        this.matchingImages = fullImageMetadata.getMatchingImages();
+        this.matchingPages = fullImageMetadata.getMatchingPages();
+        this.imageMetadataChanges = fullImageMetadata.getImageMetadataChanges();
+        this.pageMetadataChanges = fullImageMetadata.getPageMetadataChanges();
+        this.uniqueDigestsOnURL = fullImageMetadata.getUniqueDigestsOnURL();
     }
 
     public String getImgMimeType() {
@@ -369,6 +370,46 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public void setCollection(String collection) {
         this.collection = collection;
+    }
+
+    public int getMatchingImages() {
+        return matchingImages;
+    }
+
+    public void setMatchingImages(int matchingImages) {
+        this.matchingImages = matchingImages;
+    }
+
+    public int getMatchingPages() {
+        return matchingPages;
+    }
+
+    public void setMatchingPages(int matchingPages) {
+        this.matchingPages = matchingPages;
+    }
+
+    public int getImageMetadataChanges() {
+        return imageMetadataChanges;
+    }
+
+    public void setImageMetadataChanges(int imageMetadataChanges) {
+        this.imageMetadataChanges = imageMetadataChanges;
+    }
+
+    public int getPageMetadataChanges() {
+        return pageMetadataChanges;
+    }
+
+    public void setPageMetadataChanges(int pageMetadataChanges) {
+        this.pageMetadataChanges = pageMetadataChanges;
+    }
+
+    public int getUniqueDigestsOnURL() {
+        return uniqueDigestsOnURL;
+    }
+
+    public void setUniqueDigestsOnURL(int uniqueDigestsOnURL) {
+        this.uniqueDigestsOnURL = uniqueDigestsOnURL;
     }
 }
 

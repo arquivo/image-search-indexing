@@ -75,10 +75,16 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("pageURL", src.getPageURL());
         obj.addProperty("pageURLHash", src.getPageURLHash());
 
-        obj.addProperty("imagesInOriginalPage", src.getImagesInPage());
-        obj.addProperty("matchingImgReferences", src.getImgReferencesInPage());
         obj.addProperty("isInline", src.getInline());
         obj.add("tagFoundIn", context.serialize((src.getTagFoundIn())));
+
+        obj.addProperty("imagesInOriginalPage", src.getImagesInPage());
+        obj.addProperty("imageMetadataChanges", src.getImageMetadataChanges());
+        obj.addProperty("pageMetadataChanges", src.getPageMetadataChanges());
+        obj.addProperty("matchingImages", src.getMatchingImages());
+        obj.addProperty("matchingPages", src.getMatchingPages());
+        obj.addProperty("uniqueDigestsOnURL", src.getUniqueDigestsOnURL());
+
 
         obj.addProperty("warcName", src.getWarc());
         obj.addProperty("warcOffset", src.getWarcOffset());
