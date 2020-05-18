@@ -89,6 +89,7 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
 
         obj.addProperty("safe", 0);
         obj.addProperty("spam", 0);
+        obj.addProperty("blocked", 0);
 
         return obj;
     }

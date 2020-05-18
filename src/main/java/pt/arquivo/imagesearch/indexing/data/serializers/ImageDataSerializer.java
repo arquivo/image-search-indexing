@@ -34,6 +34,7 @@ public class ImageDataSerializer implements JsonSerializer<ImageData> {
         obj.addProperty("spam", 0);
         obj.addProperty("warcName", src.getWarc());
         obj.addProperty("warcOffset", src.getWarcOffset());
+        obj.addProperty("blocked", 0);
 
         return obj;
     }
