@@ -20,6 +20,9 @@ public class FullImageMetadata implements Writable, Serializable {
     private TreeMap<ImageData, ImageData> imageDatas;
     private TreeMap<PageImageData, PageImageData> pageImageDatas;
 
+    private String oldestSurt;
+    private LocalDateTime oldestSurtDate;
+
     private int uniqueDigestsOnURL;
 
     private int matchingImages;
@@ -49,6 +52,9 @@ public class FullImageMetadata implements Writable, Serializable {
         matchingPages = metadata.getMatchingPages();
 
         uniqueDigestsOnURL = metadata.getUniqueDigestsOnURL();
+
+        oldestSurt = metadata.getOldestSurt();
+        oldestSurtDate = metadata.getOldestSurtDate();
     }
 
     public FullImageMetadata(FullImageMetadata metadata, ImageData imageData) {
@@ -70,13 +76,16 @@ public class FullImageMetadata implements Writable, Serializable {
 
         imageMetadataChanges = metadata.getImageMetadataChanges();
         pageMetadataChanges = metadata.getPageMetadataChanges();
+
+        oldestSurt = metadata.getOldestSurt();
+        oldestSurtDate = metadata.getOldestSurtDate();
     }
 
-    public void merge(FullImageMetadata result) {
+    public void merge(FullImageMetadata metadata) {
         int matchingImagesOriginal = this.matchingImages;
         int matchingPagesOriginal = this.matchingPages;
 
-        for (ImageData data : result.getImageDatasValues()){
+        for (ImageData data : metadata.getImageDatasValues()){
             if (this.imageDatas.size() < MAXIMUM_META) {
                 this.addImageData(data);
             } else {
@@ -84,7 +93,7 @@ public class FullImageMetadata implements Writable, Serializable {
             }
         }
 
-        for (PageImageData data : result.getPageImageDatasValues()){
+        for (PageImageData data : metadata.getPageImageDatasValues()){
             if (this.pageImageDatas.size() < MAXIMUM_META) {
                 this.addPageImageData(data);
             } else {
@@ -93,12 +102,29 @@ public class FullImageMetadata implements Writable, Serializable {
         }
         //This line avoids double counting the newly added pages and images
         //and enables counting images that were not parsec due to the MAXIMUM_META limit
-        this.matchingImages = matchingImagesOriginal + result.getMatchingImages();
-        this.matchingPages = matchingPagesOriginal + result.getMatchingPages();
+        this.matchingImages = matchingImagesOriginal + metadata.getMatchingImages();
+        this.matchingPages = matchingPagesOriginal + metadata.getMatchingPages();
+
+        int comparator = metadata.getOldestSurtDate().compareTo(oldestSurtDate);
+        if (comparator < 0 || (comparator == 0 && oldestSurt.length() < metadata.getOldestSurt().length()) || (comparator == 0 && oldestSurt.length() == metadata.getOldestSurt().length() && metadata.getOldestSurt().compareTo(oldestSurt) < 0) ) {
+            oldestSurt = metadata.getOldestSurt();
+            oldestSurtDate = metadata.getOldestSurtDate();
+        }
     }
 
     public boolean addImageData(ImageData imageData) {
         this.matchingImages++;
+
+        if (oldestSurtDate == null){
+            oldestSurt = imageData.getSurt();
+            oldestSurtDate = imageData.getTimestamp().get(0);
+        } else {
+            int comparator = imageData.getTimestamp().get(0).compareTo(oldestSurtDate);
+            if (comparator < 0 || (comparator == 0 && oldestSurt.length() < imageData.getSurt().length()) || (comparator == 0 && oldestSurt.length() == imageData.getSurt().length() && imageData.getSurt().compareTo(oldestSurt) < 0)) {
+                oldestSurt = imageData.getSurt();
+                oldestSurtDate = imageData.getTimestamp().get(0);
+            }
+        }
 
         ImageData id = imageDatas.get(imageData);
         if (id != null) {
@@ -159,9 +185,11 @@ public class FullImageMetadata implements Writable, Serializable {
             return;
 
         TreeMap<LocalDateTime, ImageData> map = new TreeMap<>();
-        for (ImageData data : this.getImageDatasValues())
+        for (ImageData data : this.getImageDatasValues()) {
+            data.assignMetadataToImage(this);
             for (LocalDateTime timestamp : data.getTimestamp())
                 map.put(timestamp, data);
+        }
 
         for (PageImageData data : this.getPageImageDatasValues()) {
             LocalDateTime timestamp = data.getPageTimestamp();
@@ -236,9 +264,20 @@ public class FullImageMetadata implements Writable, Serializable {
 
             this.uniqueDigestsOnURL = other.getUniqueDigestsOnURL();
 
+            this.oldestSurt = other.getOldestSurt();
+            this.oldestSurtDate = other.getOldestSurtDate();
+
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
 
+    }
+
+    public String getOldestSurt() {
+        return oldestSurt;
+    }
+
+    public LocalDateTime getOldestSurtDate() {
+        return oldestSurtDate;
     }
 }

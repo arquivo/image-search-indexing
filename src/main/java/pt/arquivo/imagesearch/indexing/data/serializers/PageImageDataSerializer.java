@@ -47,7 +47,11 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         JsonObject obj = new JsonObject();
         obj.addProperty("imgDigest", src.getImageDigest());
         obj.addProperty("type", "page");
+
         obj.addProperty("id", src.getId());
+
+        obj.addProperty("oldestSurt", src.getOldestSurt());
+        //obj.addProperty("oldestSurtDate", src.getOldestSurtDate().toString());
 
         obj.addProperty("imgTitle", src.getImgTitle());
         obj.addProperty("imgAlt", src.getImgAlt());
@@ -84,7 +88,6 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("matchingImages", src.getMatchingImages());
         obj.addProperty("matchingPages", src.getMatchingPages());
         obj.addProperty("uniqueDigestsOnURL", src.getUniqueDigestsOnURL());
-
 
         obj.addProperty("warcName", src.getWarc());
         obj.addProperty("warcOffset", src.getWarcOffset());

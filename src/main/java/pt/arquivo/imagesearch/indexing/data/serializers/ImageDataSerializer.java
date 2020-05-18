@@ -17,6 +17,10 @@ public class ImageDataSerializer implements JsonSerializer<ImageData> {
         obj.addProperty("imgDigest", src.getContentHash());
         obj.addProperty("type", "image");
         obj.addProperty("id", src.getId());
+
+        obj.addProperty("oldestSurt", src.getOldestSurt());
+        //obj.addProperty("oldestSurtDate", src.getOldestSurtDate().toString());
+
         obj.addProperty("imgSrcURLDigest", src.getImageURLHash());
         List<String> tss = ImageSearchIndexingUtil.getTimestampStandardFormat(src.getTimestamp());
         obj.add("imgTstamps", context.serialize(tss));
@@ -32,9 +36,9 @@ public class ImageDataSerializer implements JsonSerializer<ImageData> {
         obj.addProperty("size", src.getSize());
         obj.addProperty("safe", 0);
         obj.addProperty("spam", 0);
+        obj.addProperty("blocked", 0);
         obj.addProperty("warcName", src.getWarc());
         obj.addProperty("warcOffset", src.getWarcOffset());
-        obj.addProperty("blocked", 0);
 
         return obj;
     }

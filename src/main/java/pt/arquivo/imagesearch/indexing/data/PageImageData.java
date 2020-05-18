@@ -67,6 +67,9 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private Set<String> tagFoundIn;
     private String imageDigest;
 
+    private String oldestSurt;
+    private LocalDateTime oldestSurtDate;
+
     public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset, String collection) {
 
         this.type = type;
@@ -310,6 +313,9 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.imageMetadataChanges = fullImageMetadata.getImageMetadataChanges();
         this.pageMetadataChanges = fullImageMetadata.getPageMetadataChanges();
         this.uniqueDigestsOnURL = fullImageMetadata.getUniqueDigestsOnURL();
+
+        this.oldestSurt = fullImageMetadata.getOldestSurt();
+        this.oldestSurtDate = fullImageMetadata.getOldestSurtDate();
     }
 
     public String getImgMimeType() {
@@ -338,10 +344,6 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public long getWarcOffset() {
         return warcOffset;
-    }
-
-    public void setWarcOffset(long warcOffset) {
-        this.warcOffset = warcOffset;
     }
 
     public String getImgWarc() {
@@ -376,40 +378,28 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         return matchingImages;
     }
 
-    public void setMatchingImages(int matchingImages) {
-        this.matchingImages = matchingImages;
-    }
-
     public int getMatchingPages() {
         return matchingPages;
-    }
-
-    public void setMatchingPages(int matchingPages) {
-        this.matchingPages = matchingPages;
     }
 
     public int getImageMetadataChanges() {
         return imageMetadataChanges;
     }
 
-    public void setImageMetadataChanges(int imageMetadataChanges) {
-        this.imageMetadataChanges = imageMetadataChanges;
-    }
-
     public int getPageMetadataChanges() {
         return pageMetadataChanges;
-    }
-
-    public void setPageMetadataChanges(int pageMetadataChanges) {
-        this.pageMetadataChanges = pageMetadataChanges;
     }
 
     public int getUniqueDigestsOnURL() {
         return uniqueDigestsOnURL;
     }
 
-    public void setUniqueDigestsOnURL(int uniqueDigestsOnURL) {
-        this.uniqueDigestsOnURL = uniqueDigestsOnURL;
+    public String getOldestSurt() {
+        return oldestSurt;
+    }
+
+    public LocalDateTime getOldestSurtDate() {
+        return oldestSurtDate;
     }
 }
 

@@ -34,6 +34,8 @@ public class ImageData implements Serializable {
     private int width;
     private int height;
     private int size;
+    private String oldestSurt;
+    private LocalDateTime oldestSurtDate;
 
     public ImageData(String imageURLHash, String timestamp, String url, String surt, String mimeReported, String mimeDetected, String collection, byte[] bytes, String warc, long warcOffset) {
         this.imageURLHash = imageURLHash;
@@ -210,4 +212,16 @@ public class ImageData implements Serializable {
     }
 
 
+    public void assignMetadataToImage(FullImageMetadata fullImageMetadata) {
+        this.oldestSurt = fullImageMetadata.getOldestSurt();
+        this.oldestSurtDate = fullImageMetadata.getOldestSurtDate();
+    }
+
+    public LocalDateTime getOldestSurtDate() {
+        return oldestSurtDate;
+    }
+
+    public String getOldestSurt() {
+        return oldestSurt;
+    }
 }
