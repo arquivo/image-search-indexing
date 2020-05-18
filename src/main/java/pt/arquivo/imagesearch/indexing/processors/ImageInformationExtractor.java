@@ -430,7 +430,7 @@ public class ImageInformationExtractor {
                     }
 
 
-                    insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", alreadyFoundInPage, warcName, warcOffset);
+                    insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", warcName, warcOffset);
 
                     logger.debug("Written to file - successfully indexed image record");
 
@@ -486,7 +486,7 @@ public class ImageInformationExtractor {
 
                 String imgSrcTokens = getURLSrcTokens(imgSrc);
 
-                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", false, warcName, warcOffset);
+                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", warcName, warcOffset);
 
                 logger.debug("Written to file - successfully indexed image record");
 
@@ -635,7 +635,7 @@ public class ImageInformationExtractor {
 
     private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                     String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
-                                            pageTitle, String pageURLTokens, String foundInTag, boolean alreadyFoundInPage, String warc, long warcOffset) {
+                                            pageTitle, String pageURLTokens, String foundInTag, String warc, long warcOffset) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
         PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, 0, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset, collection);

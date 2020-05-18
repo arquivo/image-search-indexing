@@ -35,7 +35,6 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     private String imgId;
     private String imgURL;
-    private String imgURLHash;
     private String imgURLTokens;
     private String imgSurt;
     private int imgHeight;
@@ -48,7 +47,6 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private LocalDateTime pageTimestamp;
     private String pageTimestampString;
     private String pageURL;
-    private String pageURLHash;
 
     private String pageHost;
     private String pageProtocol;
@@ -102,14 +100,12 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.pageURLTokens = pageURLTokens;
 
         this.imgURL = imgURL;
-        this.imgURLHash = ImageSearchIndexingUtil.md5ofString(imgURL);
         this.imgSurt = imageSurt;
 
         this.imagesInPage = imagesInPage;
         this.imgReferencesInPage = imgReferencesInPage;
 
         this.pageURL = pageURL;
-        this.pageURLHash = ImageSearchIndexingUtil.md5ofString(pageURL);
 
         this.pageHost = pageHost;
 
@@ -246,13 +242,12 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         int comparison = pageImageData.getPageTimestamp().compareTo(this.pageTimestamp);
         // if two pages with the same metadata are parsed, store the oldest one
         // if two pages with the same timestamp and metadata are parsed, store the one with the shortest URL
-        // usefull for donated collections
+        // useful for donated collections
         if (comparison < 0 || (comparison == 0 && pageImageData.getPageURL().length() < pageURL.length())) {
             pageTimestamp = pageImageData.getPageTimestamp();
             pageTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(pageTimestamp);
             pageURL = pageImageData.getPageURL();
             pageURLTokens = pageImageData.getPageURLTokens();
-            pageURLHash = pageImageData.getPageURLHash();
             pageTitle = pageImageData.getPageTitle();
             pageHost = pageImageData.getPageHost();
             pageProtocol = pageImageData.getPageProtocol();
@@ -262,11 +257,11 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     }
 
     public String getId() {
-        return pageTimestampString + "/" + pageURLHash;
+        return pageTimestampString + "/" + ImageSearchIndexingUtil.md5ofString(pageURL) + "/" + ImageSearchIndexingUtil.md5ofString(getImageMetadata()) + "/" + imageDigest;
     }
 
     public String getPageURLHash() {
-        return pageURLHash;
+        return ImageSearchIndexingUtil.md5ofString(pageURL);
     }
 
     public String getImgTimestampString() {
@@ -365,11 +360,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     }
 
     public String getImgURLHash() {
-        return imgURLHash;
-    }
-
-    public void setImgURLHash(String imgURLHash) {
-        this.imgURLHash = imgURLHash;
+        return ImageSearchIndexingUtil.md5ofString(imgURL);
     }
 
     public String getCollection() {
