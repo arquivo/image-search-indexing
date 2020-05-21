@@ -105,10 +105,18 @@ public class FullImageMetadata implements Writable, Serializable {
         this.matchingImages = matchingImagesOriginal + metadata.getMatchingImages();
         this.matchingPages = matchingPagesOriginal + metadata.getMatchingPages();
 
-        int comparator = metadata.getOldestSurtDate().compareTo(oldestSurtDate);
-        if (comparator < 0 || (comparator == 0 && oldestSurt.length() < metadata.getOldestSurt().length()) || (comparator == 0 && oldestSurt.length() == metadata.getOldestSurt().length() && metadata.getOldestSurt().compareTo(oldestSurt) < 0) ) {
+        if (metadata.getOldestSurtDate() == null)
+            return;
+
+        if (oldestSurtDate == null){
             oldestSurt = metadata.getOldestSurt();
             oldestSurtDate = metadata.getOldestSurtDate();
+        } else {
+            int comparator = metadata.getOldestSurtDate().compareTo(oldestSurtDate);
+            if (comparator < 0 || (comparator == 0 && oldestSurt.length() < metadata.getOldestSurt().length()) || (comparator == 0 && oldestSurt.length() == metadata.getOldestSurt().length() && metadata.getOldestSurt().compareTo(oldestSurt) < 0)) {
+                oldestSurt = metadata.getOldestSurt();
+                oldestSurtDate = metadata.getOldestSurtDate();
+            }
         }
     }
 
