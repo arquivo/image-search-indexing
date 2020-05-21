@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 public class ImageInformationExtractor {
 
+    private static final boolean IGNORE_IMAGE_FILE_EXTENSIONS = true;
     private static final Set<String> IMAGE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("jpg", "jpeg", "png", "tif", "tiff", "gif", "svg", "webp", "bmp", "ico"));
 
     private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
@@ -434,9 +435,7 @@ public class ImageInformationExtractor {
                     } else {
                         try {
                             String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
-                            URL url = new URL(imgSrc);
-                            String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                            if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                            if (isLinkToImage(imgSrc)) {
                                 cssUrls.add(imgRelSrc);
                             }
 
@@ -487,6 +486,9 @@ public class ImageInformationExtractor {
     }
 
     private boolean isLinkToImage(String imgSrc) {
+        if (IGNORE_IMAGE_FILE_EXTENSIONS)
+            return true;
+
         String extension = "";
         try {
             URL url = new URL(imgSrc);
@@ -589,10 +591,7 @@ public class ImageInformationExtractor {
                         imgSrcAtrToParse.add(imgRelSrc);
                     } else {
                         String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
-
-                        URL url = new URL(imgSrc);
-                        String extension = FilenameUtils.getExtension(url.getPath()).toLowerCase();
-                        if (IMAGE_FILE_EXTENSIONS.contains(extension)) {
+                        if (isLinkToImage(imgSrc)) {
                             imgSrcAtrToParse.add(imgRelSrc);
                         }
                     }
