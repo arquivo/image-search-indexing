@@ -100,7 +100,7 @@ public class ImageIndexerWithDupsJob {
             indexer = new ImageInformationExtractor(collection, context);
         }
 
-        public void map(LongWritable key, Text value, Context context) {
+        public void map(LongWritable key, Text value, Context context) throws IOException {
             String arcURL = value.toString();
             if (!arcURL.isEmpty()) {
                 logger.info("(W)ARCNAME: " + arcURL);
@@ -122,6 +122,7 @@ public class ImageIndexerWithDupsJob {
                 } catch (IOException e) {
                     e.printStackTrace();
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
+                    throw e;
                 }
 
                 indexer.parseRecord(arcName, dest.getPath());
