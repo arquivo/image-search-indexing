@@ -52,7 +52,19 @@ public class FullImageIndexerJob {
         NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
 
         job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
-        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
+
+        job.getConfiguration().setInt("mapreduce.job.speculative.minimum-allowed-tasks", 1);
+        job.getConfiguration().setInt("yarn.nodemanager.log.retain-seconds", 10800/3);
+        job.getConfiguration().setFloat("mapreduce.job.speculative.speculative-cap-total-tasks", 0.05f);
+        job.getConfiguration().setFloat("mapreduce.job.speculative.speculative-cap-running-tasks", 0.2f);
+        job.getConfiguration().setInt("mapreduce.job.speculative.minimum-allowed-tasks", 1);
+
+
+        job.getConfiguration().setInt("mapreduce.job.running.map.limit", 80);
+        job.getConfiguration().setInt("mapreduce.map.memory.mb", 4096);
+        job.getConfiguration().setInt("mapred.task.timeout", 1800000);
+        job.getConfiguration().setInt("mapreduce.task.timeout", 1800000);
+
         // Sets reducer tasks to 1
         job.setNumReduceTasks(reducesCount);
         //job.setNumReduceTasks(1);
