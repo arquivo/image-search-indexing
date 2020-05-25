@@ -118,12 +118,14 @@ public class ImageIndexerWithDupsJob {
                 File dest = new File("/tmp/" + filename);
 
                 try {
-                    FileUtils.copyURLToFile(url, dest);
+                    FileUtils.copyURLToFile(url, dest, 1000*60*3, 1000*60*3);
                 } catch (IOException e) {
                     e.printStackTrace();
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
                     throw e;
                 }
+
+                logger.info("(W)ARC downloaded: " + dest.getAbsolutePath());
 
                 indexer.parseRecord(arcName, dest.getPath());
                 FileUtils.deleteQuietly(dest);
