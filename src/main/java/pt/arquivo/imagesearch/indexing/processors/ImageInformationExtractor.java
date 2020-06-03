@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 
 public class ImageInformationExtractor {
 
-    private static final boolean IGNORE_IMAGE_FILE_EXTENSIONS = true;
+    //private static final boolean IGNORE_IMAGE_FILE_EXTENSIONS = true;
     private static final Set<String> IMAGE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("jpg", "jpeg", "png", "tif", "tiff", "gif", "svg", "webp", "bmp", "ico"));
 
     private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
@@ -383,9 +383,7 @@ public class ImageInformationExtractor {
                     String imgSrc = el.attr("abs:href");
                     String imgRelSrc = el.attr("href").trim();
 
-                    boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
                     imgSrcParsed.add(imgRelSrc);
-
                     if (!isLinkToImage(imgSrc))
                         continue;
 
@@ -486,8 +484,6 @@ public class ImageInformationExtractor {
     }
 
     private boolean isLinkToImage(String imgSrc) {
-        if (IGNORE_IMAGE_FILE_EXTENSIONS)
-            return true;
 
         String extension = "";
         try {

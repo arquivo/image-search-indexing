@@ -3,6 +3,7 @@ package pt.arquivo.imagesearch.indexing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -127,11 +128,11 @@ public class DupDigestMergerJob {
 
         Job jobDigest = Job.getInstance(conf);
         jobDigest.setJarByClass(DupDigestMergerJob.class);
-        jobDigest.setInputFormatClass(KeyValueTextInputFormat.class);
+        jobDigest.setInputFormatClass(SequenceFileInputFormat.class);
 
         jobDigest.setMapperClass(DupDigestMergerJob.Map.class);
         jobDigest.setMapOutputKeyClass(Text.class);
-        jobDigest.setMapOutputValueClass(Writable.class);
+        jobDigest.setMapOutputValueClass(FullImageMetadata.class);
 
         jobDigest.setReducerClass(DupDigestMergerJob.Reduce.class);
         jobDigest.setOutputKeyClass(NullWritable.class);
@@ -142,11 +143,13 @@ public class DupDigestMergerJob {
 
         jobDigest.setNumReduceTasks(reducesCount);
 
+        KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
+
+
         String inputDir = "/user/amourao/output/" + collection + "/";
 
         FileSystem hdfs = FileSystem.get(conf);
         FileStatus[] fileStatus = hdfs.listStatus(new Path(inputDir));
-
 
         long latestValueLong = 0;
         for (FileStatus fileStat : fileStatus) {
@@ -164,14 +167,15 @@ public class DupDigestMergerJob {
             }
         }
 
-        inputDir += latestValueLong + "/";
+        inputDir += latestValueLong + "_dups/";
+
         KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
         KeyValueTextInputFormat.addInputPath(jobDigest, new Path(inputDir));
 
-        String outputDir = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
-        TextOutputFormat.setOutputPath(jobDigest, new Path(outputDir));
-        if (hdfs.exists(new Path(outputDir)))
-            hdfs.delete(new Path(outputDir), true);
+        String outputDirDigest = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
+        TextOutputFormat.setOutputPath(jobDigest, new Path(outputDirDigest));
+        if (hdfs.exists(new Path(outputDirDigest)))
+            hdfs.delete(new Path(outputDirDigest), true);
 
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
@@ -180,11 +184,36 @@ public class DupDigestMergerJob {
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
-        boolean result = jobDigest.waitForCompletion(true);
+        boolean result = result = jobDigest.waitForCompletion(true);
+
+        Counters cn = jobDigest.getCounters();
+        CounterGroup counterGroup =cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$IMAGE_COUNTERS");
+        for (Counter c : counterGroup) {
+            System.out.println("\t" + c.getName() + ": " + c.getValue());
+        }
+
+        System.out.println("ImageIndexerWithDupsJob$PAGE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$PAGE_COUNTERS");
+        for (Counter c : counterGroup) {
+            System.out.println("\t" + c.getName() + ": " + c.getValue());
+        }
+
+        System.out.println("ImageIndexerWithDupsJob$REDUCE_COUNTERS");
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$REDUCE_COUNTERS");
+        for (Counter c : counterGroup) {
+            System.out.println("\t" + c.getName() + ": " + c.getValue());
+        }
 
         System.out.println("DupDigestMergerJob$COUNTERS");
-        Counters cn = jobDigest.getCounters();
-        CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
+        cn = jobDigest.getCounters();
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
+        for (Counter c : counterGroup) {
+            System.out.println("\t" + c.getName() + ": " + c.getValue());
+        }
+
+        System.out.println("DupDigestMergerJob$REDUCE_COUNTERS");
+        cn = jobDigest.getCounters();
+        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$REDUCE_COUNTERS");
         for (Counter c : counterGroup) {
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

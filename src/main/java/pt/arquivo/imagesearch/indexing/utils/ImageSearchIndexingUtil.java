@@ -1,7 +1,15 @@
 package pt.arquivo.imagesearch.indexing.utils;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
@@ -215,9 +223,37 @@ public class ImageSearchIndexingUtil {
 
     public static List<String> getTimestampStandardFormat(List<LocalDateTime> timestamps) {
         List<String> output = new LinkedList<>();
-        for(LocalDateTime l: timestamps)
+        for (LocalDateTime l : timestamps)
             output.add(l.toString());
         return output;
+    }
+
+    public static int getFileSize(URL url) {
+        URLConnection conn = null;
+        try {
+            conn = url.openConnection();
+            if(conn instanceof HttpURLConnection) {
+                ((HttpURLConnection)conn).setRequestMethod("HEAD");
+            }
+            return conn.getContentLength();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if(conn instanceof HttpURLConnection) {
+                ((HttpURLConnection)conn).disconnect();
+            }
+        }
+    }
+
+    public static void saveFile(URL download, String fileName) throws IOException {
+
+        ReadableByteChannel rbc = Channels.newChannel(download.openStream());
+
+        FileOutputStream fos = new FileOutputStream(fileName);
+
+        fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+
+        fos.close();
     }
 
 }

@@ -15,6 +15,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
+import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -114,17 +115,27 @@ public class ImageIndexerWithDupsJob {
                 }
                 String[] surl = url.getPath().split("/");
                 String arcName = surl[surl.length - 1];
-                String filename = System.currentTimeMillis() + "_" + arcName;
-                File dest = new File("/tmp/" + filename);
+                String filename = "/tmp/" + System.currentTimeMillis() + "_" + arcName;
+                //
 
                 try {
-                    FileUtils.copyURLToFile(url, dest, 1000*60*3, 1000*60*3);
+                    int fileSize = ImageSearchIndexingUtil.getFileSize(url);
+                    //ImageSearchIndexingUtil.saveFile(url, filename);
+                    File dest = new File( filename);
+                    FileUtils.copyURLToFile(url, dest, 1000*60, 1000*30);
+                    dest = new File( filename);
+                    if (fileSize != dest.length()){
+                        FileUtils.deleteQuietly(dest);
+                        throw new IOException("Incomplete file: " + fileSize +  " " + dest.length());
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
+                    File dest = new File( filename);
+                    FileUtils.deleteQuietly(dest);
                     throw e;
                 }
-
+                File dest = new File( filename);
                 logger.info("(W)ARC downloaded: " + dest.getAbsolutePath());
 
                 indexer.parseRecord(arcName, dest.getPath());
@@ -135,6 +146,7 @@ public class ImageIndexerWithDupsJob {
 
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException {
+            logger.info("Cleanup");
             super.cleanup(context);
             for (java.util.Map.Entry<String, FullImageMetadata> entry : indexer.getEntries().entrySet()) {
                 String surt = entry.getKey();
