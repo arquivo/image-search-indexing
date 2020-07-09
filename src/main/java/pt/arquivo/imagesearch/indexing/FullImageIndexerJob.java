@@ -18,10 +18,28 @@ import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
 import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
-public class FullImageIndexerJob {
+public class FullImageIndexerJob<fileList> {
+
+    public static List<Path> getAllFilePath(Path filePath, FileSystem fs) throws FileNotFoundException, IOException {
+        WarcPathFilter warcPathFilter = new WarcPathFilter();
+        List<Path> fileList = new ArrayList<Path>();
+        FileStatus[] fileStatus = fs.listStatus(filePath);
+        for (FileStatus fileStat : fileStatus) {
+            if (fileStat.isDir()) {
+                fileList.addAll(getAllFilePath(fileStat.getPath(), fs));
+            } else if (warcPathFilter.accept(fileStat.getPath())) {
+                fileList.add(fileStat.getPath());
+            }
+        }
+        return fileList;
+    }
 
     public static void main(String[] args) throws Exception {
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
@@ -51,13 +69,11 @@ public class FullImageIndexerJob {
             job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
             job.setInputFormatClass(ArchiveFileInputFormat.class);
             FileSystem dfs = FileSystem.get(conf);
-            WarcPathFilter warcPathFilter = new WarcPathFilter();
-            Iterator<FileStatus> fileIterator = Arrays.asList(dfs.globStatus(new Path(hdfsArcsPath), warcPathFilter)).iterator();
+
+            Iterator<Path> fileIterator = getAllFilePath(new Path(hdfsArcsPath), dfs).iterator();
             while (fileIterator.hasNext()) {
-                FileStatus fileStatus = fileIterator.next();
-                if (!fileStatus.isDir() && warcPathFilter.accept(fileStatus.getPath())) {
-                    ArchiveFileInputFormat.addInputPath(job, fileStatus.getPath());
-                }
+                Path fileStatus = fileIterator.next();
+                ArchiveFileInputFormat.addInputPath(job, fileStatus);
             }
             jobName += "HDFS";
         } else {
