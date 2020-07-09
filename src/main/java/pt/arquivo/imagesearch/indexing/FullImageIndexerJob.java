@@ -50,7 +50,7 @@ public class FullImageIndexerJob {
         if (modeIsHDFS){
             job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
             job.setInputFormatClass(ArchiveFileInputFormat.class);
-            FileSystem dfs = DistributedFileSystem.get(conf);
+            FileSystem dfs = FileSystem.get(conf);
             WarcPathFilter warcPathFilter = new WarcPathFilter();
             Iterator<FileStatus> fileIterator = Arrays.asList(dfs.globStatus(new Path(hdfsArcsPath), warcPathFilter)).iterator();
             while (fileIterator.hasNext()) {
