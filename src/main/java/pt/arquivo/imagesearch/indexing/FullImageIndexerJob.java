@@ -59,6 +59,7 @@ public class FullImageIndexerJob {
                     ArchiveFileInputFormat.addInputPath(job, fileStatus.getPath());
                 }
             }
+            jobName += "HDFS";
         } else {
             job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
             job.setInputFormatClass(NLineInputFormat.class);
