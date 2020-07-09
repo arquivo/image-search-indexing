@@ -1,11 +1,9 @@
 package pt.arquivo.imagesearch.indexing.utils;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.Channels;
@@ -135,46 +133,15 @@ public class ImageSearchIndexingUtil {
                 WARCRecord warcRecord;
                 try {
                     warcRecord = (WARCRecord) ii.next();
+                    WARCRecordResponseEncapsulated record = parseWarcRecord(warcRecord, context);
+                    if (record != null)
+                        consumer.accept(record);
                 } catch (RuntimeException re) {
                     context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
                     errors++;
                     logger.error("Exception reading next WARC record", re);
                     throw re;
                 }
-
-
-                String warcRecordType = (String) warcRecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
-                String warcRecordMimetype = warcRecord.getHeader().getMimetype();
-                WARCRecordResponseEncapsulated record = null;
-
-                try {
-                    if (warcRecordType.equalsIgnoreCase(WARCConstants.WARCRecordType.resource.toString())) {
-                        Map<String, Object> headers = new HashMap<>();
-                        headers.put(WARCConstants.CONTENT_LENGTH.toLowerCase(), String.valueOf(warcRecord.getHeader().getContentLength()));
-                        headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
-                        headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
-
-                        record = new WARCRecordResponseEncapsulated(warcRecord, headers, warcURL);
-                        consumer.accept(record);
-                    } else {
-                        record = new WARCRecordResponseEncapsulated(warcRecord, warcURL);
-                        consumer.accept(record);
-                    }
-                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
-                } catch (InvalidWARCResponseIOException e) {
-                    /* This is not a WARCResponse; skip */
-                    errors++;
-                } catch (IOException e) {
-                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
-                    logger.error("IO Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
-                    errors++;
-                } catch (Exception e) {
-                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
-                    logger.error("Exception reading WARCrecord WARCNAME: " + warcURL + " " + e.getMessage());
-                    errors++;
-                }
-                ++records;
-
             }
         } catch (RuntimeException e) {
             context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
@@ -191,6 +158,38 @@ public class ImageSearchIndexingUtil {
             }
         }
 
+    }
+
+    public static WARCRecordResponseEncapsulated parseWarcRecord(WARCRecord warcRecord, ImageInformationExtractor context){
+        String warcRecordType = (String) warcRecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
+        String warcRecordMimetype = warcRecord.getHeader().getMimetype();
+        String warcName = ((String) warcRecord.getHeader().getHeaderValue(WARCConstants.READER_IDENTIFIER_FIELD_KEY));
+
+        try {
+            if (warcRecordType.equalsIgnoreCase(WARCConstants.WARCRecordType.resource.toString())) {
+                Map<String, Object> headers = new HashMap<>();
+                headers.put(WARCConstants.CONTENT_LENGTH.toLowerCase(), String.valueOf(warcRecord.getHeader().getContentLength()));
+                headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
+                headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
+
+                context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                return new WARCRecordResponseEncapsulated(warcRecord, headers, warcName);
+
+            } else {
+                context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                return new WARCRecordResponseEncapsulated(warcRecord, warcName);
+            }
+
+        } catch (InvalidWARCResponseIOException e) {
+            /* This is not a WARCResponse; skip */
+        } catch (IOException e) {
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+            logger.error("IO Exception reading WARCrecord WARCNAME: " + warcName + " " + e.getMessage());
+        } catch (Exception e) {
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+            logger.error("Exception reading WARCrecord WARCNAME: " + warcName + " " + e.getMessage());
+        }
+        return null;
     }
 
     public static String guessEncoding(byte[] bytes) {
@@ -232,15 +231,15 @@ public class ImageSearchIndexingUtil {
         URLConnection conn = null;
         try {
             conn = url.openConnection();
-            if(conn instanceof HttpURLConnection) {
-                ((HttpURLConnection)conn).setRequestMethod("HEAD");
+            if (conn instanceof HttpURLConnection) {
+                ((HttpURLConnection) conn).setRequestMethod("HEAD");
             }
             return conn.getContentLength();
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
-            if(conn instanceof HttpURLConnection) {
-                ((HttpURLConnection)conn).disconnect();
+            if (conn instanceof HttpURLConnection) {
+                ((HttpURLConnection) conn).disconnect();
             }
         }
     }

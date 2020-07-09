@@ -2,6 +2,9 @@ package pt.arquivo.imagesearch.indexing.processors;
 
 import com.sun.jersey.core.util.Base64;
 import org.apache.commons.io.IOUtils;
+import org.archive.format.warc.WARCConstants;
+import org.archive.io.ArchiveRecord;
+import org.archive.io.warc.WARCRecord;
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.utils.ImageParse;
 import pt.arquivo.imagesearch.indexing.data.*;
@@ -22,6 +25,7 @@ import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import javax.imageio.ImageIO;
+import javax.servlet.jsp.tagext.PageData;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -91,41 +95,44 @@ public class ImageInformationExtractor {
 
     public void parseWarcEntryRecord(String warcName, String arcURL) {
         ImageSearchIndexingUtil.readWarcRecords(arcURL, this, (record) -> {
-
-            String mimetype = record.getContentMimetype();
-            if (mimetype != null) {
-                if (mimetype.contains("image")) {
-                    createImageDB(arcURL, record, context, warcName, record.getWARCRecord().getHeader().getOffset());
-                }
-                if (mimetype.contains("html")) { /*only processing images*/
-                    logger.debug("Searching images in html record");
-                    parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs(), warcName, record.getWARCRecord().getHeader().getOffset());
-                }
-            }
+            parseWarcRecord(record, warcName);
         });
 
     }
 
+    public void parseWarcRecord(WARCRecordResponseEncapsulated record, String warcName){
+        String mimetype = record.getContentMimetype();
+        if (mimetype != null) {
+            if (mimetype.contains("image")) {
+                createImageDB(record, context, warcName, record.getWARCRecord().getHeader().getOffset());
+            }
+            if (mimetype.contains("html")) { /*only processing images*/
+                logger.debug("Searching images in html record");
+                parseImagesFromHtmlRecord(context, record.getContentBytes(), record.getWARCRecord().getHeader().getUrl(), record.getTs(), warcName, record.getWARCRecord().getHeader().getOffset());
+            }
+        }
+    }
+
     public void parseArcEntry(String warcName, String arcURL) {
         ImageSearchIndexingUtil.readArcRecords(arcURL, this, record -> {
-
-            boolean isImage = record.getMetaData().getMimetype().contains("image");
-            if (isImage) {
-                createImageDB(arcURL, record, context, warcName, record.getMetaData().getOffset());
-            }
-            if (record.getMetaData().getMimetype().contains("html")) {
-                byte[] recordContentBytes;
-                try {
-                    recordContentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
-                } catch (IOException e) {
-                    logger.error(String.format("Error getting record content bytes for (w)arc: %s on offset %d with error message %s", arcURL, record.getBodyOffset(), e.getMessage()));
-                    return;
-                }
-                logger.debug("Searching images in html record");
-                parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate(), warcName, record.getMetaData().getOffset());
-            }
+            parseArcRecord(record, warcName);
         });
+    }
 
+    public void parseArcRecord(ARCRecord record, String warcName){
+        if (record.getMetaData().getMimetype().contains("image")) {
+            createImageDB(record, context, warcName, record.getMetaData().getOffset());
+        } else if (record.getMetaData().getMimetype().contains("html")) {
+            byte[] recordContentBytes;
+            try {
+                recordContentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
+            } catch (IOException e) {
+                logger.error(String.format("Error getting record content bytes for (w)arc: %s on offset %d with error message %s", warcName, record.getBodyOffset(), e.getMessage()));
+                return;
+            }
+            logger.debug("Searching images in html record");
+            parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate(), warcName, record.getMetaData().getOffset());
+        }
     }
 
     public ImageData saveImageMetadataInline(String url, String timestamp, Mapper.Context context, String warcName, long warcOffset) {
@@ -222,7 +229,7 @@ public class ImageInformationExtractor {
         return null;
     }
 
-    public void createImageDB(String arcURL, WARCRecordResponseEncapsulated record, Mapper.Context context, String warcName, long warcOffset) {
+    public void createImageDB(WARCRecordResponseEncapsulated record, Mapper.Context context, String warcName, long warcOffset) {
         String url = "";
         String timestamp = "";
         try {
@@ -251,7 +258,7 @@ public class ImageInformationExtractor {
         }
     }
 
-    public ImageData createImageDB(String arcURL, ARCRecord record, Mapper.Context context, String warcName, long warcOffset) {
+    public ImageData createImageDB(ARCRecord record, Mapper.Context context, String warcName, long warcOffset) {
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
         String mime = record.getMetaData().getMimetype();
@@ -636,4 +643,19 @@ public class ImageInformationExtractor {
         return entries;
     }
 
+    public void parseRecord(ArchiveRecord rec) {
+        if (rec instanceof ARCRecord) {
+            ARCRecord arcRecord = (ARCRecord) rec;
+            String arcName = ((ARCRecord) rec).getMetaData().getArc();
+            if (arcRecord != null)
+                parseArcRecord(arcRecord, arcName);
+        } else {
+            WARCRecordResponseEncapsulated warcRecord = ImageSearchIndexingUtil.parseWarcRecord((WARCRecord)rec, this);
+            String warcName = ((String) rec.getHeader().getHeaderValue(WARCConstants.READER_IDENTIFIER_FIELD_KEY));
+            if (warcRecord != null)
+                parseWarcRecord(warcRecord, warcName);
+
+
+        }
+    }
 }

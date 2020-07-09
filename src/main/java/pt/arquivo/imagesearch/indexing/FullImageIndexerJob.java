@@ -1,10 +1,12 @@
 package pt.arquivo.imagesearch.indexing;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
@@ -13,6 +15,11 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
+import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
+import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
+
+import java.util.Arrays;
+import java.util.Iterator;
 
 public class FullImageIndexerJob {
 
@@ -30,15 +37,35 @@ public class FullImageIndexerJob {
         assert args.length >= 4 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[3]);
 
+        assert args.length >= 5 : "Missing modeIsHDFS";
+        boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
+
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
 
         Job job = Job.getInstance(conf);
         job.setJarByClass(FullImageIndexerJob.class);
-        job.setInputFormatClass(NLineInputFormat.class);
 
-        job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
+        if (modeIsHDFS){
+            job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
+            job.setInputFormatClass(ArchiveFileInputFormat.class);
+            FileSystem dfs = DistributedFileSystem.get(conf);
+            WarcPathFilter warcPathFilter = new WarcPathFilter();
+            Iterator<FileStatus> fileIterator = Arrays.asList(dfs.globStatus(new Path(hdfsArcsPath), warcPathFilter)).iterator();
+            while (fileIterator.hasNext()) {
+                FileStatus fileStatus = fileIterator.next();
+                if (!fileStatus.isDir() && warcPathFilter.accept(fileStatus.getPath())) {
+                    ArchiveFileInputFormat.addInputPath(job, fileStatus.getPath());
+                }
+            }
+        } else {
+            job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
+            job.setInputFormatClass(NLineInputFormat.class);
+            NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+            job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
+        }
+
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(FullImageMetadata.class);
 
@@ -49,15 +76,9 @@ public class FullImageIndexerJob {
 
         job.setJobName(jobName);
 
-        NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
-
-        job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
-
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", 80);
         job.getConfiguration().setInt("mapred.task.timeout", 5400000);
         job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);
-
-        
 
         // Sets reducer tasks to 1
         job.setNumReduceTasks(reducesCount);
