@@ -25,7 +25,6 @@ import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import javax.imageio.ImageIO;
-import javax.servlet.jsp.tagext.PageData;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
