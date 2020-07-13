@@ -14,6 +14,12 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
+
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
 import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
@@ -68,13 +74,19 @@ public class FullImageIndexerJob<fileList> {
         if (modeIsHDFS){
             job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
             job.setInputFormatClass(ArchiveFileInputFormat.class);
-            FileSystem dfs = FileSystem.get(conf);
+            // Find ArcFiles to Process
+            FileSystem dfs = DistributedFileSystem.get(conf);
 
-            Iterator<Path> fileIterator = getAllFilePath(new Path(hdfsArcsPath), dfs).iterator();
+            RemoteIterator<LocatedFileStatus> fileIterator = dfs.listFiles(new Path(hdfsArcsPath), true);
+            WarcPathFilter warcPathFilter = new WarcPathFilter();
+
             while (fileIterator.hasNext()) {
-                Path fileStatus = fileIterator.next();
-                ArchiveFileInputFormat.addInputPath(job, fileStatus);
+                LocatedFileStatus fileStatus = fileIterator.next();
+                if (fileStatus.isFile() && warcPathFilter.accept(fileStatus.getPath())) {
+                    ArchiveFileInputFormat.addInputPath(job, fileStatus.getPath());
+                }
             }
+
             jobName += "HDFS";
         } else {
             job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
