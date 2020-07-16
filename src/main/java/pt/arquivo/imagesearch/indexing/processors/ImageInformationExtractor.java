@@ -41,7 +41,7 @@ public class ImageInformationExtractor {
     private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
     private static final Set<String> IMAGE_TAG_JS_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("onLoad"));
 
-    private static final Pattern CSS_URLS = Pattern.compile("url\\(['\"]*(.*?)['\"]*\\)");
+    public static final Pattern CSS_URLS = Pattern.compile("url\\(['\"]*(.*?)['\"]*\\)");
 
     public static final int MAX_PARENT_CAPTION_SIZE = 250;
     public static final int MAX_IMAGE_FIELD_SIZE = 10000;
@@ -489,7 +489,7 @@ public class ImageInformationExtractor {
 
     }
 
-    private boolean isLinkToImage(String imgSrc) {
+    public boolean isLinkToImage(String imgSrc) {
 
         String extension = "";
         try {
@@ -502,7 +502,7 @@ public class ImageInformationExtractor {
         return IMAGE_FILE_EXTENSIONS.contains(extension);
     }
 
-    private String extractCaptionFromParent(Element node) {
+    public String extractCaptionFromParent(Element node) {
 
         Element current = node;
         String imgCaption = "";
@@ -564,7 +564,7 @@ public class ImageInformationExtractor {
         return imgCaption;
     }
 
-    private String getHTMLAttribute(Element el, String atr) {
+    public String getHTMLAttribute(Element el, String atr) {
         String atrVal = el.attr(atr);
         if (atrVal.length() >= MAX_IMAGE_FIELD_SIZE) {
             atrVal = atrVal.substring(0, MAX_IMAGE_FIELD_SIZE);
@@ -572,7 +572,7 @@ public class ImageInformationExtractor {
         return atrVal;
     }
 
-    private Set<String> getImgURLToParse(String pageURL, Element el) {
+    public Set<String> getImgURLToParse(String pageURL, Element el) {
         Set<String> imgSrcAtrToParse = new HashSet<>();
 
         //Find all images in normal img src attributes
@@ -608,7 +608,7 @@ public class ImageInformationExtractor {
         return imgSrcAtrToParse;
     }
 
-    private String getURLSrcTokens(String imgSrc) throws UnsupportedEncodingException {
+    public String getURLSrcTokens(String imgSrc) throws UnsupportedEncodingException {
         try {
             imgSrc = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
         } catch (Exception ignored) {
@@ -617,7 +617,7 @@ public class ImageInformationExtractor {
         return ImageSearchIndexingUtil.parseURL(imgSrc);
     }
 
-    private void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
+    public void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                     String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
                                             pageTitle, String pageURLTokens, String foundInTag, String warc, long warcOffset) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);

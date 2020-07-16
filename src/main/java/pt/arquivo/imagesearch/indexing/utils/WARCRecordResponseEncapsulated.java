@@ -19,6 +19,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.archive.format.warc.WARCConstants;
+import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
 import org.archive.util.LaxHttpParser;
 import org.brotli.dec.BrotliInputStream;
@@ -37,7 +38,7 @@ public class WARCRecordResponseEncapsulated {
     private static final String BROTLI = "br";
 
 
-    private WARCRecord warcrecord;
+    private ArchiveRecord warcrecord;
     /**
      * Http status line object.
      * <p>
@@ -131,7 +132,7 @@ public class WARCRecordResponseEncapsulated {
     }
 
 
-    public WARCRecord getWARCRecord() {
+    public ArchiveRecord getWARCRecord() {
         return warcrecord;
     }
 
@@ -140,7 +141,7 @@ public class WARCRecordResponseEncapsulated {
      * content-type content.
      */
     public String getContentMimetype() {
-        return (String) headerFields.get(warcrecord.MIMETYPE_FIELD_KEY);
+        return (String) headerFields.get(WARCRecord.MIMETYPE_FIELD_KEY);
     }
 
     public String getStatusCode() {
