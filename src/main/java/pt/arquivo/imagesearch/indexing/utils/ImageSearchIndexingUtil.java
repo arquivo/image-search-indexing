@@ -1,8 +1,6 @@
 package pt.arquivo.imagesearch.indexing.utils;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -12,6 +10,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 
+import com.ibm.icu.text.CharsetDetector;
+import com.ibm.icu.text.CharsetMatch;
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -194,16 +194,20 @@ public class ImageSearchIndexingUtil {
 
     public static String guessEncoding(byte[] bytes) {
         String DEFAULT_ENCODING = "UTF-8";
-        org.mozilla.universalchardet.UniversalDetector detector =
-                new org.mozilla.universalchardet.UniversalDetector(null);
-        detector.handleData(bytes, 0, bytes.length);
-        detector.dataEnd();
-        String encoding = detector.getDetectedCharset();
-        detector.reset();
-        if (encoding == null) {
-            encoding = DEFAULT_ENCODING;
+        InputStream bis = new ByteArrayInputStream(bytes);
+        CharsetDetector cd = new CharsetDetector();
+        try {
+            cd.setText(bis);
+
+            CharsetMatch cm = cd.detect();
+
+            if (cm != null) {
+                return cm.getName();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return encoding;
+        return DEFAULT_ENCODING;
     }
 
     //private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
