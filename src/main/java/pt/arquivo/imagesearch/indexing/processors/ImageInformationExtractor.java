@@ -53,19 +53,22 @@ public class ImageInformationExtractor {
 
     //private HashMap<String, PageImageData> imgSrcEntries;
     //private HashMap<String, ImageData> imgFileEntries;
-    private HashMap<String, FullImageMetadata> entries;
-    private String collection;
+    protected HashMap<String, FullImageMetadata> entries;
+    protected String collection;
     private Mapper.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
+    private HashMap<String,String> captionCache;
 
     public ImageInformationExtractor(String collection, Mapper.Context context) {
         init(collection);
         this.context = context;
+        captionCache = new HashMap<>();
     }
 
     public ImageInformationExtractor(String collection) {
         init(collection);
         this.localCounters = new HashMap<>();
+        captionCache = new HashMap<>();
     }
 
     private void init(String collection) {
@@ -281,11 +284,12 @@ public class ImageInformationExtractor {
     public void parseImagesFromHtmlRecord(Mapper.Context context, byte[] arcRecordBytes, String pageURL, String
             pageTstamp, String warcName, long warcOffset) {
         try {
+
+            captionCache = new HashMap<>();
             logger.debug("Parsing Images from HTML in (W)ARCrecord");
             logger.debug("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
             logger.debug("URL: " + pageURL);
             logger.debug("Page TS: " + pageTstamp);
-
 
             String recordEncoding = ImageSearchIndexingUtil.guessEncoding(arcRecordBytes);
             InputStream is = new ByteArrayInputStream(arcRecordBytes);
@@ -504,50 +508,68 @@ public class ImageInformationExtractor {
 
     public String extractCaptionFromParent(Element node) {
 
-        Element current = node;
         String imgCaption = "";
 
-        int maxChildLevel = 0;
-        int maxChildLevelCount = 0;
-        int i = 0;
-        while (current != null) {
-            if (maxChildLevelCount <= current.childNodeSize()) {
-                maxChildLevelCount = current.childNodeSize();
-                maxChildLevel = i;
-            }
+        int maxChildLevel = getMaxChildLevel(node);
 
-            current = current.parent();
-            i++;
-        }
-
-        i = 0;
         Element previous = node;
-        current = node;
+        Element current = node;
+
+        int i = 0;
         // Go up the DOM tree until something is found or root is reached
-        while (current != null && (imgCaption = current.text().trim()).isEmpty()) {
-            previous = current;
+        while (current != null && (imgCaption = getCaption(current)).isEmpty()) {
             current = current.parent();
+            previous = current;
             i++;
         }
 
         if (i >= maxChildLevel) {
-            Element sibling = previous.previousElementSibling();
-            String imgCaptionPrev = "";
-            String imgCaptionNext = "";
-            while (sibling != null && (imgCaptionPrev = sibling.text().trim()).isEmpty()) {
-                sibling = sibling.previousElementSibling();
-            }
-
-            sibling = previous.nextElementSibling();
-            while (sibling != null && (imgCaptionNext = sibling.text().trim()).isEmpty()) {
-                sibling = sibling.nextElementSibling();
-            }
-
-            imgCaption = (imgCaptionPrev + "\n" + imgCaptionNext).trim();
+            imgCaption = getImgCaptionSibling(previous);
         }
 
-
         // No need for additional checks, as imgCaption will be empty if other conditions fail
+        imgCaption = trimCaption(imgCaption);
+        return imgCaption;
+    }
+
+    private String getCaption(Element current) {
+        String id = getNodeId(current);
+        String caption;
+        if ((caption = captionCache.getOrDefault(id, null)) == null) {
+            caption = current.text().trim();
+            captionCache.put(id, caption);
+        }
+        return caption;
+    }
+
+    private String getNodeId(Element current) {
+        StringBuilder id = new StringBuilder();
+        while (current != null) {
+            id.insert(0, current.elementSiblingIndex() + "_");
+            current = current.parent();
+        }
+        return id.toString();
+    }
+
+    private String getImgCaptionSibling(Element previous) {
+        String imgCaption;
+        Element sibling = previous.previousElementSibling();
+        String imgCaptionPrev = "";
+        String imgCaptionNext = "";
+        while (sibling != null && (imgCaptionPrev = getCaption(sibling)).isEmpty()) {
+            sibling = sibling.previousElementSibling();
+        }
+
+        sibling = previous.nextElementSibling();
+        while (sibling != null && (imgCaptionNext = getCaption(sibling)).isEmpty()) {
+            sibling = sibling.nextElementSibling();
+        }
+
+        imgCaption = (imgCaptionPrev + "\n" + imgCaptionNext).trim();
+        return imgCaption;
+    }
+
+    private String trimCaption(String imgCaption) {
         if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
             // Crop until closest empty space near the chosen text border (MAX_PARENT_CAPTION_SIZE chars in the end of the caption)
             int lastSpace = imgCaption.substring(0, MAX_PARENT_CAPTION_SIZE / 2).lastIndexOf(" ");
@@ -562,6 +584,22 @@ public class ImageInformationExtractor {
             imgCaption = newImgCaption.trim();
         }
         return imgCaption;
+    }
+
+    private int getMaxChildLevel(Element current) {
+        int maxChildLevel = 0;
+        int maxChildLevelCount = 0;
+        int i = 0;
+        while (current != null) {
+            if (maxChildLevelCount <= current.childNodeSize()) {
+                maxChildLevelCount = current.childNodeSize();
+                maxChildLevel = i;
+            }
+
+            current = current.parent();
+            i++;
+        }
+        return maxChildLevel;
     }
 
     public String getHTMLAttribute(Element el, String atr) {
