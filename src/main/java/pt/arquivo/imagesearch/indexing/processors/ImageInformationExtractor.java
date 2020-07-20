@@ -57,7 +57,7 @@ public class ImageInformationExtractor {
     protected String collection;
     private Mapper.Context context;
     private HashMap<Enum<?>, Counter> localCounters;
-    private HashMap<String,String> captionCache;
+    private HashMap<String, String> captionCache;
 
     public ImageInformationExtractor(String collection, Mapper.Context context) {
         init(collection);
@@ -102,7 +102,7 @@ public class ImageInformationExtractor {
 
     }
 
-    public void parseWarcRecord(WARCRecordResponseEncapsulated record, String warcName){
+    public void parseWarcRecord(WARCRecordResponseEncapsulated record, String warcName) {
         String mimetype = record.getContentMimetype();
         if (mimetype != null) {
             if (mimetype.contains("image")) {
@@ -121,7 +121,7 @@ public class ImageInformationExtractor {
         });
     }
 
-    public void parseArcRecord(ARCRecord record, String warcName){
+    public void parseArcRecord(ARCRecord record, String warcName) {
         if (record.getMetaData().getMimetype().contains("image")) {
             createImageDB(record, context, warcName, record.getMetaData().getOffset());
         } else if (record.getMetaData().getMimetype().contains("html")) {
@@ -286,6 +286,8 @@ public class ImageInformationExtractor {
         try {
 
             captionCache = new HashMap<>();
+            boolean pageGeneratesJavaHeapSpace = false;
+
             logger.debug("Parsing Images from HTML in (W)ARCrecord");
             logger.debug("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
             logger.debug("URL: " + pageURL);
@@ -302,6 +304,8 @@ public class ImageInformationExtractor {
 
             this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES).increment(1);
             //Find all images in img tags
+
+
             Elements imgs = doc.getElementsByTag("img");
             int pageImages = imgs.size();
 
@@ -361,7 +365,18 @@ public class ImageInformationExtractor {
                         String imgTitle = getHTMLAttribute(el, "title");
                         String imgAlt = getHTMLAttribute(el, "alt");
 
-                        String imgCaption = extractCaptionFromParent(el);
+                        String imgCaption = "";
+
+                        if (!pageGeneratesJavaHeapSpace) {
+                            imgCaption = extractCaptionFromParent(el);
+                            if (imgCaption == null){
+                                pageGeneratesJavaHeapSpace = true;
+                                imgCaption = "";
+                                logger.debug("Page generated Java Heap space error: " + pageURL);
+                                logger.debug("Skipping caption extraction for the remainder of the page");
+                            }
+
+                        }
 
                         insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", warcName, warcOffset);
 
@@ -507,7 +522,6 @@ public class ImageInformationExtractor {
     }
 
     public String extractCaptionFromParent(Element node) {
-
         String imgCaption = "";
 
         int maxChildLevel = getMaxChildLevel(node);
@@ -517,15 +531,21 @@ public class ImageInformationExtractor {
 
         int i = 0;
         // Go up the DOM tree until something is found or root is reached
-        while (current != null && (imgCaption = getCaption(current)).isEmpty()) {
+        while (current != null && (imgCaption = getCaption(current)) != null && imgCaption.isEmpty()) {
             current = current.parent();
             previous = current;
             i++;
         }
 
+        if (previous == null || imgCaption == null)
+            return null;
+
         if (i >= maxChildLevel) {
             imgCaption = getImgCaptionSibling(previous);
         }
+
+        if (imgCaption == null)
+            return null;
 
         // No need for additional checks, as imgCaption will be empty if other conditions fail
         imgCaption = trimCaption(imgCaption);
@@ -536,8 +556,13 @@ public class ImageInformationExtractor {
         String id = getNodeId(current);
         String caption;
         if ((caption = captionCache.getOrDefault(id, null)) == null) {
-            caption = current.text().trim();
-            captionCache.put(id, caption);
+            try {
+                caption = current.text().trim();
+                captionCache.put(id, caption);
+            } catch (OutOfMemoryError e) {
+                captionCache.clear();
+            }
+
         }
         return caption;
     }
@@ -556,14 +581,17 @@ public class ImageInformationExtractor {
         Element sibling = previous.previousElementSibling();
         String imgCaptionPrev = "";
         String imgCaptionNext = "";
-        while (sibling != null && (imgCaptionPrev = getCaption(sibling)).isEmpty()) {
+        while (sibling != null && (imgCaptionPrev = getCaption(sibling)) != null && imgCaptionPrev.isEmpty()) {
             sibling = sibling.previousElementSibling();
         }
 
         sibling = previous.nextElementSibling();
-        while (sibling != null && (imgCaptionNext = getCaption(sibling)).isEmpty()) {
+        while (sibling != null && (imgCaptionNext = getCaption(sibling)) != null && imgCaptionNext.isEmpty()) {
             sibling = sibling.nextElementSibling();
         }
+
+        if (imgCaptionPrev == null || imgCaptionNext == null)
+            return null;
 
         imgCaption = (imgCaptionPrev + "\n" + imgCaptionNext).trim();
         return imgCaption;
@@ -656,8 +684,8 @@ public class ImageInformationExtractor {
     }
 
     public void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
-                                    String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
-                                            pageTitle, String pageURLTokens, String foundInTag, String warc, long warcOffset) {
+                                   String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
+                                           pageTitle, String pageURLTokens, String foundInTag, String warc, long warcOffset) {
         String imgSurtSrc = WARCInformationParser.toSURT(imgSrc);
 
         PageImageData pageImageData = new PageImageData("page", imgTitle, imgAlt, imgSrcTokens, imgCaption, pageTitle, pageURLTokens, imgSrc, imgSurtSrc, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, foundInTag, warc, warcOffset, collection);
@@ -687,7 +715,7 @@ public class ImageInformationExtractor {
             if (arcRecord != null)
                 parseArcRecord(arcRecord, arcName);
         } else {
-            WARCRecordResponseEncapsulated warcRecord = ImageSearchIndexingUtil.parseWarcRecord((WARCRecord)rec, this);
+            WARCRecordResponseEncapsulated warcRecord = ImageSearchIndexingUtil.parseWarcRecord((WARCRecord) rec, this);
             String warcName = ((String) rec.getHeader().getHeaderValue(WARCConstants.READER_IDENTIFIER_FIELD_KEY));
             if (warcRecord != null)
                 parseWarcRecord(warcRecord, warcName);
