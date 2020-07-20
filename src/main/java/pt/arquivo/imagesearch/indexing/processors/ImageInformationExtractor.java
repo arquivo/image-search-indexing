@@ -367,6 +367,10 @@ public class ImageInformationExtractor {
 
                         String imgCaption = "";
 
+                        // some pages exhaust Java Heap Space due to very complex DOM structures
+                        // This generates Java Heap Space OOM exceptions; if that happens,
+                        // stop processing captions for the reminder of the page
+                        // Check the {@link #getCaption(Element current)} method to see how this is handled.
                         if (!pageGeneratesJavaHeapSpace) {
                             imgCaption = extractCaptionFromParent(el);
                             if (imgCaption == null){
@@ -537,6 +541,7 @@ public class ImageInformationExtractor {
             i++;
         }
 
+        // recover from OOM error in the {@link #getCaption(Element current)} method.
         if (previous == null || imgCaption == null)
             return null;
 
@@ -544,6 +549,7 @@ public class ImageInformationExtractor {
             imgCaption = getImgCaptionSibling(previous);
         }
 
+        // recover from OOM error in the {@link #getCaption(Element current)} method.
         if (imgCaption == null)
             return null;
 
@@ -590,6 +596,7 @@ public class ImageInformationExtractor {
             sibling = sibling.nextElementSibling();
         }
 
+        // recover from OOM error in the {@link #getCaption(Element current)} method.
         if (imgCaptionPrev == null || imgCaptionNext == null)
             return null;
 
