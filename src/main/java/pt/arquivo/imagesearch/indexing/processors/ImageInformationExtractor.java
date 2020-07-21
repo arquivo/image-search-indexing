@@ -293,10 +293,7 @@ public class ImageInformationExtractor {
             logger.debug("URL: " + pageURL);
             logger.debug("Page TS: " + pageTstamp);
 
-            String recordEncoding = ImageSearchIndexingUtil.guessEncoding(arcRecordBytes);
-            InputStream is = new ByteArrayInputStream(arcRecordBytes);
-
-            String html = IOUtils.toString(is, recordEncoding);
+            String html = ImageSearchIndexingUtil.decode(arcRecordBytes);
 
             Document doc = Jsoup.parse(html, pageURL);
 

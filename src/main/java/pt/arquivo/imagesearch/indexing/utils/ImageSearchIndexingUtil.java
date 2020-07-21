@@ -6,12 +6,15 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
+import org.apache.commons.io.IOUtils;
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -32,6 +35,8 @@ public class ImageSearchIndexingUtil {
 
     public static final int MAXIMUM_RECORD_SIZE_MB = 32;
     private static Logger logger = Logger.getLogger(ImageSearchIndexingUtil.class);
+
+    static Pattern UTF8_MISMATCH = Pattern.compile("Ã©|Ã¡|Ã£|Ã§|Ã°|Ãµ|Ã´|Ã³|Â®|Ã‡|ÃŠ|Ã•|Ã¨|Ãª|Ã«|Ã±|Ã¹|Ãº|Ã»|Â£");
 
     public static String md5ofString(String content) {
         return DigestUtils.md5Hex(content);
@@ -194,20 +199,31 @@ public class ImageSearchIndexingUtil {
 
     public static String guessEncoding(byte[] bytes) {
         String DEFAULT_ENCODING = "UTF-8";
-        InputStream bis = new ByteArrayInputStream(bytes);
-        CharsetDetector cd = new CharsetDetector();
-        try {
-            cd.setText(bis);
-
-            CharsetMatch cm = cd.detect();
-
-            if (cm != null) {
-                return cm.getName();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        org.mozilla.universalchardet.UniversalDetector detector =
+                new org.mozilla.universalchardet.UniversalDetector(null);
+        detector.handleData(bytes, 0, bytes.length);
+        detector.dataEnd();
+        String encoding = detector.getDetectedCharset();
+        detector.reset();
+        if (encoding == null) {
+            encoding = DEFAULT_ENCODING;
         }
-        return DEFAULT_ENCODING;
+        return encoding;
+    }
+
+    public static String decode(byte[] arcRecordBytes) throws IOException {
+        String recordEncoding = ImageSearchIndexingUtil.guessEncoding(arcRecordBytes);
+        InputStream is = new ByteArrayInputStream(arcRecordBytes);
+        String html = IOUtils.toString(is, recordEncoding);
+        if (ImageSearchIndexingUtil.UTF8_MISMATCH.matcher(html).find()){
+            byte[] b = html.getBytes(StandardCharsets.ISO_8859_1);
+            String newHtml = new String(b, StandardCharsets.UTF_8);
+            if (!ImageSearchIndexingUtil.UTF8_MISMATCH.matcher(newHtml).find()){
+                html = newHtml;
+            }
+        }
+
+        return html;
     }
 
     //private static final Pattern VALID_PATTERN = Pattern.compile("[0-9A-Za-z]*");
