@@ -211,14 +211,19 @@ public class ImageSearchIndexingUtil {
         return encoding;
     }
 
-    public static String decode(byte[] arcRecordBytes) throws IOException {
+    public static String decode(byte[] arcRecordBytes, ImageInformationExtractor context) throws IOException {
         String recordEncoding = ImageSearchIndexingUtil.guessEncoding(arcRecordBytes);
         InputStream is = new ByteArrayInputStream(arcRecordBytes);
         String html = IOUtils.toString(is, recordEncoding);
+        //if the chars in UTF8_MISMATCH were detected, this means that the page is in UTF_8 but encoded in ISO_8859_1
+        //if we re-encode the string, the accented chars will be correctly represented
         if (ImageSearchIndexingUtil.UTF8_MISMATCH.matcher(html).find()){
+            context.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGE_UTF8_MISMATCH).increment(1);
             byte[] b = html.getBytes(StandardCharsets.ISO_8859_1);
             String newHtml = new String(b, StandardCharsets.UTF_8);
+            //if the chars are detected again, the page is beyond repair and the initial encoding is used
             if (!ImageSearchIndexingUtil.UTF8_MISMATCH.matcher(newHtml).find()){
+                context.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGE_UTF8_MISMATCH_DOUBLE).increment(1);
                 html = newHtml;
             }
         }

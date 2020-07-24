@@ -67,9 +67,11 @@ public class ImageIndexerWithDupsJob {
         PAGES,
         PAGES_WITH_IMAGES,
 
+        PAGE_UTF8_MISMATCH,
+        PAGE_UTF8_MISMATCH_DOUBLE,
+
         IMAGES_IN_HTML_SENT,
         IMAGES_IN_HTML_SENT_DUP,
-
     }
 
     public enum REDUCE_COUNTERS {
