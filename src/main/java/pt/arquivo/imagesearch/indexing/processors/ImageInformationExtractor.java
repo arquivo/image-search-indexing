@@ -560,7 +560,10 @@ public class ImageInformationExtractor {
         String caption;
         if ((caption = captionCache.getOrDefault(id, null)) == null) {
             try {
-                caption = current.text().trim();
+                if (current.tagName().equalsIgnoreCase("html") || current.tagName().equalsIgnoreCase("#root"))
+                    caption = "";
+                else
+                    caption = current.text().trim();
                 captionCache.put(id, caption);
             } catch (OutOfMemoryError e) {
                 captionCache.clear();
