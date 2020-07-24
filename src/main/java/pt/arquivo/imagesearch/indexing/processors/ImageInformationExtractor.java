@@ -533,8 +533,8 @@ public class ImageInformationExtractor {
         int i = 0;
         // Go up the DOM tree until something is found or root is reached
         while (current != null && (imgCaption = getCaption(current)) != null && imgCaption.isEmpty()) {
-            current = current.parent();
             previous = current;
+            current = current.parent();
             i++;
         }
 
