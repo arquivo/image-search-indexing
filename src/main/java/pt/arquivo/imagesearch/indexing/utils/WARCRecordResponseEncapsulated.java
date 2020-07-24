@@ -18,6 +18,7 @@ import org.apache.commons.httpclient.StatusLine;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.tika.io.TikaInputStream;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
@@ -25,7 +26,6 @@ import org.archive.util.LaxHttpParser;
 import org.brotli.dec.BrotliInputStream;
 
 public class WARCRecordResponseEncapsulated {
-
     private static final int NUM_OF_RETRIES_GET_CONT_BYTES = 3;
     public final Log LOG = LogFactory.getLog(WARCRecordResponseEncapsulated.class);
 
@@ -174,26 +174,20 @@ public class WARCRecordResponseEncapsulated {
             String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
             byte[] results = IOUtils.toByteArray(astream);
             InputStream stream = new ByteArrayInputStream(results);
-            if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED)) {
-                LOG.debug("Chunked Bytes");
-                stream = new ChunkedInputStream(stream);
-            }
+
+            if (results.length == 0)
+                return results;
 
             String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
-            if (contentEncoding != null && contentEncoding.toLowerCase().contains(GZIPPED)) {
-                // Test using
-                // http://p51.arquivo.pt/warcs/rec-20200211165715684946-oreas-FQURN3T3.warc.gz
-                stream = new GZIPInputStream(stream);
-            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(DEFLATE)) {
-                stream = new DeflaterInputStream(stream);
-            } else if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
-                //TODO: this is not working correctly for webrecorder warcs (e.g. facebook.com is a chucked brotli)
-                // http://p51.arquivo.pt/warcs/rec-20200217102707485431-oreas-EIKC7CQC.warc.gz
+
+            if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
                 stream = new BrotliInputStream(stream);
             }
 
-            /*Default case convert to byte array*/
-            results = IOUtils.toByteArray(stream);
+            //if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED))
+            //    System.out.println("Chunked");
+
+            results = IOUtils.toByteArray(TikaInputStream.get(stream));
             return results;
         } catch (IOException e) {
             LOG.error(String.format("Error getting content byte for WARC, %s", this.warcURL));
