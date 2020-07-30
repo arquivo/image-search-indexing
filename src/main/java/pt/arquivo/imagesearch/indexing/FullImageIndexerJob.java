@@ -106,7 +106,8 @@ public class FullImageIndexerJob<fileList> {
         job.setJobName(jobName);
 
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", 80);
-        job.getConfiguration().setInt("mapred.task.timeout", 5400000);
+        job.getConfiguration().setInt("mapreduce.map.maxattempts", 6);
+        job.getConfiguration().setInt("mapreduce.reduce.shuffle.parallelcopies", 10);
         job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);
 
         // Sets reducer tasks to 1

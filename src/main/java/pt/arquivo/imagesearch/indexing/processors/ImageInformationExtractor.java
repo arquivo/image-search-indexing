@@ -1,7 +1,6 @@
 package pt.arquivo.imagesearch.indexing.processors;
 
 import com.sun.jersey.core.util.Base64;
-import org.apache.commons.io.IOUtils;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
@@ -26,7 +25,6 @@ import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import javax.imageio.ImageIO;
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.*;
@@ -47,6 +45,7 @@ public class ImageInformationExtractor {
     public static final int MAX_IMAGE_FIELD_SIZE = 10000;
     public static final String DATA_IMAGE_URL_PREFIX = "data:image";
     public static final int MAX_IMAGE_IN_HTML = 10000;
+    public static final int EXTRACT_CAPTION_TIMEOUT_SECS = 60 * 2;
 
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
@@ -286,12 +285,14 @@ public class ImageInformationExtractor {
         try {
 
             captionCache = new HashMap<>();
-            boolean pageGeneratesJavaHeapSpace = false;
+            boolean malformedPageForCaptions = false;
 
             logger.debug("Parsing Images from HTML in (W)ARCrecord");
             logger.debug("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
             logger.debug("URL: " + pageURL);
             logger.debug("Page TS: " + pageTstamp);
+
+            long startTime = System.nanoTime();
 
             String html = ImageSearchIndexingUtil.decode(arcRecordBytes, this);
 
@@ -368,12 +369,19 @@ public class ImageInformationExtractor {
                         // This generates Java Heap Space OOM exceptions; if that happens,
                         // stop processing captions for the reminder of the page
                         // Check the {@link #getCaption(Element current)} method to see how this is handled.
-                        if (!pageGeneratesJavaHeapSpace) {
+                        if (!malformedPageForCaptions) {
                             imgCaption = extractCaptionFromParent(el);
-                            if (imgCaption == null){
-                                pageGeneratesJavaHeapSpace = true;
+                            if (imgCaption == null) {
+                                malformedPageForCaptions = true;
                                 imgCaption = "";
                                 logger.debug("Page generated Java Heap space error: " + pageURL);
+                                logger.debug("Skipping caption extraction for the remainder of the page");
+                            }
+
+                            long duration = (System.nanoTime() - startTime) / 1000000;
+                            if (duration > EXTRACT_CAPTION_TIMEOUT_SECS){
+                                malformedPageForCaptions = true;
+                                logger.debug("Page takes very long extrating caption: " + pageURL);
                                 logger.debug("Skipping caption extraction for the remainder of the page");
                             }
 
