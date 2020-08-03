@@ -3,6 +3,7 @@ package pt.arquivo.imagesearch.indexing.data;
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -75,6 +76,11 @@ public class ImageData implements Serializable {
     public List<LocalDateTime> getTimestamp() {
         return timestamp;
     }
+
+    public long getTimespan() {
+        return Duration.between(timestamp.get(0), timestamp.get(timestamp.size()-1)).getSeconds();
+    }
+
 
     public String getUrl() {
         return url;

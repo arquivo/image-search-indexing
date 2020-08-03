@@ -24,7 +24,7 @@ public class ImageDataSerializer implements JsonSerializer<ImageData> {
         obj.addProperty("imgSrcURLDigest", src.getImageURLHash());
         List<String> tss = ImageSearchIndexingUtil.getTimestampStandardFormat(src.getTimestamp());
         obj.add("imgTstamps", context.serialize(tss));
-        //obj.addProperty("imgTstamp", tss.get(0));
+        obj.addProperty("imgTimespan", src.getTimespan());
         obj.addProperty("imgSrc", src.getUrl());
         obj.addProperty("imgSurt", src.getSurt());
         obj.addProperty("imgMimeTypeReported", src.getMimeReported());

@@ -6,6 +6,7 @@ import org.apache.commons.io.FilenameUtils;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,6 +30,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private String imgFilename;
     private String imgCaption;
     private LocalDateTime imgTimestamp;
+    private long imgTimespan;
 
     private String pageTitle;
     private String pageURLTokens;
@@ -45,6 +47,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private long imgWarcOffset;
 
     private LocalDateTime pageTimestamp;
+    private LocalDateTime pageTimestampNewest;
     private String pageTimestampString;
     private String pageURL;
 
@@ -118,6 +121,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
         this.pageTimestampString = pageTimestampString;
         this.pageTimestamp = WARCInformationParser.parseLocalDateTime(pageTimestampString);
+        this.pageTimestampNewest = WARCInformationParser.parseLocalDateTime(pageTimestampString);
 
         this.warc = warc;
         this.warcOffset = warcOffset;
@@ -249,7 +253,13 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
             pageHost = pageImageData.getPageHost();
             pageProtocol = pageImageData.getPageProtocol();
             imagesInPage = pageImageData.getImagesInPage();
+        } else if (pageImageData.getPageTimestamp().compareTo(this.pageTimestampNewest) > 0){
+            pageTimestampNewest = pageImageData.getPageTimestamp();
         }
+    }
+
+    public long getTimespan() {
+        return Duration.between(pageTimestamp, pageTimestampNewest).getSeconds();
     }
 
     public String getId() {
@@ -298,6 +308,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public void assignImageToPage(ImageData id, LocalDateTime correct) {
         this.setImgTimestamp(correct);
+        this.setImageTimespan(id.getTimespan());
         this.setImageDigest(id.getContentHash());
         this.setImgHeight(id.getHeight());
         this.setImgWidth(id.getWidth());
@@ -400,6 +411,10 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     public LocalDateTime getOldestSurtDate() {
         return oldestSurtDate;
+    }
+
+    public void setImageTimespan(long imageTimespan) {
+        this.imgTimespan = imageTimespan;
     }
 }
 
