@@ -17,7 +17,9 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
+import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.LegacyFullImageMetadataSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 
 import java.io.IOException;
@@ -104,6 +106,8 @@ public class DupDigestMergerJob {
 
         private void exportToJson(Reducer<Text, Writable, NullWritable, Text>.Context context, FullImageMetadata result) {
             Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
+                    .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
                     .registerTypeAdapter(FullImageMetadata.class, new LegacyFullImageMetadataSerializer())
                     .create();
 
