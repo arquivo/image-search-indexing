@@ -10,6 +10,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.data.serializers.LegacyFullImageMetadataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
@@ -19,6 +20,8 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+
+import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.LEGACY_MODE_STRING;
 
 public class LocalFullImageIndexer {
 
@@ -156,9 +159,19 @@ public class LocalFullImageIndexer {
         assert args.length >= 3 : "Missing output file";
         String outputFile = args[2];
 
+        assert args.length >= 4 : "Output mode";
+        String outputModeString = args[3];
+
+        boolean legacyOutputMode = false;
+
+        if (outputModeString.equals(LEGACY_MODE_STRING))
+            legacyOutputMode = true;
+
+
         Gson gson = new GsonBuilder()
                 .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
                 .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
+                .registerTypeAdapter(FullImageMetadata.class, new LegacyFullImageMetadataSerializer())
                 .create();
 
         LocalFullImageIndexer.Map map = new Map(collection);
@@ -201,11 +214,15 @@ public class LocalFullImageIndexer {
             for (java.util.Map.Entry<String, List<FullImageMetadata>> entry : reduceResults.entrySet()) {
 
                 FullImageMetadata result = reduceDigest.reduce(new Text(entry.getKey()), entry.getValue());
-                if (result != null) {
-                    for (ImageData data : result.getImageDatasValues())
-                        out.println(gson.toJson(data));
-                    for (PageImageData data : result.getPageImageDatasValues())
-                        out.println(gson.toJson(data));
+                if (result != null && !result.getPageImageDatas().isEmpty() && !result.getImageDatas().isEmpty()) {
+                    if (legacyOutputMode) {
+                        out.println(gson.toJson(result));
+                    } else {
+                        for (ImageData data : result.getImageDatasValues())
+                            out.println(gson.toJson(data));
+                        for (PageImageData data : result.getPageImageDatasValues())
+                            out.println(gson.toJson(data));
+                    }
                 }
             }
         } catch (IOException e) {

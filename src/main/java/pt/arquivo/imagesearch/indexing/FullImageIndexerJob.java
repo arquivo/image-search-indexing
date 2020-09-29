@@ -16,9 +16,7 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.hdfs.DistributedFileSystem;
 
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
@@ -27,9 +25,9 @@ import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
+
+import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.LEGACY_MODE_STRING;
 
 public class FullImageIndexerJob<fileList> {
 
@@ -64,9 +62,14 @@ public class FullImageIndexerJob<fileList> {
         assert args.length >= 5 : "Missing modeIsHDFS";
         boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
 
+        assert args.length >= 6 : "Missing Output mode (e.g. legacy, new)";
+        String outputModeString = args[5];
+
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
+        conf.set(LEGACY_MODE_STRING, outputModeString);
+
 
         Job job = Job.getInstance(conf);
         job.setJarByClass(FullImageIndexerJob.class);
