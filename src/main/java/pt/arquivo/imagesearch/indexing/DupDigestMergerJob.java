@@ -2,6 +2,7 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
@@ -16,9 +17,11 @@ import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
+import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.LegacyFullImageMetadataSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 
@@ -26,7 +29,13 @@ import java.io.IOException;
 
 public class DupDigestMergerJob {
 
-    public static final String LEGACY_MODE_STRING = "legacy";
+    public enum OUTPUT_MODE {
+        LEGACY,
+        FULL,
+        COMPACT
+    }
+
+    public static final String OUTPUT_MODE_NAME = "output_mode";
 
     public enum COUNTERS {
         RECORDS_MAP_IN,
@@ -65,17 +74,15 @@ public class DupDigestMergerJob {
         private final Logger logger = Logger.getLogger(Reduce.class);
         public String collection;
         private ImageInformationMerger merger;
-        boolean legacyOutputMode;
+        OUTPUT_MODE outputMode;
 
         @Override
         public void setup(Reducer.Context context) {
             merger = new ImageInformationMerger(context);
             Configuration config = context.getConfiguration();
-            String legacyOutput = config.get(LEGACY_MODE_STRING);
+            String legacyOutput = config.get(OUTPUT_MODE_NAME);
 
-            legacyOutputMode = false;
-            if (legacyOutput.equals(LEGACY_MODE_STRING))
-                legacyOutputMode = true;
+            outputMode = OUTPUT_MODE.valueOf(legacyOutput);
         }
 
 
@@ -107,18 +114,27 @@ public class DupDigestMergerJob {
         private void exportToJson(Reducer<Text, Writable, NullWritable, Text>.Context context, FullImageMetadata result) {
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
+                    .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                     .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
                     .registerTypeAdapter(FullImageMetadata.class, new LegacyFullImageMetadataSerializer())
                     .create();
 
             try {
-                if (legacyOutputMode) {
+                if (outputMode == OUTPUT_MODE.LEGACY) {
                     context.write(NullWritable.get(), new Text(gson.toJson(result)));
-                } else {
+                } else if (outputMode == OUTPUT_MODE.FULL) {
                     for (ImageData data : result.getImageDatasValues())
                         context.write(NullWritable.get(), new Text(gson.toJson(data)));
                     for (PageImageData data : result.getPageImageDatasValues())
                         context.write(NullWritable.get(), new Text(gson.toJson(data)));
+                } else { // if (outputMode == OUTPUT_MODE.COMPACT) {
+                    if (!result.getPageImageDatas().isEmpty() && !result.getImageDatas().isEmpty()){
+                        ImageData id = result.getImageDatas().firstKey();
+                        MultiPageImageData pid = new MultiPageImageData(result);
+                        context.write(NullWritable.get(), new Text(gson.toJson(id)));
+                        context.write(NullWritable.get(), new Text(gson.toJson(pid)));
+                    }
+
                 }
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
@@ -137,13 +153,13 @@ public class DupDigestMergerJob {
         assert args.length >= 3 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[2]);
 
-        assert args.length >= 4 : "Missing Output mode (e.g. legacy, new)";
+        assert args.length >= 4 : "Missing Output mode (e.g. legacy, full, compact)";
         String outputModeString = args[3];
 
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
-        conf.set(LEGACY_MODE_STRING, outputModeString);
+        conf.set(OUTPUT_MODE_NAME, outputModeString);
 
         Job jobDigest = Job.getInstance(conf);
         jobDigest.setJarByClass(DupDigestMergerJob.class);

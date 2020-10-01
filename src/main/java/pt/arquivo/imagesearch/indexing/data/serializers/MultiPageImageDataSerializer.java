@@ -4,11 +4,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
 
 import java.lang.reflect.Type;
 
-public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
+public class MultiPageImageDataSerializer implements JsonSerializer<MultiPageImageData> {
 
     /*
     private String imgTitle;
@@ -43,31 +44,27 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
     private Set<String> tagFoundIn;
      */
     @Override
-    public JsonElement serialize(PageImageData src, Type typeOfSrc, JsonSerializationContext context) {
+    public JsonElement serialize(MultiPageImageData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();
         obj.addProperty("imgDigest", src.getImageDigest());
         obj.addProperty("type", "page");
 
         obj.addProperty("id", src.getId());
 
-        obj.addProperty("oldestSurt", src.getOldestSurt());
         //obj.addProperty("oldestSurtDate", src.getOldestSurtDate().toString());
-
         if (!src.getImgTitle().isEmpty())
-            obj.addProperty("imgTitle", src.getImgTitle());
-        if (!src.getImgAlt().isEmpty())
-            obj.addProperty("imgAlt", src.getImgAlt());
-        if (!src.getImgCaption().isEmpty())
-            obj.addProperty("imgCaption", src.getImgCaption());
+            obj.add("imgTitle", context.serialize(src.getImgTitle()));
 
-        if (!src.getImgFilename().isEmpty())
-            obj.addProperty("imgFilename", src.getImgFilename());
+        if (!src.getImgAlt().isEmpty())
+            obj.add("imgAlt", context.serialize(src.getImgAlt()));
+
+        if (!src.getImgCaption().isEmpty())
+            obj.add("imgCaption", context.serialize(src.getImgCaption()));
 
         obj.addProperty("imgSrc", src.getImgURL());
         obj.addProperty("imgSrcURLDigest", src.getImgURLHash());
 
         obj.addProperty("imgSrcTokens", src.getImgURLTokens());
-        obj.addProperty("imgSurt", src.getImgSurt());
 
         obj.addProperty("pageTitle", src.getPageTitle());
         obj.addProperty("pageURLTokens", src.getPageURLTokens());
@@ -80,7 +77,6 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("imgTimespan", src.getTimespan());
 
         obj.addProperty("pageHost", src.getPageHost());
-        obj.addProperty("pageProtocol", src.getPageProtocol());
 
         obj.addProperty("pageTstamp", src.getPageTimestamp().toString());
         obj.addProperty("pageTimespan", src.getTimespan());
@@ -88,17 +84,13 @@ public class PageImageDataSerializer implements JsonSerializer<PageImageData> {
         obj.addProperty("pageURLHash", src.getPageURLHash());
 
         obj.addProperty("isInline", src.getInline());
-        obj.add("tagFoundIn", context.serialize((src.getTagFoundIn())));
+        obj.add("tagFoundIn", context.serialize(src.getTagFoundIn()));
 
         obj.addProperty("imagesInOriginalPage", src.getImagesInPage());
         obj.addProperty("imageMetadataChanges", src.getImageMetadataChanges());
         obj.addProperty("pageMetadataChanges", src.getPageMetadataChanges());
         obj.addProperty("matchingImages", src.getMatchingImages());
         obj.addProperty("matchingPages", src.getMatchingPages());
-        obj.addProperty("uniqueDigestsOnURL", src.getUniqueDigestsOnURL());
-
-        obj.addProperty("warcName", src.getWarc());
-        obj.addProperty("warcOffset", src.getWarcOffset());
 
         obj.addProperty("imgWarcName", src.getImgWarc());
         obj.addProperty("imgWarcOffset", src.getImgWarcOffset());

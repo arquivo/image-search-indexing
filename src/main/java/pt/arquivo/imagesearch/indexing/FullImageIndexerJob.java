@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.LEGACY_MODE_STRING;
+import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.OUTPUT_MODE_NAME;
 
 public class FullImageIndexerJob<fileList> {
 
@@ -62,13 +62,13 @@ public class FullImageIndexerJob<fileList> {
         assert args.length >= 5 : "Missing modeIsHDFS";
         boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
 
-        assert args.length >= 6 : "Missing Output mode (e.g. legacy, new)";
+        assert args.length >= 6 : "Missing Output mode (e.g. legacy, full, compact)";
         String outputModeString = args[5];
 
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
-        conf.set(LEGACY_MODE_STRING, outputModeString);
+        conf.set(OUTPUT_MODE_NAME, outputModeString);
 
 
         Job job = Job.getInstance(conf);

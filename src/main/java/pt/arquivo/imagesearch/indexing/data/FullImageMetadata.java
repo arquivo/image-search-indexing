@@ -88,7 +88,7 @@ public class FullImageMetadata implements Writable, Serializable {
         for (ImageData data : metadata.getImageDatasValues()){
             if (this.imageDatas.size() < MAXIMUM_META) {
                 this.addImageData(data);
-            } else {
+            } else { // do not keep adding image data indefinitely, as malformed pages can have thousands of useless image refs
                 break;
             }
         }
@@ -96,7 +96,7 @@ public class FullImageMetadata implements Writable, Serializable {
         for (PageImageData data : metadata.getPageImageDatasValues()){
             if (this.pageImageDatas.size() < MAXIMUM_META) {
                 this.addPageImageData(data);
-            } else {
+            } else { // do not keep adding image data indefinitely, as malformed pages can have thousands of useless image refs
                 break;
             }
         }
@@ -105,6 +105,8 @@ public class FullImageMetadata implements Writable, Serializable {
         this.matchingImages = matchingImagesOriginal + metadata.getMatchingImages();
         this.matchingPages = matchingPagesOriginal + metadata.getMatchingPages();
 
+        // store the oldest surt where the image was referenced at.
+        // Do this here again for the cases where the MAXIMUM_META limit was reached
         if (metadata.getOldestSurtDate() == null)
             return;
 

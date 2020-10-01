@@ -2,9 +2,11 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.log4j.Level;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
+import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.Text;
@@ -12,6 +14,7 @@ import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.serializers.LegacyFullImageMetadataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
@@ -20,8 +23,6 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
-
-import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.LEGACY_MODE_STRING;
 
 public class LocalFullImageIndexer {
 
@@ -162,14 +163,11 @@ public class LocalFullImageIndexer {
         assert args.length >= 4 : "Output mode";
         String outputModeString = args[3];
 
-        boolean legacyOutputMode = false;
-
-        if (outputModeString.equals(LEGACY_MODE_STRING))
-            legacyOutputMode = true;
-
+        DupDigestMergerJob.OUTPUT_MODE outputMode = DupDigestMergerJob.OUTPUT_MODE.valueOf(outputModeString);
 
         Gson gson = new GsonBuilder()
                 .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
+                .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                 .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
                 .registerTypeAdapter(FullImageMetadata.class, new LegacyFullImageMetadataSerializer())
                 .create();
@@ -215,13 +213,21 @@ public class LocalFullImageIndexer {
 
                 FullImageMetadata result = reduceDigest.reduce(new Text(entry.getKey()), entry.getValue());
                 if (result != null && !result.getPageImageDatas().isEmpty() && !result.getImageDatas().isEmpty()) {
-                    if (legacyOutputMode) {
+                    if (outputMode == DupDigestMergerJob.OUTPUT_MODE.LEGACY) {
                         out.println(gson.toJson(result));
-                    } else {
+                    } else if (outputMode == DupDigestMergerJob.OUTPUT_MODE.FULL) {
                         for (ImageData data : result.getImageDatasValues())
                             out.println(gson.toJson(data));
                         for (PageImageData data : result.getPageImageDatasValues())
                             out.println(gson.toJson(data));
+                    } else { // if (outputMode == OUTPUT_MODE.COMPACT) {
+                        if (!result.getPageImageDatas().isEmpty() && !result.getImageDatas().isEmpty()){
+                            ImageData id = result.getImageDatas().firstKey();
+                            MultiPageImageData pid = new MultiPageImageData(result);
+                            out.println(gson.toJson(id));
+                            out.println(gson.toJson(pid));
+                        }
+
                     }
                 }
             }
