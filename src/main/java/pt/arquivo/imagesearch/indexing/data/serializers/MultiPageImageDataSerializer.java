@@ -11,38 +11,6 @@ import java.lang.reflect.Type;
 
 public class MultiPageImageDataSerializer implements JsonSerializer<MultiPageImageData> {
 
-    /*
-    private String imgTitle;
-    private String imgAlt;
-    private String imgFilename;
-    private String imgCaption;
-
-    private String pageTitle;
-    private String pageURLTokens;
-
-    private String imgURL;
-    private String imgURLTokens;
-    private String imgSurt;
-
-    private String pageTimestamp;
-    private String pageURL;
-    private String pageURLHash;
-
-    private String pageHost;
-    private String pageProtocol;
-
-    private LocalDateTime timestamp;
-
-    // Number of images in the original page
-    private int imagesInPage;
-
-    // Total number of matching <img src="">
-    private int imgReferencesInPage;
-
-    private boolean isInline;
-
-    private Set<String> tagFoundIn;
-     */
     @Override
     public JsonElement serialize(MultiPageImageData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();
@@ -61,27 +29,26 @@ public class MultiPageImageDataSerializer implements JsonSerializer<MultiPageIma
         if (!src.getImgCaption().isEmpty())
             obj.add("imgCaption", context.serialize(src.getImgCaption()));
 
-        obj.addProperty("imgSrc", src.getImgURL());
-        obj.addProperty("imgSrcURLDigest", src.getImgURLHash());
-
-        obj.addProperty("imgSrcTokens", src.getImgURLTokens());
+        obj.addProperty("imgUrl", src.getImgURL());
+        obj.addProperty("imgUrlDigest", src.getImgURLHash());
+        obj.addProperty("imgUrlTokens", src.getImgURLTokens());
 
         obj.addProperty("pageTitle", src.getPageTitle());
-        obj.addProperty("pageURLTokens", src.getPageURLTokens());
+        obj.addProperty("pageUrlTokens", src.getPageURLTokens());
 
-        obj.addProperty("imgId", src.getImgId());
-        obj.addProperty("imgTstamp", src.getImgTimestamp().toString());
+        //obj.addProperty("imgId", src.getImgId());
         obj.addProperty("imgHeight", src.getImgHeight());
         obj.addProperty("imgWidth", src.getImgWidth());
         obj.addProperty("imgMimeType", src.getImgMimeType());
-        obj.addProperty("imgTimespan", src.getTimespan());
+        obj.addProperty("imgCrawlTimespan", src.getTimespan());
+        obj.addProperty("imgCrawlTimestamp", src.getImgTimestamp().toString());
 
         obj.addProperty("pageHost", src.getPageHost());
 
-        obj.addProperty("pageTstamp", src.getPageTimestamp().toString());
-        obj.addProperty("pageTimespan", src.getTimespan());
-        obj.addProperty("pageURL", src.getPageURL());
-        obj.addProperty("pageURLHash", src.getPageURLHash());
+        obj.addProperty("pageCrawlTimestamp", src.getPageTimestamp().toString());
+        obj.addProperty("pageCrawlTimespan", src.getTimespan());
+        obj.addProperty("pageUrl", src.getPageURL());
+        obj.addProperty("pageUrlDigest", src.getPageURLHash());
 
         obj.addProperty("isInline", src.getInline());
         obj.add("tagFoundIn", context.serialize(src.getTagFoundIn()));
@@ -92,8 +59,6 @@ public class MultiPageImageDataSerializer implements JsonSerializer<MultiPageIma
         obj.addProperty("matchingImages", src.getMatchingImages());
         obj.addProperty("matchingPages", src.getMatchingPages());
 
-        obj.addProperty("imgWarcName", src.getImgWarc());
-        obj.addProperty("imgWarcOffset", src.getImgWarcOffset());
         obj.addProperty("collection", src.getCollection());
 
         obj.addProperty("safe", 0);
