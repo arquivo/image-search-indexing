@@ -1,10 +1,8 @@
 package pt.arquivo.imagesearch.indexing.data;
 
-
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 
 import java.io.Serializable;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +17,7 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
     private List<String> imgAlt;
     private List<String> imgCaption;
     private LocalDateTime imgTimestamp;
-    private long imgTimespan;
+    private LocalDateTime latestImgTimespan;
     private String imageDigest;
 
     private String pageTitle;
@@ -59,7 +57,7 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
 
         this.type = "mixed";
         this.imgTimestamp = id.getTimestamp().get(0);
-        this.imgTimespan = id.getTimespan();
+        this.latestImgTimespan = id.getTimestamp().get(id.getTimestamp().size()-1);
         this.imageDigest = id.getContentHash();
 
         this.imgId = id.getId();
@@ -196,8 +194,8 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
     }
 
 
-    public long getTimespan() {
-        return imgTimespan;
+    public LocalDateTime getLatastTimestamp() {
+        return latestImgTimespan;
     }
 
     public String getId() {
@@ -246,7 +244,7 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
 
     public void assignImageToPage(ImageData id, LocalDateTime correct) {
         this.setImgTimestamp(correct);
-        this.setImageTimespan(id.getTimespan());
+        this.setLatestImageTimestamp(id.getTimestamp().get(id.getTimestamp().size()-1));
         this.setImageDigest(id.getContentHash());
         this.setImgHeight(id.getHeight());
         this.setImgWidth(id.getWidth());
@@ -316,8 +314,8 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
         return pageMetadataChanges;
     }
 
-    public void setImageTimespan(long imageTimespan) {
-        this.imgTimespan = imageTimespan;
+    public void setLatestImageTimestamp(LocalDateTime latestImageTimestamp) {
+        this.latestImgTimespan = latestImageTimestamp;
     }
 }
 
