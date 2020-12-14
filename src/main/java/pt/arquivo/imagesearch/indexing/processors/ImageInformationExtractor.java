@@ -311,6 +311,9 @@ public class ImageInformationExtractor {
 
             this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_TOTAL).increment(pageImages);
 
+            if (!pageURL.startsWith("http"))
+                pageURL = "http://" + pageURL;
+
             URL uri = new URL(pageURL);
             String pageHost = uri.getHost();
             String pageProtocol = uri.getProtocol();
