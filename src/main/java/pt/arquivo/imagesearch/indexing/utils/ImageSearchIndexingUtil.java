@@ -96,8 +96,8 @@ public class ImageSearchIndexingUtil {
             }
         } catch (RuntimeException e) {
             context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
-            logger.error("Exception reading WARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
-            if (!e.getMessage().startsWith("Retried"))
+            logger.error("Exception reading ARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
+            if (!e.getMessage().startsWith("Retried") && !e.getMessage().startsWith("java.util.zip.ZipException: Corrupt GZIP trailer") && !e.getMessage().startsWith("(Record start") && !e.getMessage().startsWith("java.io.IOException: Record STARTING at"))
                 throw e;
         }
 

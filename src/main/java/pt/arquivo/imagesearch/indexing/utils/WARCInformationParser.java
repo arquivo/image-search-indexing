@@ -26,6 +26,8 @@ public class WARCInformationParser {
     public static LocalDateTime parseLocalDateTime(String timestamp) {
         if (timestamp.length() == WARCInformationParser.PATTERN.length() - 2)
             timestamp += "00";
+        else if (timestamp.length() == WARCInformationParser.PATTERN.length() + 2)
+            timestamp = timestamp.substring(0, WARCInformationParser.PATTERN.length());
         return LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern(WARCInformationParser.PATTERN));
     }
 
