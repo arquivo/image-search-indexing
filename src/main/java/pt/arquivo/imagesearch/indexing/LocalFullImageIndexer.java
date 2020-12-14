@@ -3,6 +3,7 @@ package pt.arquivo.imagesearch.indexing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
@@ -150,6 +151,8 @@ public class LocalFullImageIndexer {
     public static void main(String[] args) {
         Logger logger = Logger.getLogger(Map.class);
         logger.setLevel(Level.INFO);
+        BasicConfigurator.configure();
+
 
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
