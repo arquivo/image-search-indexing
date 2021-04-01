@@ -185,6 +185,8 @@ public class ImageData implements Serializable {
                 width = imageData.getWidth();
                 height = imageData.getHeight();
                 size = imageData.getSize();
+                warc = imageData.getWarc();
+                warcOffset = imageData.getWarcOffset();
             }
             if (!timestamp.contains(localDT)) {
                 this.timestamp.add(localDT);

@@ -253,6 +253,8 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
             pageHost = pageImageData.getPageHost();
             pageProtocol = pageImageData.getPageProtocol();
             imagesInPage = pageImageData.getImagesInPage();
+            warc = pageImageData.getWarc();
+            warcOffset = pageImageData.getWarcOffset();
         } else if (pageImageData.getPageTimestamp().compareTo(this.pageTimestampNewest) > 0){
             pageTimestampNewest = pageImageData.getPageTimestamp();
         }
