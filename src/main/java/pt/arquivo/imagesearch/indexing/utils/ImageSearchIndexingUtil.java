@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
@@ -97,8 +98,11 @@ public class ImageSearchIndexingUtil {
         } catch (RuntimeException e) {
             context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
             logger.error("Exception reading ARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
-            if (!e.getMessage().startsWith("Retried") && !e.getMessage().startsWith("java.util.zip.ZipException: Corrupt GZIP trailer") && !e.getMessage().startsWith("(Record start") && !e.getMessage().startsWith("java.io.IOException: Record STARTING at"))
+            if (!e.getMessage().startsWith("Retried") && !e.getMessage().startsWith("java.util.zip.ZipException: Corrupt GZIP trailer") && !e.getMessage().startsWith("(Record start") && !e.getMessage().startsWith("java.io.IOException: Record STARTING at")){
+                FileUtils.deleteQuietly(new File(arcURL));
                 throw e;
+            }
+
         }
 
     }
@@ -150,6 +154,7 @@ public class ImageSearchIndexingUtil {
             }
         } catch (RuntimeException e) {
             context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            FileUtils.deleteQuietly(new File(warcURL));
             logger.error("Exception reading WARC bytes, WARCNAME: " + warcURL + " " + e.getMessage());
             throw e;
         }
