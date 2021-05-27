@@ -25,6 +25,7 @@ import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import javax.imageio.ImageIO;
 import java.io.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.*;
@@ -136,7 +137,7 @@ public class ImageInformationExtractor {
         }
     }
 
-    public ImageData saveImageMetadataInline(String url, String timestamp, Mapper.Context context, String warcName, long warcOffset) {
+    public ImageData saveImageMetadataInline(String url, String timestamp, String warcName, long warcOffset) {
         try {
             String[] surl = url.split(",");
 
@@ -155,7 +156,7 @@ public class ImageInformationExtractor {
                 }
             }
 
-            return saveImageMetadata("hash:" + imageURLHashKey, imageURLHashKey, timestamp, reportedMimeType, contentBytes, context, warcName, warcOffset);
+            return saveImageMetadata("hash:" + imageURLHashKey, imageURLHashKey, timestamp, reportedMimeType, contentBytes, warcName, warcOffset);
         } catch (Exception e) {
             logger.error(String.format("Malformed inline image"));
             return null;
@@ -163,7 +164,7 @@ public class ImageInformationExtractor {
     }
 
 
-    public ImageData saveImageMetadata(String url, String imageURLHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, Mapper.Context context, String warcName, long warcOffset) {
+    public ImageData saveImageMetadata(String url, String imageURLHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, String warcName, long warcOffset) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
 
@@ -251,7 +252,7 @@ public class ImageInformationExtractor {
                 return;
             }
 
-            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context, warcName, warcOffset);
+            saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, warcName, warcOffset);
 
         } catch (Exception e) {
             logger.error(String.format("Error parsing image url: %s/%s with error message %s", timestamp, url, e.getMessage()));
@@ -277,7 +278,7 @@ public class ImageInformationExtractor {
             return null;
         }
 
-        return saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, context, warcName, warcOffset);
+        return saveImageMetadata(url, imageURLHashKey, timestamp, mime, contentBytes, warcName, warcOffset);
     }
 
     public void parseImagesFromHtmlRecord(Mapper.Context context, byte[] arcRecordBytes, String pageURL, String
@@ -285,39 +286,16 @@ public class ImageInformationExtractor {
         try {
 
             captionCache = new HashMap<>();
-            boolean malformedPageForCaptions = false;
+
 
             logger.debug("Parsing Images from HTML in (W)ARCrecord");
             logger.debug("Read Content Bytes from (W)ARCrecord" + arcRecordBytes.length);
             logger.debug("URL: " + pageURL);
             logger.debug("Page TS: " + pageTstamp);
 
-            long startTime = System.nanoTime();
+
 
             String html = ImageSearchIndexingUtil.decode(arcRecordBytes, this);
-
-            Document doc = Jsoup.parse(html, pageURL);
-
-            String pageTitle = doc.title(); /*returns empty string if no title in html document*/
-
-            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES).increment(1);
-            //Find all images in img tags
-
-
-            Elements imgs = doc.getElementsByTag("img");
-            int pageImages = imgs.size();
-
-            //logger.debug("Page contains: " + pageImages + " images");
-
-            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_TOTAL).increment(pageImages);
-
-            if (!pageURL.startsWith("http"))
-                pageURL = "http://" + pageURL;
-
-            URL uri = new URL(pageURL);
-            String pageHost = uri.getHost();
-            String pageProtocol = uri.getProtocol();
-            String pageURLTokens = getURLSrcTokens(pageURL);
 
             if (pageTstamp == null || pageTstamp.equals("")) {
                 logger.debug("Null pageTstamp");
@@ -326,164 +304,138 @@ public class ImageInformationExtractor {
 
             logger.debug("pageTstamp:" + pageTstamp);
 
-            Set<String> imgSrcParsed = new HashSet<>();
+            parseHTMLPage(pageURL, pageTstamp, warcName, warcOffset, html);
 
-            int parsedImagesPerPage = 0;
-            try {
-                for (Element el : imgs) {
-
-                    Set<String> imgSrcAtrToParse = getImgURLToParse(pageURL, el);
-
-                    for (String imgRelSrc : imgSrcAtrToParse) {
-
-                        String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
-
-                        boolean alreadyFoundInPage = imgSrcParsed.contains(imgRelSrc);
-                        imgSrcParsed.add(imgRelSrc);
-
-                        logger.debug("Getting information for: " + imgSrc);
-                        if (imgRelSrc.startsWith(DATA_IMAGE_URL_PREFIX)) {
-                            logger.debug("Inline image");
-                            ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, context, warcName, warcOffset);
-                            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
-                            if (acceptedRecord == null)
-                                continue;
-                            imgSrc = acceptedRecord.getUrl();
-                        } else if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
-                            logger.debug("URL of image too big ");
-                            logger.debug(pageURL.substring(0, 500) + "...");
-                            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
-                            continue;
-                        } else if (imgRelSrc.isEmpty()) {
-                            logger.debug("Null imgSrc");
-                            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
-                            continue;
-                        }
-
-                        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
-
-                        String imgSrcTokens = getURLSrcTokens(imgSrc);
-                        String imgTitle = getHTMLAttribute(el, "title");
-                        String imgAlt = getHTMLAttribute(el, "alt");
-
-                        String imgCaption = "";
-
-                        // some pages exhaust Java Heap Space due to very complex DOM structures
-                        // This generates Java Heap Space OOM exceptions; if that happens,
-                        // stop processing captions for the reminder of the page
-                        // Check the {@link #getCaption(Element current)} method to see how this is handled.
-                        if (!malformedPageForCaptions) {
-                            imgCaption = extractCaptionFromParent(el);
-                            if (imgCaption == null) {
-                                malformedPageForCaptions = true;
-                                imgCaption = "";
-                                logger.debug("Page generated Java Heap space error: " + pageURL);
-                                logger.debug("Skipping caption extraction for the remainder of the page");
-                            }
-
-                            long duration = (System.nanoTime() - startTime) / 1000000;
-                            if (duration > EXTRACT_CAPTION_TIMEOUT_SECS){
-                                malformedPageForCaptions = true;
-                                logger.debug("Page takes very long extrating caption: " + pageURL);
-                                logger.debug("Skipping caption extraction for the remainder of the page");
-                            }
-
-                        }
-
-                        insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", warcName, warcOffset);
-
-                        logger.debug("Written to file - successfully indexed image record");
-                    }
-
-                    parsedImagesPerPage++;
-
-                    if (parsedImagesPerPage >= MAX_IMAGE_IN_HTML) {
-                        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_EXCEDED).increment(1);
-                        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_NOT_PARSED).increment(imgs.size() - parsedImagesPerPage);
-                        break;
-                    }
-                }
-            } catch (Exception e) {
-                logger.error(String.format("Error parsing HTML img record: %s", e.getMessage()));
-                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(pageImages);
-            }
+        } catch (Exception e) {
+            logger.debug("Something failed JSOUP parsing " + e.getMessage());
+        }
 
 
-            Elements links = doc.getElementsByTag("a");
+    }
 
-            logger.debug("Page contains: " + links.size() + " links");
+    public void parseHTMLPage(String pageURL, String pageTstamp, String warcName, long warcOffset, String html) throws MalformedURLException, UnsupportedEncodingException {
+        boolean malformedPageForCaptions = false;
+        long startTime = System.nanoTime();
 
-            try {
+        Document doc = Jsoup.parse(html, pageURL);
 
-                for (Element el : links) {
+        String pageTitle = doc.title(); /*returns empty string if no title in html document*/
 
-                    String imgSrc = el.attr("abs:href");
-                    String imgRelSrc = el.attr("href").trim();
+        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES).increment(1);
+        //Find all images in img tags
+
+
+        Elements imgs = doc.getElementsByTag("img");
+        int pageImages = imgs.size();
+
+        //logger.debug("Page contains: " + pageImages + " images");
+
+        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_TOTAL).increment(pageImages);
+
+        if (!pageURL.startsWith("http"))
+            pageURL = "http://" + pageURL;
+
+        URL uri = new URL(pageURL);
+        String pageHost = uri.getHost();
+        String pageProtocol = uri.getProtocol();
+        String pageURLTokens = getURLSrcTokens(pageURL);
+
+        Set<String> imgSrcParsed = new HashSet<>();
+
+        int parsedImagesPerPage = 0;
+        try {
+            for (Element el : imgs) {
+
+                Set<String> imgSrcAtrToParse = getImgURLToParse(pageURL, el);
+
+                for (String imgRelSrc : imgSrcAtrToParse) {
+
+                    String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
 
                     imgSrcParsed.add(imgRelSrc);
-                    if (!isLinkToImage(imgSrc))
-                        continue;
 
                     logger.debug("Getting information for: " + imgSrc);
-
-                    if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
+                    if (imgRelSrc.startsWith(DATA_IMAGE_URL_PREFIX)) {
+                        logger.debug("Inline image");
+                        ImageData acceptedRecord = saveImageMetadataInline(imgRelSrc, pageTstamp, warcName, warcOffset);
+                        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_BASE64).increment(1);
+                        if (acceptedRecord == null)
+                            continue;
+                        imgSrc = acceptedRecord.getUrl();
+                    } else if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
                         logger.debug("URL of image too big ");
                         logger.debug(pageURL.substring(0, 500) + "...");
                         this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                         continue;
                     } else if (imgRelSrc.isEmpty()) {
-                        logger.debug("Null href");
+                        logger.debug("Null imgSrc");
                         this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                         continue;
                     }
 
                     this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
-                    this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_LINK).increment(1);
 
                     String imgSrcTokens = getURLSrcTokens(imgSrc);
+                    String imgTitle = getHTMLAttribute(el, "title");
+                    String imgAlt = getHTMLAttribute(el, "alt");
 
+                    String imgCaption = "";
 
-                    String imgCaption = el.text();
-                    if (imgCaption.length() >= MAX_IMAGE_FIELD_SIZE) {
-                        imgCaption = imgCaption.substring(0, MAX_IMAGE_FIELD_SIZE);
+                    // some pages exhaust Java Heap Space due to very complex DOM structures
+                    // This generates Java Heap Space OOM exceptions; if that happens,
+                    // stop processing captions for the reminder of the page
+                    // Check the {@link #getCaption(Element current)} method to see how this is handled.
+                    if (!malformedPageForCaptions) {
+                        imgCaption = extractCaptionFromParent(el);
+                        if (imgCaption == null) {
+                            malformedPageForCaptions = true;
+                            imgCaption = "";
+                            logger.debug("Page generated Java Heap space error: " + pageURL);
+                            logger.debug("Skipping caption extraction for the remainder of the page");
+                        }
+
+                        long duration = (System.nanoTime() - startTime) / 1000000000;
+                        if (duration > EXTRACT_CAPTION_TIMEOUT_SECS){
+                            malformedPageForCaptions = true;
+                            logger.debug("Page takes very long extrating caption: " + pageURL);
+                            logger.debug("Skipping caption extraction for the remainder of the page");
+                        }
+
                     }
 
-
-                    insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", warcName, warcOffset);
+                    insertImageIndexes(imgSrc, imgSrcTokens, imgTitle, imgAlt, imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "img", warcName, warcOffset);
 
                     logger.debug("Written to file - successfully indexed image record");
-
                 }
 
-            } catch (Exception e) {
-                logger.error(String.format("Error parsing HTML img record: %s", e.getMessage()));
-                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(pageImages);
-            }
+                parsedImagesPerPage++;
 
-            List<String> cssUrls = new LinkedList<>();
-            Matcher m = CSS_URLS.matcher(html);
-            while (m.find()) {
-                String imgRelSrc = m.group(1);
-                if (!imgRelSrc.isEmpty() && !imgSrcParsed.contains(imgRelSrc)) {
-                    if (imgRelSrc.startsWith(DATA_IMAGE_URL_PREFIX)) {
-                        cssUrls.add(imgRelSrc);
-                    } else {
-                        try {
-                            String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
-                            if (isLinkToImage(imgSrc)) {
-                                cssUrls.add(imgRelSrc);
-                            }
-
-                        } catch (Exception ignored) {
-
-                        }
-                    }
+                if (parsedImagesPerPage >= MAX_IMAGE_IN_HTML) {
+                    this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_EXCEDED).increment(1);
+                    this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_NOT_PARSED).increment(imgs.size() - parsedImagesPerPage);
+                    break;
                 }
             }
+        } catch (Exception e) {
+            logger.error(String.format("Error parsing HTML img record: %s", e.getMessage()));
+            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(pageImages);
+        }
 
-            for (String imgRelSrc : cssUrls) {
 
-                String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+        Elements links = doc.getElementsByTag("a");
+
+        logger.debug("Page contains: " + links.size() + " links");
+
+        try {
+
+            for (Element el : links) {
+
+                String imgSrc = el.attr("abs:href");
+                String imgRelSrc = el.attr("href").trim();
+
+                imgSrcParsed.add(imgRelSrc);
+                if (!isLinkToImage(imgSrc))
+                    continue;
 
                 logger.debug("Getting information for: " + imgSrc);
 
@@ -492,32 +444,87 @@ public class ImageInformationExtractor {
                     logger.debug(pageURL.substring(0, 500) + "...");
                     this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                     continue;
-                } else if (imgRelSrc == null || imgRelSrc.equals("")) {
+                } else if (imgRelSrc.isEmpty()) {
                     logger.debug("Null href");
                     this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
                     continue;
                 }
 
                 this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
-                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_CSS).increment(1);
+                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_LINK).increment(1);
 
                 String imgSrcTokens = getURLSrcTokens(imgSrc);
 
-                insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", warcName, warcOffset);
+
+                String imgCaption = el.text();
+                if (imgCaption.length() >= MAX_IMAGE_FIELD_SIZE) {
+                    imgCaption = imgCaption.substring(0, MAX_IMAGE_FIELD_SIZE);
+                }
+
+
+                insertImageIndexes(imgSrc, imgSrcTokens, "", "", imgCaption, pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "a", warcName, warcOffset);
 
                 logger.debug("Written to file - successfully indexed image record");
 
             }
 
-
-            if (imgs.size() > 0)
-                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
-
         } catch (Exception e) {
-            logger.debug("Something failed JSOUP parsing " + e.getMessage());
+            logger.error(String.format("Error parsing HTML img record: %s", e.getMessage()));
+            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_FAILED).increment(pageImages);
+        }
+
+        List<String> cssUrls = new LinkedList<>();
+        Matcher m = CSS_URLS.matcher(html);
+        while (m.find()) {
+            String imgRelSrc = m.group(1);
+            if (!imgRelSrc.isEmpty() && !imgSrcParsed.contains(imgRelSrc)) {
+                if (imgRelSrc.startsWith(DATA_IMAGE_URL_PREFIX)) {
+                    cssUrls.add(imgRelSrc);
+                } else {
+                    try {
+                        String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+                        if (isLinkToImage(imgSrc)) {
+                            cssUrls.add(imgRelSrc);
+                        }
+
+                    } catch (Exception ignored) {
+
+                    }
+                }
+            }
+        }
+
+        for (String imgRelSrc : cssUrls) {
+
+            String imgSrc = StringUtil.resolve(pageURL, imgRelSrc);
+
+            logger.debug("Getting information for: " + imgSrc);
+
+            if (imgSrc.length() > MAX_IMAGE_FIELD_SIZE || pageURL.length() > MAX_IMAGE_FIELD_SIZE) {
+                logger.debug("URL of image too big ");
+                logger.debug(pageURL.substring(0, 500) + "...");
+                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
+                continue;
+            } else if (imgRelSrc == null || imgRelSrc.equals("")) {
+                logger.debug("Null href");
+                this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_INVALID).increment(1);
+                continue;
+            }
+
+            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING).increment(1);
+            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.IMAGES_IN_HTML_MATCHING_CSS).increment(1);
+
+            String imgSrcTokens = getURLSrcTokens(imgSrc);
+
+            insertImageIndexes(imgSrc, imgSrcTokens, "", "", "", pageImages, pageTstamp, pageURL, pageHost, pageProtocol, pageTitle, pageURLTokens, "css", warcName, warcOffset);
+
+            logger.debug("Written to file - successfully indexed image record");
+
         }
 
 
+        if (imgs.size() > 0)
+            this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
     }
 
     public boolean isLinkToImage(String imgSrc) {
@@ -730,8 +737,7 @@ public class ImageInformationExtractor {
         if (rec instanceof ARCRecord) {
             ARCRecord arcRecord = (ARCRecord) rec;
             String arcName = ((ARCRecord) rec).getMetaData().getArc();
-            if (arcRecord != null)
-                parseArcRecord(arcRecord, arcName);
+            parseArcRecord(arcRecord, arcName);
         } else {
             WARCRecordResponseEncapsulated warcRecord = ImageSearchIndexingUtil.parseWarcRecord((WARCRecord) rec, this);
             String warcName = ((String) rec.getHeader().getHeaderValue(WARCConstants.READER_IDENTIFIER_FIELD_KEY));
