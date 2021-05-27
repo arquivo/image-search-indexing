@@ -2,7 +2,6 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
@@ -20,7 +19,6 @@ import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
-import pt.arquivo.imagesearch.indexing.data.serializers.LegacyFullImageMetadataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
@@ -30,7 +28,6 @@ import java.io.IOException;
 public class DupDigestMergerJob {
 
     public enum OUTPUT_MODE {
-        LEGACY,
         FULL,
         COMPACT
     }
@@ -116,13 +113,10 @@ public class DupDigestMergerJob {
                     .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
                     .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                     .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
-                    .registerTypeAdapter(FullImageMetadata.class, new LegacyFullImageMetadataSerializer())
                     .create();
 
             try {
-                if (outputMode == OUTPUT_MODE.LEGACY) {
-                    context.write(NullWritable.get(), new Text(gson.toJson(result)));
-                } else if (outputMode == OUTPUT_MODE.FULL) {
+                if (outputMode == OUTPUT_MODE.FULL) {
                     for (ImageData data : result.getImageDatasValues())
                         context.write(NullWritable.get(), new Text(gson.toJson(data)));
                     for (PageImageData data : result.getPageImageDatasValues())

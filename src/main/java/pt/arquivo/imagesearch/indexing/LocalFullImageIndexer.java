@@ -2,7 +2,6 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
@@ -13,7 +12,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
-import pt.arquivo.imagesearch.indexing.data.serializers.LegacyFullImageMetadataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
@@ -31,7 +29,7 @@ public class LocalFullImageIndexer {
 
         private Logger logger = Logger.getLogger(Map.class);
         public String collection;
-        ImageInformationExtractor indexer;
+        public ImageInformationExtractor indexer;
 
         public Map(String collection) {
             this.collection = collection;
@@ -78,7 +76,7 @@ public class LocalFullImageIndexer {
     public static class Reduce {
 
         private Logger logger = Logger.getLogger(Reduce.class);
-        private ImageInformationMerger merger;
+        public ImageInformationMerger merger;
 
         public Reduce() {
             merger = new ImageInformationMerger();
@@ -119,7 +117,7 @@ public class LocalFullImageIndexer {
 
         private final Logger logger = Logger.getLogger(ReduceDigest.class);
         public String collection;
-        private ImageInformationMerger merger;
+        public ImageInformationMerger merger;
 
         public ReduceDigest() {
             merger = new ImageInformationMerger();
@@ -172,7 +170,6 @@ public class LocalFullImageIndexer {
                 .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
                 .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                 .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
-                .registerTypeAdapter(FullImageMetadata.class, new LegacyFullImageMetadataSerializer())
                 .create();
 
         LocalFullImageIndexer.Map map = new Map(collection);
@@ -216,9 +213,7 @@ public class LocalFullImageIndexer {
 
                 FullImageMetadata result = reduceDigest.reduce(new Text(entry.getKey()), entry.getValue());
                 if (result != null && !result.getPageImageDatas().isEmpty() && !result.getImageDatas().isEmpty()) {
-                    if (outputMode == DupDigestMergerJob.OUTPUT_MODE.LEGACY) {
-                        out.println(gson.toJson(result));
-                    } else if (outputMode == DupDigestMergerJob.OUTPUT_MODE.FULL) {
+                    if (outputMode == DupDigestMergerJob.OUTPUT_MODE.FULL) {
                         for (ImageData data : result.getImageDatasValues())
                             out.println(gson.toJson(data));
                         for (PageImageData data : result.getPageImageDatasValues())
