@@ -242,18 +242,6 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
         this.imgHeight = imgHeight;
     }
 
-    public void assignImageToPage(ImageData id, LocalDateTime correct) {
-        this.setImgTimestamp(correct);
-        this.setLatestImageTimestamp(id.getTimestamp().get(id.getTimestamp().size()-1));
-        this.setImageDigest(id.getContentHash());
-        this.setImgHeight(id.getHeight());
-        this.setImgWidth(id.getWidth());
-        this.setImgMimeType(id.getMimeDetected());
-        this.setImgId(id.getId());
-        this.setImgWarc(id.getWarc());
-        this.setImgWarcOffset(id.getWarcOffset());
-    }
-
     public String getImgMimeType() {
         return imgMimeType;
     }

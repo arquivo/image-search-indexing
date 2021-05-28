@@ -116,4 +116,36 @@ public class CaptionExtractTest {
 
     }
 
+    @Test
+    public void extractCaptionsPageCaptionTooLarge() throws IOException {
+        ClassLoader classLoader = getClass().getClassLoader();
+
+        ImageInformationExtractor iie = new ImageInformationExtractor("Teste");
+        URL warcURL = classLoader.getResource("pages/pageCaptionTooLarge.html");
+
+        assertNotNull(warcURL);
+
+        String pageURL = "https://andremourao.com/static/pages";
+        String pageTstamp = "20200101000000";
+
+        byte[] htmlBytes = FileUtils.readFileToByteArray(new File(warcURL.getPath()));
+
+        String html = ImageSearchIndexingUtil.decode(htmlBytes, iie);
+
+        iie.parseHTMLPage(pageURL, pageTstamp, "", 0, html);
+
+        HashMap<String, FullImageMetadata> entries = iie.getEntries();
+
+        FullImageMetadata fim1 = entries.get("(pt,iol,)/multimedia/oratvi/multimedia/imagem/id/5b3e33f10cf2d0e0ad0062d6/1024");
+        assertNotNull(fim1);
+
+        PageImageData pid = fim1.getPageImageDatas().firstKey();
+        assertNotNull(pid);
+
+        assertEquals(pid.getImgCaption(), "This caption is too large large large large large large large large large large large large large large large large large\ntoo too too too too too too too too too too too too too too too too too too too too too too too too too too too too too too");
+        assertEquals(pid.getImgAlt(), "I'm a PNG that lies and say I'm a JPG");
+        assertEquals(pid.getImgTitle(), "I also have a title");
+
+    }
+
 }
