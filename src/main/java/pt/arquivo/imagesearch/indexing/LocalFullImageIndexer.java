@@ -14,7 +14,6 @@ import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
-import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 
@@ -167,7 +166,6 @@ public class LocalFullImageIndexer {
         DupDigestMergerJob.OUTPUT_MODE outputMode = DupDigestMergerJob.OUTPUT_MODE.valueOf(outputModeString);
 
         Gson gson = new GsonBuilder()
-                .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
                 .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                 .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
                 .create();

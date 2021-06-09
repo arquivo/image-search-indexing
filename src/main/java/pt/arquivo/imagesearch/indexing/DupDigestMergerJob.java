@@ -20,7 +20,6 @@ import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
 import pt.arquivo.imagesearch.indexing.data.PageImageData;
 import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
-import pt.arquivo.imagesearch.indexing.data.serializers.PageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 
 import java.io.IOException;
@@ -110,7 +109,6 @@ public class DupDigestMergerJob {
 
         private void exportToJson(Reducer<Text, Writable, NullWritable, Text>.Context context, FullImageMetadata result) {
             Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(PageImageData.class, new PageImageDataSerializer())
                     .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                     .registerTypeAdapter(ImageData.class, new ImageDataSerializer())
                     .create();
