@@ -33,8 +33,6 @@ public class FullPipelineTest {
         String path = hdfsArcsPath.getPath();
         String collection = "Teste";
 
-        DupDigestMergerJob.OUTPUT_MODE outputMode = DupDigestMergerJob.OUTPUT_MODE.COMPACT;
-
         Gson gson = new GsonBuilder()
                 .registerTypeAdapter(MultiPageImageData.class, new MultiPageImageDataSerializer())
                 .registerTypeAdapter(ImageData.class, new ImageDataSerializer())

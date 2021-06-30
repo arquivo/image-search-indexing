@@ -1,6 +1,10 @@
 package pt.arquivo.imagesearch.indexing;
 
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -24,7 +28,9 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
 
-public class ImageIndexerWithDupsJob {
+import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.OUTPUT_MODE_NAME;
+
+public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
     public enum IMAGE_COUNTERS {
         WARCS,
@@ -213,7 +219,8 @@ public class ImageIndexerWithDupsJob {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    @Override
+    public int run(String[] args) throws Exception {
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
 
@@ -227,13 +234,22 @@ public class ImageIndexerWithDupsJob {
         assert args.length >= 4 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[3]);
 
+        String outputDir;
+        if (args.length >= 5){
+            outputDir = args[4];
+        } else {
+            outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis() + "_dups";
+        }
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
+        conf.set(OUTPUT_MODE_NAME, "COMPACT");
 
         Job job = Job.getInstance(conf);
+
         job.setJarByClass(ImageIndexerWithDupsJob.class);
         job.setInputFormatClass(NLineInputFormat.class);
+        NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
 
         job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
         job.setMapOutputKeyClass(Text.class);
@@ -242,53 +258,32 @@ public class ImageIndexerWithDupsJob {
         job.setReducerClass(ImageIndexerWithDupsJob.Reduce.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(FullImageMetadata.class);
-        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         job.setJobName(jobName);
 
-        NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", 80);
+        job.getConfiguration().setInt("mapreduce.map.maxattempts", 6);
+        job.getConfiguration().setInt("mapreduce.reduce.shuffle.parallelcopies", 10);
+        job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);
 
-
-        job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
-        job.getConfiguration().setFloat("mapreduce.job.reduce.slowstart.completedmaps", 0.9f);
-
-        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
         // Sets reducer tasks to 1
         job.setNumReduceTasks(reducesCount);
-        //job.setNumReduceTasks(1);
 
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
-        String outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis() + "_dups";
         FileOutputFormat.setOutputPath(job, new Path(outputDir));
 
         FileSystem hdfs = FileSystem.get(conf);
         if (hdfs.exists(new Path(outputDir)))
             hdfs.delete(new Path(outputDir), true);
 
-        boolean result = job.waitForCompletion(true);
+        return job.waitForCompletion(true) ? 0 : 1;
+    }
 
-        System.out.println("ImageIndexerWithDupsJob$IMAGE_COUNTERS");
-        Counters cn = job.getCounters();
-        CounterGroup counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$IMAGE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("ImageIndexerWithDupsJob$PAGE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$PAGE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("ImageIndexerWithDupsJob$REDUCE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$REDUCE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-
-        System.exit(result ? 0 : 1);
+    public static void main(String[] args) throws Exception {
+        int exitCode = ToolRunner.run(new ImageIndexerWithDupsJob(), args);
+        System.exit(exitCode);
     }
 }

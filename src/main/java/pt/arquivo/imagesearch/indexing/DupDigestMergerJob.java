@@ -2,8 +2,11 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -24,7 +27,7 @@ import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 
 import java.io.IOException;
 
-public class DupDigestMergerJob {
+public class DupDigestMergerJob extends Configured implements Tool {
 
     public enum OUTPUT_MODE {
         FULL,
@@ -134,7 +137,8 @@ public class DupDigestMergerJob {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    @Override
+    public int run(String[] args) throws Exception {
         assert args.length >= 1 : "Missing collection name argument";
         String collection = args[0];
         String jobName = collection + "_DupDigestMergerJob";
@@ -148,10 +152,39 @@ public class DupDigestMergerJob {
         assert args.length >= 4 : "Missing Output mode (e.g. legacy, full, compact)";
         String outputModeString = args[3];
 
+        String inputDir;
+        String outputDirDigest;
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
         conf.set(OUTPUT_MODE_NAME, outputModeString);
+        FileSystem hdfs = FileSystem.get(conf);
+
+        if (args.length >= 6){
+            inputDir = args[4];
+            outputDirDigest = args[5];
+        } else {
+            inputDir = "/user/amourao/output/" + collection + "/";
+
+            FileStatus[] fileStatus = hdfs.listStatus(new Path(inputDir));
+            long latestValueLong = 0;
+            for (FileStatus fileStat : fileStatus) {
+                if (fileStat.isDir()) {
+                    if (fileStat.getPath().getName().endsWith("_dups")) {
+                        try {
+                            String name = fileStat.getPath().getName().replace("_dups", "");
+                            long currentValueLong = Long.parseLong(name);
+                            if (currentValueLong > latestValueLong)
+                                latestValueLong = currentValueLong;
+                        } catch (Exception ignore) {
+
+                        }
+                    }
+                }
+            }
+            outputDirDigest = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
+        }
+
 
         Job jobDigest = Job.getInstance(conf);
         jobDigest.setJarByClass(DupDigestMergerJob.class);
@@ -172,34 +205,9 @@ public class DupDigestMergerJob {
 
         KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
 
-
-        String inputDir = "/user/amourao/output/" + collection + "/";
-
-        FileSystem hdfs = FileSystem.get(conf);
-        FileStatus[] fileStatus = hdfs.listStatus(new Path(inputDir));
-
-        long latestValueLong = 0;
-        for (FileStatus fileStat : fileStatus) {
-            if (fileStat.isDir()) {
-                if (fileStat.getPath().getName().endsWith("_dups")) {
-                    try {
-                        String name = fileStat.getPath().getName().replace("_dups", "");
-                        long currentValueLong = Long.parseLong(name);
-                        if (currentValueLong > latestValueLong)
-                            latestValueLong = currentValueLong;
-                    } catch (Exception ignore) {
-
-                    }
-                }
-            }
-        }
-
-        inputDir += latestValueLong + "_dups/";
-
         KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
         KeyValueTextInputFormat.addInputPath(jobDigest, new Path(inputDir));
 
-        String outputDirDigest = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
         TextOutputFormat.setOutputPath(jobDigest, new Path(outputDirDigest));
         if (hdfs.exists(new Path(outputDirDigest)))
             hdfs.delete(new Path(outputDirDigest), true);
@@ -211,40 +219,12 @@ public class DupDigestMergerJob {
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
-        boolean result = result = jobDigest.waitForCompletion(true);
+        return jobDigest.waitForCompletion(true)? 0: 1;
+    }
 
-        Counters cn = jobDigest.getCounters();
-        CounterGroup counterGroup =cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$IMAGE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
 
-        System.out.println("ImageIndexerWithDupsJob$PAGE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$PAGE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("ImageIndexerWithDupsJob$REDUCE_COUNTERS");
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob$REDUCE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("DupDigestMergerJob$COUNTERS");
-        cn = jobDigest.getCounters();
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.out.println("DupDigestMergerJob$REDUCE_COUNTERS");
-        cn = jobDigest.getCounters();
-        counterGroup = cn.getGroup("pt.arquivo.imagesearch.indexing.DupDigestMergerJob$REDUCE_COUNTERS");
-        for (Counter c : counterGroup) {
-            System.out.println("\t" + c.getName() + ": " + c.getValue());
-        }
-
-        System.exit(result ? 0 : 1);
+    public static void main(String[] args) throws Exception {
+        int exitCode = ToolRunner.run(new DupDigestMergerJob(), args);
+        System.exit(exitCode);
     }
 }
