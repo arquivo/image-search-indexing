@@ -210,14 +210,11 @@ public class DupDigestMergerJob extends Configured implements Tool {
         String collection = args[0];
         String jobName = collection + "_DupDigestMergerJob";
 
-        assert args.length >= 2 : "Missing number of files per map";
-        int linesPerMap = Integer.parseInt(args[1]);
+        assert args.length >= 2 : "Missing number of reduces";
+        int reducesCount = Integer.parseInt(args[1]);
 
-        assert args.length >= 3 : "Missing number of reduces";
-        int reducesCount = Integer.parseInt(args[2]);
-
-        assert args.length >= 4 : "Missing Output mode (FULL, COMPACT)";
-        String outputModeString = args[3];
+        assert args.length >= 3 : "Missing Output mode (FULL, COMPACT)";
+        String outputModeString = args[2];
 
         String inputDir;
         String outputDirDigest;
@@ -227,9 +224,9 @@ public class DupDigestMergerJob extends Configured implements Tool {
         conf.set(OUTPUT_MODE_NAME, outputModeString);
         FileSystem hdfs = FileSystem.get(conf);
 
-        if (args.length >= 6) {
-            inputDir = args[4];
-            outputDirDigest = args[5];
+        if (args.length >= 4) {
+            inputDir = args[3];
+            outputDirDigest = args[4];
         } else {
             inputDir = "/user/amourao/output/" + collection + "/";
 

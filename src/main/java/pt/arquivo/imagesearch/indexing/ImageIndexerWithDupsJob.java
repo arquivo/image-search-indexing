@@ -1,6 +1,9 @@
 package pt.arquivo.imagesearch.indexing;
 
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
@@ -17,9 +20,11 @@ import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
+import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
 
 import java.io.File;
 import java.io.IOException;
@@ -234,24 +239,47 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         assert args.length >= 4 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[3]);
 
+        assert args.length >= 5 : "Missing modeIsHDFS";
+        boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
+
         String outputDir;
-        if (args.length >= 5){
-            outputDir = args[4];
+        if (args.length >= 6){
+            outputDir = args[5];
         } else {
             outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis() + "_dups";
         }
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);
-        conf.set(OUTPUT_MODE_NAME, "COMPACT");
 
         Job job = Job.getInstance(conf);
 
         job.setJarByClass(ImageIndexerWithDupsJob.class);
-        job.setInputFormatClass(NLineInputFormat.class);
-        NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
 
-        job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
+        if (modeIsHDFS){
+            job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
+            job.setInputFormatClass(ArchiveFileInputFormat.class);
+            // Find ArcFiles to Process
+            FileSystem dfs = DistributedFileSystem.get(conf);
+
+            RemoteIterator<LocatedFileStatus> fileIterator = dfs.listFiles(new Path(hdfsArcsPath), true);
+            WarcPathFilter warcPathFilter = new WarcPathFilter();
+
+            while (fileIterator.hasNext()) {
+                LocatedFileStatus fileStatus = fileIterator.next();
+                if (fileStatus.isFile() && warcPathFilter.accept(fileStatus.getPath())) {
+                    ArchiveFileInputFormat.addInputPath(job, fileStatus.getPath());
+                }
+            }
+
+            jobName += "HDFS";
+        } else {
+            job.setMapperClass(ImageIndexerWithDupsJob.Map.class);
+            job.setInputFormatClass(NLineInputFormat.class);
+            NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+            job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
+        }
+
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(FullImageMetadata.class);
 
@@ -267,7 +295,6 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         job.getConfiguration().setInt("mapreduce.reduce.shuffle.parallelcopies", 10);
         job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);
 
-        // Sets reducer tasks to 1
         job.setNumReduceTasks(reducesCount);
 
         //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);

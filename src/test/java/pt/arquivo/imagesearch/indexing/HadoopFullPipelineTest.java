@@ -43,7 +43,7 @@ public class HadoopFullPipelineTest {
     }
 
     @Test
-    public void testPageSearchIndexingWorkflow() throws Exception {
+    public void testImageSearchIndexingWorkflow() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
         URL hdfsArcsPath = classLoader.getResource("FullOfflinePipelineTestWARCS.txt");
@@ -75,11 +75,11 @@ public class HadoopFullPipelineTest {
         fs.mkdirs(new Path("target/output"));
         fs.mkdirs(new Path("target/outputI"));
 
-        String[] args = new String[]{tempFile.getPath(), collection, "1", "1", "target/outputI"};
+        String[] args = new String[]{tempFile.getPath(), collection, "1", "1", "false", "target/outputI"};
 
         runMapReduceJob(new ImageIndexerWithDupsJob(), conf, args);
 
-        args = new String[]{collection, "1", "1", "COMPACT", "target/outputI", "target/output"};
+        args = new String[]{collection, "1", "COMPACT", "target/outputI", "target/output"};
 
         runMapReduceJob(new DupDigestMergerJob(), conf, args);
 
