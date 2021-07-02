@@ -32,51 +32,118 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Auxiliary class to extract metadat from pages and images
+ */
 public class ImageInformationExtractor {
 
-    //private static final boolean IGNORE_IMAGE_FILE_EXTENSIONS = true;
+    /**
+     * Image file extensions to be included when parsing from <a> tags
+     */
     private static final Set<String> IMAGE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("jpg", "jpeg", "png", "tif", "tiff", "gif", "svg", "webp", "bmp", "ico"));
 
-    private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
-    private static final Set<String> IMAGE_TAG_JS_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("onLoad"));
 
+    /**
+     * Image atrributes to be included when parsing from <img> tags
+     */
+    private static final Set<String> IMAGE_TAG_ATTRIBUTES_WITH_FILES = new HashSet<>(Arrays.asList("src", "lowsrc"));
+
+    /**
+     * Regex to find image urls in CSS
+     */
     public static final Pattern CSS_URLS = Pattern.compile("url\\(['\"]*(.*?)['\"]*\\)");
 
+    /**
+     * Maximum caption size for the parent method
+     */
     public static final int MAX_PARENT_CAPTION_SIZE = 250;
+
+    /**
+     * Maximum field sizes for image metadatas
+     */
     public static final int MAX_IMAGE_FIELD_SIZE = 10000;
+
     public static final String DATA_IMAGE_URL_PREFIX = "data:image";
+
+    /**
+     * Maximum number of images to parse per HTML file
+     */
     public static final int MAX_IMAGE_IN_HTML = 10000;
+
+    /**
+     * Maximum time to spend extracting captions per page.
+     * Used to avoid getting stuck in malformed structures
+     */
     public static final int EXTRACT_CAPTION_TIMEOUT_SECS = 60 * 2;
 
 
     private Logger logger = Logger.getLogger(ImageInformationExtractor.class);
 
-    //private HashMap<String, PageImageData> imgSrcEntries;
-    //private HashMap<String, ImageData> imgFileEntries;
+    /**
+     * Images already parsed during this session
+     */
     protected HashMap<String, FullImageMetadata> entries;
+
+    /**
+     * Collection name
+     */
     protected String collection;
+
+    /**
+     * Hadoop context
+     */
     private Mapper.Context context;
+
+    /**
+     * Stores the counters. This enables using this code both inside and outside Hadoop
+     */
     private HashMap<Enum<?>, Counter> localCounters;
+
+    /**
+     * Used to store parent captions when transversing up the DOM tree for caption extraction
+     */
     private HashMap<String, String> captionCache;
 
+
+    /**
+     * Constructor used for Hadoop
+     *
+     * @param collection collection name
+     * @param context Hadoop context
+     */
     public ImageInformationExtractor(String collection, Mapper.Context context) {
         init(collection);
         this.context = context;
-        captionCache = new HashMap<>();
     }
 
+    /**
+     * Constructor used for local parser
+     *
+     * @param collection collection name
+     */
     public ImageInformationExtractor(String collection) {
         init(collection);
         this.localCounters = new HashMap<>();
-        captionCache = new HashMap<>();
     }
 
+    /**
+     * Init with common code from both constructors
+     *
+     * @param collection Collection name
+     */
     private void init(String collection) {
         this.collection = collection;
         entries = new HashMap<>();
+        captionCache = new HashMap<>();
         ImageIO.setUseCache(false);
     }
 
+    /**
+     * Gets the desired counters from either Hadoop or local Counter cache
+     *
+     * @param counterName name of the counter
+     * @return desired counter
+     */
     public Counter getCounter(Enum<?> counterName) {
         if (context != null) {
             return context.getCounter(counterName);
@@ -87,6 +154,13 @@ public class ImageInformationExtractor {
         }
     }
 
+
+    /**
+     * Generic entry point to parse wither WARCs or ARCs
+     *
+     * @param arcName name of the (W)ARCs
+     * @param arcURL (W)ARCs url
+     */
     public void parseRecord(String arcName, String arcURL) {
         if (arcURL.endsWith("warc.gz") || arcURL.endsWith("warc")) {
             parseWarcEntryRecord(arcName, arcURL);
@@ -95,13 +169,25 @@ public class ImageInformationExtractor {
         }
     }
 
-    public void parseWarcEntryRecord(String warcName, String arcURL) {
-        ImageSearchIndexingUtil.readWarcRecords(arcURL, this, (record) -> {
+    /**
+     * Parse a WARC record
+     *
+     * @param warcName WARC name
+     * @param warcURL WARC url
+     */
+    public void parseWarcEntryRecord(String warcName, String warcURL) {
+        ImageSearchIndexingUtil.readWarcRecords(warcURL, this, (record) -> {
             parseWarcRecord(record, warcName);
         });
 
     }
 
+    /**
+     * Parse a WARC record inner method
+     *
+     * @param record WARC record object
+     * @param warcName WARC name
+     */
     public void parseWarcRecord(WARCRecordResponseEncapsulated record, String warcName) {
         String mimetype = record.getContentMimetype();
         if (mimetype != null) {
@@ -115,25 +201,37 @@ public class ImageInformationExtractor {
         }
     }
 
-    public void parseArcEntry(String warcName, String arcURL) {
+    /**
+     * Parse a ARC record
+     *
+     * @param arcName ARC name
+     * @param arcURL ARC url
+     */
+    public void parseArcEntry(String arcName, String arcURL) {
         ImageSearchIndexingUtil.readArcRecords(arcURL, this, record -> {
-            parseArcRecord(record, warcName);
+            parseArcRecord(record, arcName);
         });
     }
 
-    public void parseArcRecord(ARCRecord record, String warcName) {
+    /**
+     * Parse a ARC record inner method
+     *
+     * @param record ARC record object
+     * @param arcName ARC url
+     */
+    public void parseArcRecord(ARCRecord record, String arcName) {
         if (record.getMetaData().getMimetype().contains("image")) {
-            createImageDB(record, context, warcName, record.getMetaData().getOffset());
+            createImageDB(record, context, arcName, record.getMetaData().getOffset());
         } else if (record.getMetaData().getMimetype().contains("html")) {
             byte[] recordContentBytes;
             try {
                 recordContentBytes = ImageSearchIndexingUtil.getRecordContentBytes(record);
             } catch (IOException e) {
-                logger.error(String.format("Error getting record content bytes for (w)arc: %s on offset %d with error message %s", warcName, record.getBodyOffset(), e.getMessage()));
+                logger.error(String.format("Error getting record content bytes for (w)arc: %s on offset %d with error message %s", arcName, record.getBodyOffset(), e.getMessage()));
                 return;
             }
             logger.debug("Searching images in html record");
-            parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate(), warcName, record.getMetaData().getOffset());
+            parseImagesFromHtmlRecord(context, recordContentBytes, record.getHeader().getUrl(), record.getMetaData().getDate(), arcName, record.getMetaData().getOffset());
         }
     }
 

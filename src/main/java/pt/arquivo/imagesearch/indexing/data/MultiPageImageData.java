@@ -8,54 +8,165 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Class used to represent the COMPACT representation of image data objects
+ * Instead of having each a separate object for each page an iamge shows up on,
+ * we instead use the oldest page as the basis for the obejct and have all relevant metadata
+ * in the form List of imgTitle, imgAlt and imgCaption
+ */
 public class MultiPageImageData implements Comparable<LocalDateTime>, Serializable {
 
+    /**
+     * Collection where to which this page matches
+     */
     private String collection;
 
-    private String type;
+    /**
+     * List of image titles for this image
+     */
     private List<String> imgTitle;
+
+    /**
+     * List of image alt for this image
+     */
     private List<String> imgAlt;
+
+    /**
+     * List of image captions for this image
+     */
     private List<String> imgCaption;
+
+
+    /**
+     * Image crawl timestamp (oldest found)
+     */
     private LocalDateTime imgTimestamp;
+
+    /**
+     * Image crawl timestamp (newest found)
+     */
     private LocalDateTime latestImgTimespan;
+
+    /**
+     * Image SHA-256 digest
+     */
     private String imageDigest;
 
+    /**
+     * Oldest matching page title
+     */
     private String pageTitle;
+
+    /**
+     * Oldest matching page URL
+     */
     private String pageURL;
+
+    /**
+     * Oldest matching page url split into word tokens
+     */
     private String pageURLTokens;
 
+    /**
+     * Deprecated img id form YYYYMMDDHHmmSS/{imageURLHash}
+     */
     private String imgId;
+
+    /**
+     * Image url
+     */
     private String imgURL;
 
+    /**
+     * Whether the image is an inline base64 images
+     */
     private boolean inline;
+
+
+    /**
+     * Whetehr the image was found in a <a>, <img> or CSS tag
+     */
     private Set<String> tagFoundIn;
 
+    /**
+     * Oldest matching image url split into word tokens
+     */
     private String imgURLTokens;
+
+    /**
+     * Image height in pixels
+     */
     private int imgHeight;
+
+    /**
+     * Image width in pixels
+     */
     private int imgWidth;
+
+    /**
+     * Image mime type
+     */
     private String imgMimeType;
 
+    /**
+     * (W)ARC where the image was found
+     */
     private String imgWarc;
+
+    /**
+     * Offset in the imgWARC in byes
+     */
     private long imgWarcOffset;
 
+    /**
+     * Oldest page capture timestamp
+     */
     private LocalDateTime pageTimestamp;
+
+    /**
+     * Oldest page capture timestamp in the YYYYMMDDHHmmSS format
+     */
     private String pageTimestampString;
 
+    /**
+     * Host of the matching page
+     */
     private String pageHost;
 
+    /**
+     * Number of images that were matched to this object
+     */
     private int matchingImages;
+
+    /**
+     * Number of pages that were matched to this object
+     */
     private int matchingPages;
 
+    /**
+     * Number of times image metadata has changed in this object
+     */
     private int imageMetadataChanges;
+
+    /**
+     * Number of times page metadata has changed in this object
+     */
     private int pageMetadataChanges;
+
+    /**
+     * Number of images in the orginal page
+     */
     private int imagesInPage;
 
+    /**
+     * Combines a regular fullImageMetadata into the COMPACT format
+     * @param fullImageMetadata base fullImageMetadata to convert to the MultiPageImageData format
+     */
     public MultiPageImageData(FullImageMetadata fullImageMetadata){
         ImageData id = fullImageMetadata.getImageDatas().firstKey();
 
         this.collection = id.getCollection();
 
-        this.type = "mixed";
         this.imgTimestamp = id.getTimestamp().get(0);
         this.latestImgTimespan = id.getTimestamp().get(id.getTimestamp().size()-1);
         this.imageDigest = id.getContentHash();
@@ -115,10 +226,6 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
     @Override
     public String toString() {
         return String.format("\"%s\": \"%s\", %s", pageTitle, pageURL, pageTimestamp.toString());
-    }
-
-    public String getType() {
-        return type;
     }
 
     public List<String> getImgTitle() {

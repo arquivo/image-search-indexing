@@ -35,8 +35,39 @@ import java.util.Set;
 
 import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.OUTPUT_MODE_NAME;
 
+/**
+ * Hadoop process responsible for the 1nd stage of the pipeline.
+ * Takes (W)ARCs, extracts image and page metadata and generates intermediate results ready for deduplication.
+ * The output is a set of intermediate files ready for the 2nd stage of Hadoop processing
+ */
 public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
+    /**
+     * Counters for the first Hadoop process that are related to images
+     * <p>
+     * WARCS: number of WARCS parsed
+     * WARCS_DOWNLOAD_ERROR: number of WARCS that resulted in a download error
+     * <p>
+     * WARCS_FAILED: number of WARCs that failed processing
+     * <p>
+     * WARCS_FAILED_STREAM: number of WARCs that failed during stream decoding
+     * <p>
+     * RECORDS_READ: number of records processed from all types (pages, images and all other)
+     * RECORDS_FAILED: number of records that failed processing
+     * RECORD_NEXT_FAILED: number of records that failed when progressing to the next record
+     * <p>
+     * IMAGES_IN_WARC_TOTAL: number of images that are present in the WARC
+     * IMAGES_IN_WARC_FAILED: number of images that failed processing (decoding, getting resolution, ...)
+     * <p>
+     * IMAGES_IN_WARC_TOO_SMALL: images that were not processed due to being too small (below 50x50 px)
+     * IMAGES_IN_WARC_TOO_SMALL_BASE64: images that were not processed due to being too small in base64
+     * IMAGES_IN_WARC_TOO_LARGE: images that were not processed due to being too large (area above 15000*15000)
+     * IMAGES_IN_WARC_MIME_INVALID: images where the mimetype could not be detected
+     * IMAGES_IN_WARC_MIME_WRONG: images where the detected mimetipe differs from the reported mimetype
+     * <p>
+     * IMAGES_IN_WARC_PARSED: number of images that were effectively parsed
+     * IMAGES_IN_WARC_PARSED_DUP: number of images that were parsed (with duplicates from the same WARC removed)
+     */
     public enum IMAGE_COUNTERS {
         WARCS,
         WARCS_DOWNLOAD_ERROR,
@@ -64,6 +95,29 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
     }
 
+
+    /**
+     * Counters for the first Hadoop process that are related to images
+     * <p>
+     * IMAGES_IN_HTML_TOTAL: total number of images found in HTML
+     * IMAGES_IN_HTML_FAILED: number of images that failed HTML processing
+     * IMAGES_IN_HTML_INVALID: number of images with invalid URLs
+     * IMAGES_IN_HTML_MATCHING: images that passed the first processing stage
+     * IMAGES_IN_HTML_EXCEDED: images that have over 10000 images. The parser stops at that level
+     * IMAGES_IN_HTML_NOT_PARSED: images that were not parsed due to the 10000 limit
+     * IMAGES_IN_HTML_MATCHING_ALT_ATRIB: <img> images were the URL was found in some palce other that the src attribute
+     * IMAGES_IN_HTML_MATCHING_LINK: images found in <a> tags
+     * IMAGES_IN_HTML_MATCHING_CSS: images found in css tags
+     * IMAGES_IN_HTML_BASE64: images represented in base64
+     * PAGES: total number of pages parser
+     * PAGES_WITH_IMAGES: total number of pages with images
+     * <p>
+     * PAGE_UTF8_MISMATCH: images that are UTF_8 but encoded in ISO_8859_1
+     * PAGE_UTF8_MISMATCH_DOUBLE: images with mixed encoding both UTF_8 and ISO_8859_1 that cannot be fixed
+     * <p>
+     * IMAGES_IN_HTML_SENT: images sent to the next processing stage
+     * IMAGES_IN_HTML_SENT_DUP: images sent to the next processing stage with duplicated from the same WARC removed
+     */
     public enum PAGE_COUNTERS {
         IMAGES_IN_HTML_TOTAL,
         IMAGES_IN_HTML_FAILED,
@@ -114,6 +168,17 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
             indexer = new ImageInformationExtractor(collection, context);
         }
 
+        /**
+         * First stage hadoop processing
+         * <p>
+         * Downloads the (W)ARC locally and processes it into all required metadata.
+         * Entries are written into their corresponding SURT entries
+         *
+         * @param key     Hadoop key (not required at this stage)
+         * @param value   (W)ARC url
+         * @param context Hadoop context
+         * @throws IOException unrecoverable errors processing (W)ARCs are thrown so that Hadoop retries it
+         */
         public void map(LongWritable key, Text value, Context context) throws IOException {
             String arcURL = value.toString();
             if (!arcURL.isEmpty()) {
@@ -129,26 +194,27 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                 String[] surl = url.getPath().split("/");
                 String arcName = surl[surl.length - 1];
                 String filename = "/tmp/" + System.currentTimeMillis() + "_" + arcName;
-                //
 
                 try {
                     int fileSize = ImageSearchIndexingUtil.getFileSize(url);
                     //ImageSearchIndexingUtil.saveFile(url, filename);
-                    File dest = new File( filename);
-                    FileUtils.copyURLToFile(url, dest, 1000*60, 1000*30);
-                    dest = new File( filename);
-                    if (fileSize != dest.length()){
+                    File dest = new File(filename);
+
+                    // download and parse WARC locally to avoid problems when streaming from remote server
+                    FileUtils.copyURLToFile(url, dest, 1000 * 60, 1000 * 30);
+                    dest = new File(filename);
+                    if (fileSize != dest.length()) {
                         FileUtils.deleteQuietly(dest);
-                        throw new IOException("Incomplete file: " + fileSize +  " " + dest.length());
+                        throw new IOException("Incomplete file: " + fileSize + " " + dest.length());
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
-                    File dest = new File( filename);
+                    File dest = new File(filename);
                     FileUtils.deleteQuietly(dest);
                     throw e;
                 }
-                File dest = new File( filename);
+                File dest = new File(filename);
                 logger.info("(W)ARC downloaded: " + dest.getAbsolutePath());
 
                 indexer.parseRecord(arcName, dest.getPath());
@@ -157,6 +223,14 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
             }
         }
 
+
+        /**
+         * So, results are only written at Hadoop cleanup stage (after all maps are finished) so that fewer duplicates are sent to the next stage
+         *
+         * @param context Hadoop context which will contain all the processed metadata
+         * @throws IOException          error writing to Hadoop context
+         * @throws InterruptedException error calling parent super.cleanup
+         */
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException {
             logger.info("Cleanup");
@@ -176,18 +250,21 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         @Override
         public void setup(Reducer.Context context) {
-            //logger.setLevel(Level.DEBUG);
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
 
-            logger.debug(collection + "_Images" + "/img/");
             this.collection = config.get("collection");
-
             merger = new ImageInformationMerger(context);
-
         }
 
 
+        /**
+         * Redude process that takes image and page records grouped by SURT and merges them by image digest
+         *
+         * @param key     SURT for that specific entry
+         * @param values  Image and page metadatasa for that SURT
+         * @param context Hadoop context
+         */
         public void reduce(Text key, Iterable<Writable> values, Context context) {
             merger.reset();
             int counter = merger.mergeAllHadoop(values);
@@ -224,6 +301,14 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         }
     }
 
+
+    /**
+     * Class entry point, process all (W)ARCs and output intermediary non-deduplicated results ready for the next Hadoop stage
+     *
+     * @param args: args[0]: HDFS file with (W)ARC file list, args[1]: collection name, args[2]: (W)ARC files per map, args[3]: number of reduces, args[4]: are (W)ARCs in HDFS (true, false), (optional) args[5]: output HDFS dir
+     * @return 0 if successful, 1 otherwise
+     * @throws Exception crash if there is an error getting required files from HDFS
+     */
     @Override
     public int run(String[] args) throws Exception {
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
@@ -243,9 +328,10 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
 
         String outputDir;
-        if (args.length >= 6){
+        if (args.length >= 6) {
             outputDir = args[5];
         } else {
+            // Default HDFS output dir, will be used as the input for that in the next stage
             outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis() + "_dups";
         }
 
@@ -256,7 +342,9 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         job.setJarByClass(ImageIndexerWithDupsJob.class);
 
-        if (modeIsHDFS){
+        // This class supports getting (W)ARCs from both HDFS or HTTP
+        // This flag changes Hadoop input format to match HDFS's data
+        if (modeIsHDFS) {
             job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
             job.setInputFormatClass(ArchiveFileInputFormat.class);
             // Find ArcFiles to Process
@@ -291,14 +379,16 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         job.setJobName(jobName);
 
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", 80);
+
+        // sometimes, jobs can fail for recoverable reasons (errors getting WARC from document server
+        // by setting the retry amount to 6, we ensure that only Maps from unusable WARCs fail processing
         job.getConfiguration().setInt("mapreduce.map.maxattempts", 6);
         job.getConfiguration().setInt("mapreduce.reduce.shuffle.parallelcopies", 10);
+
+        // increased timeout ensure that even the most complex and largest (W)ARCS are processed
         job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);
 
         job.setNumReduceTasks(reducesCount);
-
-        //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
-        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
         FileOutputFormat.setOutputPath(job, new Path(outputDir));
 

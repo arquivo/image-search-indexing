@@ -1,32 +1,23 @@
 package pt.arquivo.imagesearch.indexing;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.log4j.Logger;
 import org.archive.io.ArchiveRecord;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
-import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.hadoop.WritableArchiveRecord;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
-import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
-import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.HashSet;
-import java.util.Set;
 
+
+/**
+ * First stage Hadoop process to similar to the ImageIndexerWithDupsJob, but used for when (W)ARC files are in HDFS
+ * In my experiments, using (W)ARCs already in HDFS was not much faster than using (W)ARCs in the document server
+ */
 public class HDFSImageIndexerWithDupsJob {
 
     public static class Map extends Mapper<LongWritable, WritableArchiveRecord, Text, Writable> {
@@ -45,11 +36,30 @@ public class HDFSImageIndexerWithDupsJob {
             indexer = new ImageInformationExtractor(collection, context);
         }
 
+
+        /**
+         * First stage hadoop processing
+         *
+         * Processes it into all required metadata.
+         * Entries are written into their corresponding SURT entries
+         *
+         * @param key Hadoop key (not required at this stage)
+         * @param value (W)ARC record ready for parsing
+         * @param context Hadoop context
+         * @throws IOException unrecoverable errors processing (W)ARCs are thrown so that Hadoop retries it
+         */
         public void map(LongWritable key, WritableArchiveRecord value, Context context) throws IOException {
             ArchiveRecord rec = value.getRecord();
             indexer.parseRecord(rec);
         }
 
+        /**
+         * So, results are only written at Hadoop cleanup stage (after all maps are finished) so that fewer duplicates are sent to the next stage
+         *
+         * @param context Hadoop context which will contain all the processed metadata
+         * @throws IOException error writing to Hadoop context
+         * @throws InterruptedException error calling parent super.cleanup
+         */
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException {
             logger.info("Cleanup");

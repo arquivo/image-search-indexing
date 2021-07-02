@@ -1,16 +1,30 @@
 package pt.arquivo.imagesearch.indexing.data.serializers;
 
-import java.time.LocalDateTime;
-import java.util.Base64;
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 
 import java.lang.reflect.Type;
+import java.util.Base64;
 import java.util.List;
 
+/**
+ * Configures JsonSerializable to export the object in the desired JSON format
+ * Used in the FULL export format
+ */
 public class ImageDataSerializer implements JsonSerializer<ImageData> {
 
+    /**
+     * Converts the object into a JSON ready for writing
+     *
+     * @param src object to export
+     * @param typeOfSrc (unused)
+     * @param context Hadoop context
+     * @return JsonElement ready for export
+     */
     @Override
     public JsonElement serialize(ImageData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();

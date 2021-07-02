@@ -2,10 +2,8 @@ package pt.arquivo.imagesearch.indexing.utils;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -19,135 +17,50 @@ import org.apache.log4j.Logger;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Method;
 
-import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
-
+/**
+ * Image parser auxiliary class
+ */
 public class ImageParse {
 
     //TODO: extract this variables to config files
+
+    /**
+     * Thumbnail max height
+     */
     public static final int THUMB_HEIGHT = 200;
+
+    /**
+     * Thumbnail max width
+     */
     public static final int THUMB_WIDTH = 200;
-    public static final int MIN_WIDTH = 51;
+
+    /**
+     * Image min height for parsing
+     */
     public static final int MIN_HEIGHT = 51;
 
+    /**
+     * Image min width for parsing
+     */
+    public static final int MIN_WIDTH = 51;
+
+    /**
+     * Image max width for parsing
+     */
     public static final int MAX_WIDTH = 15000;
+
+    /**
+     * Image max height for parsing calculated as 15000*15000
+     */
     public static final int MAX_HEIGHT = 15000;
 
+    /**
+     * Chosen image hasing algorithm
+     */
     public static final String DIGEST_ALGORITHM = "SHA-256";
 
     public static Logger logger = Logger.getLogger(WARCInformationParser.class);
-
-    /**
-     *
-     * @param img
-     * @param widthThumbnail
-     * @param heightThumbnail
-     * @return
-     * @throws InterruptedException
-     */
-//	public static ImageSearchResult getPropImage( String imageURL ) throws InterruptedException {
-//		ImageSearchResult img = new ImageSearchResult( );
-//		BufferedImage bimg;
-//		String base64String, 
-//			base64StringOriginal;	
-//		String type = null;
-//		URLConnection uc = null;
-//		MessageDigest digest = null;
-//		BufferedImage scaledImg = null;
-//		ByteArrayOutputStream bao = new ByteArrayOutputStream( );
-//		try {
-//			int thumbWidth 	= 200, thumbHeight = 200;
-//			uc = new URL( imageURL ).openConnection( );
-//			uc.setConnectTimeout(10 * 1000);/*10 seconds*/
-//			//uc.setRequestMethod("GET");
-//			//uc.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US; rv:1.9.1.2) Gecko/20090729 Firefox/3.5.2 (.NET CLR 3.5.30729)");
-//			uc.connect();
-//			digest = MessageDigest.getInstance( "SHA-256" );
-//			InputStream inImg =  uc.getInputStream( );
-//			bimg = ImageIO.read( inImg );
-//			type = getMimeType( uc );
-//			int width          	= bimg.getWidth( null );
-//			int height         	= bimg.getHeight( null );
-//			img.setMime( type );
-//			img.setHeight( Double.toString( height ) );
-//			img.setWidth( Double.toString( width ) );
-//			img.setUrl( imageURL );
-//
-//			byte[ ] bytesImgOriginal = IOUtils.toByteArray( new URL( imageURL ).openStream( ) );
-//			//calculate digest
-//			digest.update( bytesImgOriginal );
-//			byte byteDigest[ ] = digest.digest();
-//			img.setDigest( convertByteArrayToHexString( byteDigest ) );
-//
-//			if( width < thumbWidth || height < thumbHeight )
-//				scaledImg = bimg;
-//			else {
-//				
-//				if( type.equals( "image/gif" )  ) {
-//					
-//					//byte[] output = getThumbnailGif( inImg , thumbWidth , thumbHeight );
-//					// Create a byte array output stream.
-//					if( imageURL == null )
-//						return null;
-//			        
-//					base64StringOriginal = Base64.encode( bytesImgOriginal );
-//					bao.close( );
-//					img.setThumbnail( base64StringOriginal );
-//					return img;
-//
-//				} else {
-//					double thumbRatio = (double) thumbWidth / (double) thumbHeight;
-//					double imageRatio = (double) width / (double) height;
-//					if ( thumbRatio < imageRatio ) 
-//						thumbHeight = (int)( thumbWidth / imageRatio );
-//					else 
-//						thumbWidth = (int)( thumbHeight * imageRatio );
-//					
-//					if( width < thumbWidth && height < thumbHeight ) {
-//						thumbWidth  = width;
-//						thumbHeight = height;
-//					} else if( width < thumbWidth )
-//						thumbWidth = width;
-//					else if( height < thumbHeight )
-//						thumbHeight = height;
-//					
-//					scaledImg = Scalr.resize( bimg, 
-//												Method.QUALITY, 
-//												Scalr.Mode.AUTOMATIC, 
-//												thumbWidth, 
-//												thumbHeight, 
-//												Scalr.OP_ANTIALIAS ); //create thumbnail				
-//				}
-//			}
-//
-//
-//			// Write to output stream
-//	        ImageIO.write( scaledImg , type.substring( 6 ) , bao );
-//	        bao.flush( );
-//	        
-//	        // Create a byte array output stream.
-//	        base64String = Base64.encode( bao.toByteArray( ) );
-//	        bao.close( );
-//	        img.setThumbnail( base64String );
-//	
-//			return img;
-//
-//		} catch ( MalformedURLException e ) {
-//			e.printStackTrace( );
-//			return null;
-//		} catch ( IOException e ) {
-//			e.printStackTrace( );
-//			return null;
-//		} catch( IllegalArgumentException e ) {
-//			e.printStackTrace( );
-//			return null;
-//		} catch ( Exception e ) {
-//			 e.printStackTrace();
-//			 return null;
-//		}
-//		
-//	}
-    
 
     /**
      * convert the byte to hex format method (digest imgge)
@@ -166,6 +79,13 @@ public class ImageParse {
         return hexString.toString();
     }
 
+    /**
+     * Run image parsing process, excluding too large and too small images
+     * Also computehs the image thumbnail and assigns it to the current img object
+     *
+     * @param img image to be parsed
+     * @return the parsed image or null if parsing fails
+     */
     public static ImageData getPropImage(ImageData img) {
 
         try {

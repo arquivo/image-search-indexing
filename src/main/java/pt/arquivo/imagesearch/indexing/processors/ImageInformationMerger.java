@@ -1,21 +1,14 @@
 package pt.arquivo.imagesearch.indexing.processors;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 import org.apache.hadoop.io.Writable;
-import org.apache.log4j.Logger;
-import pt.arquivo.imagesearch.indexing.DupDigestMergerJob;
-import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
-import pt.arquivo.imagesearch.indexing.data.ImageData;
-import pt.arquivo.imagesearch.indexing.data.PageImageData;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
+import org.apache.log4j.Logger;
+import pt.arquivo.imagesearch.indexing.DupDigestMergerJob;
+import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 
-import java.awt.*;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 
 public class ImageInformationMerger {

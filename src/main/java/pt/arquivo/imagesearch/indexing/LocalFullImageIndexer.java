@@ -22,8 +22,16 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 
+
+/**
+ * Runs the full indexing process, similarly to FullImageIndexerJob, but without Hadoop dependencies, running fully locally
+ *
+ */
 public class LocalFullImageIndexer {
 
+    /**
+     * Similar to the Map stage in the ImageIndexerWithDupsJob
+     */
     public static class Map {
 
         private Logger logger = Logger.getLogger(Map.class);
@@ -72,6 +80,9 @@ public class LocalFullImageIndexer {
         }
     }
 
+    /**
+     * Similar to the Reduce stage in the ImageIndexerWithDupsJob
+     */
     public static class Reduce {
 
         private Logger logger = Logger.getLogger(Reduce.class);
@@ -123,6 +134,9 @@ public class LocalFullImageIndexer {
         }
 
 
+        /**
+         * Similar to the Reduce stage in the DupDigestMergerJob
+         */
         public FullImageMetadata reduce(Text key, Iterable<FullImageMetadata> values) {
             logger.debug("Reducing: " + key);
 
@@ -145,13 +159,18 @@ public class LocalFullImageIndexer {
         }
     }
 
+    /**
+     * Runs the full indexing process locally for the desired input
+     *
+     * @param args args[0]: file with (W)ARC file list, args[1]: collection name, args[2]: output path, args[3]: output mode for the JSON format (FULL, COMPACT)
+     */
     public static void main(String[] args) {
         Logger logger = Logger.getLogger(Map.class);
         logger.setLevel(Level.INFO);
         BasicConfigurator.configure();
 
 
-        assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
+        assert args.length >= 1 : "Missing file with all arcs path argument";
         String hdfsArcsPath = args[0];
 
         assert args.length >= 2 : "Missing collection name argument";

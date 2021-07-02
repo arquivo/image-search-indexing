@@ -28,7 +28,7 @@ import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 import java.io.IOException;
 
 /**
- * Hadoop process responsable for the 2nd stage of the pipeline.
+ * Hadoop process responsible for the 2nd stage of the pipeline.
  * Takes intermediate, duplicate results from the first stage (grouped by digest), and performs digest-based deduplication.
  * The output is a set of JSONL files ready for the NSFW classification process
  */
@@ -55,9 +55,9 @@ public class DupDigestMergerJob extends Configured implements Tool {
 
     /**
      * Counters for the map process:
-     * <p>
+     *
      * RECORDS_IN: Count of images (with unique digests) that where processed
-     * RECORDS_OUT: Count of images that where outputed
+     * RECORDS_OUT: Count of images that where outputted
      * RECORDS_WITH_METADATA: Number of images that have image specific metadata
      * RECORDS_WITHOUT_METADATA: Number of images that don't have image specific metadata
      * URL_IMAGES_PAGESALL: Number of pages referencing images (without deduplication)
@@ -95,7 +95,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
 
 
         /**
-         * Map process groups FullImageMetadata records by digest by writting them to the "key" Hadoop entry
+         * Map process groups FullImageMetadata records by digest by writing them to the "key" Hadoop entry
          *
          * @param key     image digest for this FullImageMetadata object
          * @param value   single FullImageMetadata object to be deduplicated
@@ -201,8 +201,8 @@ public class DupDigestMergerJob extends Configured implements Tool {
      * Runs the DupDigestMergerJob process
      *
      * @param args: args[0]: collection name, args[1]: files per map, args[2]: number of reduces, args[4]: output mode (FULL, COMPACT), (optional) args[4]: input HDFS dir,  args[5]: output HDFS dir
-     * @return Whether Hadoop process finihsed sucessfully (0) or not (1)
-     * @throws Exception if Exceptions may reach this stage, there is not much one can do
+     * @return Whether Hadoop process finihsed successfully (0) or not (1)
+     * @throws Exception crash if there is an error getting required files from HDFS
      */
     @Override
     public int run(String[] args) throws Exception {
@@ -246,6 +246,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
                     }
                 }
             }
+            // Default output dir for HDFS processes
             outputDirDigest = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
         }
 
@@ -275,13 +276,6 @@ public class DupDigestMergerJob extends Configured implements Tool {
         TextOutputFormat.setOutputPath(jobDigest, new Path(outputDirDigest));
         if (hdfs.exists(new Path(outputDirDigest)))
             hdfs.delete(new Path(outputDirDigest), true);
-
-        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
-
-        //job.setNumReduceTasks(1);
-
-        //job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linespermap);
-        //job.getConfiguration().setInt("mapreduce.job.running.map.limit", maxMaps); /*Maximum simultaneous maps running*/
 
         return jobDigest.waitForCompletion(true) ? 0 : 1;
     }

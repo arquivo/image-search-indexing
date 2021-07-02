@@ -8,8 +8,20 @@ import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
 
 import java.lang.reflect.Type;
 
+/**
+ * Configures JsonSerializable to export the object in the desired JSON format
+ * Used in the COMPACT export format
+ */
 public class MultiPageImageDataSerializer implements JsonSerializer<MultiPageImageData> {
 
+    /**
+     * Converts the object into a JSON ready for writing
+     *
+     * @param src object to export
+     * @param typeOfSrc (unused)
+     * @param context Hadoop context
+     * @return JsonElement ready for export
+     */
     @Override
     public JsonElement serialize(MultiPageImageData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();

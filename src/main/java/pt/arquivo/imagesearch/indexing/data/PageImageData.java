@@ -19,60 +19,219 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
 
     private static final int MAX_ADD_THRESHOLD = 50;
 
+    /**
+     * Collection where to which this page matches
+     */
     private String collection;
 
+    /**
+     * (W)ARC name
+     */
     private String warc;
+
+    /**
+     * (W)ARC offset in bytes
+     */
     private long warcOffset;
 
+
+    /**
+     * Always page for this object
+     */
     private String type;
+
+
+    /**
+     * Title of the image (if exists)
+     */
     private String imgTitle;
+
+    /**
+     * Image alt text (if exists)
+     */
     private String imgAlt;
+
+    /**
+     * Image filename
+     */
     private String imgFilename;
+
+    /**
+     * Image caption extracted from the HTML
+     */
     private String imgCaption;
+
+    /**
+     * Image capture timestamp
+     */
     private LocalDateTime imgTimestamp;
+
+    /**
+     *  Image capture timestamp in archive format
+     */
     private long imgTimespan;
 
+    /**
+     * Oldest matching page title
+     */
     private String pageTitle;
+
+    /**
+     * Oldest matching page url split into word tokens
+     */
     private String pageURLTokens;
 
+    /**
+     * Deprecated img id form YYYYMMDDHHmmSS/{imageURLHash}
+     */
     private String imgId;
+
+    /**
+     * Image url
+     */
     private String imgURL;
+
+    /**
+     * Oldest matching image url split into word tokens
+     */
     private String imgURLTokens;
+
+    /**
+     * Image SURT
+     */
     private String imgSurt;
+
+    /**
+     * Image height in pixels
+     */
     private int imgHeight;
+
+    /**
+     * Image width in pixels
+     */
     private int imgWidth;
+
+    /**
+     * Image mime type
+     */
     private String imgMimeType;
 
+    /**
+     * (W)ARC where the image was found
+     */
     private String imgWarc;
+
+    /**
+     * Offset in the imgWARC in byes
+     */
     private long imgWarcOffset;
 
+    /**
+     * Oldest page capture timestamp
+     */
     private LocalDateTime pageTimestamp;
+
+    /**
+     * Newest page capture timestamp
+     */
     private LocalDateTime pageTimestampNewest;
+
+    /**
+     * Oldest page capture timestamp in the YYYYMMDDHHmmSS format
+     */
     private String pageTimestampString;
+
+    /**
+     * Oldest matching page URL
+     */
     private String pageURL;
 
+    /**
+     * Host of the matching page
+     */
     private String pageHost;
+
+    /**
+     * Page protocol (http vs. https)
+     */
     private String pageProtocol;
 
-
+    /**
+     * Number of images that were matched to this object
+     */
     private int matchingImages;
+
+    /**
+     * Number of pages that were matched to this object
+     */
     private int matchingPages;
 
+    /**
+     * Number of times image metadata has changed in this object
+     */
     private int imageMetadataChanges;
+
+    /**
+     * Number of times page metadata has changed in this object
+     */
     private int pageMetadataChanges;
-    // Number of images in the original page
+
+    /**
+     * Number of images in the orginal page
+     */
     private int imagesInPage;
+
+    /**
+     * Number of digests that were found under this URL
+     */
     private int uniqueDigestsOnURL;
 
 
+    /**
+     * Whether the image is an inline base64 images
+     */
     private boolean inline;
 
+    /**
+     * Whether the image was found in a <a>, <img> or CSS tag
+     */
     private Set<String> tagFoundIn;
+
+    /**
+     * Image SHA-256 digest
+     */
     private String imageDigest;
 
+    /**
+     * SURT of the oldest record found. It will be used as the canonical SURT for this object
+     */
     private String oldestSurt;
+
+    /**
+     * When was the oldest SURT captured
+     */
     private LocalDateTime oldestSurtDate;
 
+    /**
+     * @param type always pare for this object
+     * @param imgTitle Title of the image (if exists)
+     * @param imgAlt Image alt text (if exists)
+     * @param imgURLTokens Image URL split into tokens
+     * @param imgCaption Image caption extracted from HTML
+     * @param pageTitle HTML tage title
+     * @param pageURLTokens Page URL split into tokens
+     * @param imgURL Image URL
+     * @param imageSurt Image SURT
+     * @param imagesInPage Number of images in page
+     * @param pageTimestampString Page capture timestamp in the YYYYMMDDHHmmSS format
+     * @param pageURL Page URL
+     * @param pageHost Page host
+     * @param pageProtocol Page protocol
+     * @param tagType Whether the image was found in a <a>, <img> or CSS tag
+     * @param warc WARC filename
+     * @param warcOffset WARC offset in bytes
+     * @param collection Collection name
+     */
     public PageImageData(String type, String imgTitle, String imgAlt, String imgURLTokens, String imgCaption, String pageTitle, String pageURLTokens, String imgURL, String imageSurt, int imagesInPage, String pageTimestampString, String pageURL, String pageHost, String pageProtocol, String tagType, String warc, long warcOffset, String collection) {
 
         this.type = type;
@@ -239,11 +398,16 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         return (o.getImageMetadata().equals(this.getImageMetadata()));
     }
 
+    /**
+     * Merge this record with another record for the same SURT or digest
+     *
+     * if two pages with the same metadata are parsed, store the oldest one
+     * if two pages with the same timestamp and metadata are parsed, store the one with the shortest URL
+     *
+     * @param pageImageData the record to merge
+     */
     public void updatePageTimestamp(PageImageData pageImageData) {
         int comparison = pageImageData.getPageTimestamp().compareTo(this.pageTimestamp);
-        // if two pages with the same metadata are parsed, store the oldest one
-        // if two pages with the same timestamp and metadata are parsed, store the one with the shortest URL
-        // useful for donated collections
         if (comparison < 0 || (comparison == 0 && pageImageData.getPageURL().length() < pageURL.length())) {
             pageTimestamp = pageImageData.getPageTimestamp();
             pageTimestampString = WARCInformationParser.getLocalDateTimeToTimestamp(pageTimestamp);
@@ -308,6 +472,11 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.imgHeight = imgHeight;
     }
 
+    /**
+     * Add a matching image metadata to this object
+     * @param id the matching metadata
+     * @param correct the best match timestamp
+     */
     public void assignImageToPage(ImageData id, LocalDateTime correct) {
         this.setImgTimestamp(correct);
         this.setImageTimespan(id.getTimespan());
@@ -320,6 +489,10 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
         this.setImgWarcOffset(id.getWarcOffset());
     }
 
+    /**
+     * Add a matching page to this object
+     * @param fullImageMetadata the matching metadata
+     */
     public void assignMetadataToPage(FullImageMetadata fullImageMetadata) {
         this.matchingImages = fullImageMetadata.getMatchingImages();
         this.matchingPages = fullImageMetadata.getMatchingPages();

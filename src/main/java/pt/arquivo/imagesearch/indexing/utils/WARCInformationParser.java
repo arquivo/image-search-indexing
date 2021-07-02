@@ -56,24 +56,6 @@ public class WARCInformationParser {
         return SURT.toSURT(url);
     }
 
-    /*
-    public static PageImageData getClosest(List<PageImageData> pages, LocalDateTime timekey) {
-        pages.sort(Comparator.comparing(PageImageData::getTimestamp));
-        int idx = Collections.binarySearch(pages, timekey);
-        if (idx < 0) {
-            idx = -idx - 1;
-        }
-
-        if (idx == 0) {
-            return pages.get(idx);
-        } else if (idx == pages.size()) {
-            return pages.get(idx - 1);
-        }
-
-        return timekey.compareTo(pages.get(idx - 1).getTimestamp()) < timekey.compareTo(pages.get(idx).getTimestamp()) ? pages.get(idx - 1) : pages.get(idx);
-    }
-     */
-
     public static Map.Entry<ImageReader, Dimension> getImageDimensions(ImageData img) {
         ImageReader reader = null;
 
@@ -124,16 +106,4 @@ public class WARCInformationParser {
         return detectedMimeType;
     }
 
-    public static void main(String[] args) {
-
-        //TODO: check SURT and abs:src transforms
-        String[] urls = {
-                "https://archive.org/goo/?a=2&b&a=1",
-                "http://archive.org/goo/?a=2&b&a=1",
-                "http://www.archive.org/goo/?a=2&b&a=1",
-                "ftp://www.archive.org/goo/?a=2&b&a=1",
-        };
-        for (String url : urls)
-            System.out.println(WARCInformationParser.toSURT(url));
-    }
 }

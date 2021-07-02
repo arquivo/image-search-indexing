@@ -19,22 +19,40 @@ import java.io.IOException;
 import java.util.Iterator;
 
 
+/**
+ * This class enables iterating the (W)ARC records read from HDFS
+ * Used in the HDFSImageIndexerWithDupsJob clause
+ */
 public class ArchiveFileRecordReader extends RecordReader<LongWritable, WritableArchiveRecord> {
 
-    private static Logger log = Logger.getLogger(ArchiveFileRecordReader.class
+    private static final Logger log = Logger.getLogger(ArchiveFileRecordReader.class
             .getName());
 
-    private FileSplit fileSplit;
-    private Configuration conf;
 
+    /**
+     * Input stream for the (W)ARC file
+     */
     private FSDataInputStream datainputstream;
 
-    private FileStatus status;
-    private FileSystem fs;
 
-    private ArchiveReader arcreader;
+    /**
+     * Current (W)ARC file status
+     */
+    private FileStatus status;
+
+    /**
+     * (W)ARC record iterador
+     */
     private Iterator<ArchiveRecord> iterator;
+
+    /**
+     * Current record that is being processed
+     */
     private ArchiveRecord record;
+
+    /**
+     * (W)ARC name
+     */
     private String archiveName;
 
     public long getPos() throws IOException {
@@ -46,25 +64,37 @@ public class ArchiveFileRecordReader extends RecordReader<LongWritable, Writable
         return datainputstream.getPos();
     }
 
+    /**
+     * Prepares data for being iterated by record
+     *
+     * @param split (W)ARC file in HDFS
+     * @param context Hadoop context
+     * @throws IOException error reading data from HDFS
+     */
     @Override
-    public void initialize(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
-        this.fileSplit = (FileSplit) split;
-        this.conf = context.getConfiguration();
+    public void initialize(InputSplit split, TaskAttemptContext context) throws IOException {
+        FileSplit fileSplit = (FileSplit) split;
+        Configuration conf = context.getConfiguration();
 
         Path file = fileSplit.getPath();
-        this.fs = file.getFileSystem(conf);
+        FileSystem fs = file.getFileSystem(conf);
 
-        this.status = this.fs.getFileStatus(file);
-        this.datainputstream = this.fs.open(file);
+        this.status = fs.getFileStatus(file);
+        this.datainputstream = fs.open(file);
 
-        this.arcreader = ArchiveReaderFactory.get(file.getName(), datainputstream, true);
-        this.arcreader.setStrict(true);
+        ArchiveReader arcreader = ArchiveReaderFactory.get(file.getName(), datainputstream, true);
+        arcreader.setStrict(true);
         this.iterator = arcreader.iterator();
         this.archiveName = arcreader.getFileName();
     }
 
+    /**
+     * Whether the current record being iterated has more records
+     *
+     * @return whether the (W)ARC file has more records
+     */
     @Override
-    public boolean nextKeyValue() throws IOException, InterruptedException {
+    public boolean nextKeyValue() {
         boolean hasNext = false;
         try {
             hasNext = iterator.hasNext();
@@ -78,16 +108,34 @@ public class ArchiveFileRecordReader extends RecordReader<LongWritable, Writable
         return hasNext;
     }
 
+    /**
+     * Gets current interator key
+     *
+     * @return key for the current record
+     * @throws IOException
+     */
     @Override
-    public LongWritable getCurrentKey() throws IOException, InterruptedException {
+    public LongWritable getCurrentKey() throws IOException {
         return new LongWritable(getPos());
     }
 
+    /**
+     * Get the current value for the iterator
+     *
+     * @return current record object
+     * @throws IOException
+     */
     @Override
-    public WritableArchiveRecord getCurrentValue() throws IOException, InterruptedException {
+    public WritableArchiveRecord getCurrentValue() throws IOException {
         return new WritableArchiveRecord(this.record);
     }
 
+    /**
+     * Gets the progress in the current file
+     *
+     * @return position in the stream as a ratio between 0 and 1
+     * @throws IOException
+     */
     @Override
     public float getProgress() throws IOException {
         if (datainputstream != null && this.status != null) {
@@ -98,8 +146,11 @@ public class ArchiveFileRecordReader extends RecordReader<LongWritable, Writable
         }
     }
 
+    /**
+     * Closes the current stream
+     */
     @Override
-    public void close() throws IOException {
+    public void close() {
         if (datainputstream != null) {
             try {
                 datainputstream.close();
