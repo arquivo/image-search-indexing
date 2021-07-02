@@ -15,14 +15,25 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+/**
+ * WARC parser aux class
+ */
 public class WARCInformationParser {
+    /**
+     * Datetime archive format string
+     */
     public static final String PATTERN = "yyyyMMddHHmmss";
-    private static final String TRANSFER_ENCODING_KEY = "Transfer-Encoding";
 
     public static Logger logger = Logger.getLogger(WARCInformationParser.class);
 
     public static ContentInfoUtil util = new ContentInfoUtil();
 
+    /**
+     * Parse Archive date time into LocalDateTime object
+     *
+     * @param timestamp timestamp to parse
+     * @return LocalDateTime object
+     */
     public static LocalDateTime parseLocalDateTime(String timestamp) {
         if (timestamp.length() == WARCInformationParser.PATTERN.length() - 2)
             timestamp += "00";
@@ -35,6 +46,12 @@ public class WARCInformationParser {
         return localDT.format(DateTimeFormatter.ofPattern(WARCInformationParser.PATTERN));
     }
 
+    /**
+     * Converts url to SURT
+     *
+     * @param url url to convert
+     * @return SURT
+     */
     public static String toSURT(String url) {
         if (url.startsWith("data:") || url.startsWith("hash:"))
             return url;
@@ -56,6 +73,12 @@ public class WARCInformationParser {
         return SURT.toSURT(url);
     }
 
+    /**
+     * Returns image dimensions in pixels
+     *
+     * @param img image to parse
+     * @return image dimensions
+     */
     public static Map.Entry<ImageReader, Dimension> getImageDimensions(ImageData img) {
         ImageReader reader = null;
 
@@ -90,6 +113,12 @@ public class WARCInformationParser {
         return null;
     }
 
+    /**
+     * Returns mime type for image
+     *
+     * @param contentBytes iamge content bytes
+     * @return detected mime type
+     */
     public static String getMimeType(byte[] contentBytes) {
 
         ContentInfo info = util.findMatch(contentBytes);

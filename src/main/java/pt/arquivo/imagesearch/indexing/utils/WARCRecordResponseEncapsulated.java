@@ -8,10 +8,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.zip.DeflaterInputStream;
-import java.util.zip.GZIPInputStream;
 
-import org.apache.commons.httpclient.ChunkedInputStream;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.StatusLine;
@@ -25,8 +22,10 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.util.LaxHttpParser;
 import org.brotli.dec.BrotliInputStream;
 
+/**
+ * Class that helps parse extra header information from the WARCRecord
+ */
 public class WARCRecordResponseEncapsulated {
-    private static final int NUM_OF_RETRIES_GET_CONT_BYTES = 3;
     public final Log LOG = LogFactory.getLog(WARCRecordResponseEncapsulated.class);
 
     private static final String TRANSFER_ENCODING = "transfer-encoding";
@@ -60,9 +59,10 @@ public class WARCRecordResponseEncapsulated {
      */
     private String statusCode = null;
 
+    /**
+     * URL for the WARC
+     */
     private String warcURL;
-
-    public int contentBegin = 0;
 
     /**
      * Map of record header fields.
@@ -74,8 +74,13 @@ public class WARCRecordResponseEncapsulated {
      */
     protected Map<String, Object> headerFields = null;
 
+
     /**
-     * Constructor.
+     * Creates WARCRecordResponse from WARCRecord
+     *
+     * @param warcrecord base WARC record
+     * @param warcURL WARC URL
+     * @throws IOException
      */
     public WARCRecordResponseEncapsulated(WARCRecord warcrecord, String warcURL)
             throws IOException {
@@ -89,6 +94,13 @@ public class WARCRecordResponseEncapsulated {
         }
     }
 
+    /**
+     * Creates WARCRecordResponse from WARCRecord and headers
+     *
+     * @param warcrecord base WARC record
+     * @param headerFields parsed headers
+     * @param warcURL WARC URL
+     */
     public WARCRecordResponseEncapsulated(WARCRecord warcrecord, Map<String, Object> headerFields, String warcURL) {
         this.warcURL = warcURL;
         this.warcrecord = warcrecord;
@@ -123,6 +135,11 @@ public class WARCRecordResponseEncapsulated {
         }
     }
 
+    /**
+     * Cehck if record is well formed
+     *
+     * @return ture if well formed
+     */
     public boolean isWARCResponseRecord() {
         String warcRecordMimetype = warcrecord.getHeader().getMimetype();
         String warcRecordType = (String) warcrecord.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
@@ -132,11 +149,18 @@ public class WARCRecordResponseEncapsulated {
     }
 
 
+    /**
+     * Gets base WARCRecord
+     *
+     * @return WARCRecord as ArchiveRecord
+     */
     public ArchiveRecord getWARCRecord() {
         return warcrecord;
     }
 
     /**
+     * Get server reported MIME type
+     *
      * @return mimetype The mimetype that is in the WARC metaline -- NOT the http
      * content-type content.
      */
@@ -144,34 +168,15 @@ public class WARCRecordResponseEncapsulated {
         return (String) headerFields.get(WARCRecord.MIMETYPE_FIELD_KEY);
     }
 
-    public String getStatusCode() {
-        return statusCode;
-    }
-
-    public boolean hasErrors() {
-        // TODO create hasErrors method
-        return false;
-    }
-
-    public HashMap<String, Object> getErrors() {
-        // TODO Create getErrors method
-        return null;
-    }
-
-    public String getStringContent() {
-        try {
-            return IOUtils.toString(warcrecord);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
+    /**
+     * Get the WARCRecord content bytes
+     *
+     * @return byte array with content
+     */
     public byte[] getContentBytes() {
 
         try {
             InputStream astream = warcrecord;
-            String transferEncoding = (String) headerFields.get(TRANSFER_ENCODING);
             byte[] results = IOUtils.toByteArray(astream);
             InputStream stream = new ByteArrayInputStream(results);
 
@@ -195,6 +200,11 @@ public class WARCRecordResponseEncapsulated {
         throw new RuntimeException("Error getting content byte for WARC");
     }
 
+    /**
+     * Gets WARC timestamp in Archive format
+     *
+     * @return timestamp in the yyyyMMddHHmmss format
+     */
     public String getTs() {
         /*dateWarc in Format 2018-04-03T12:53:43Z */
         String dateWarc = warcrecord.getHeader().getDate();
@@ -227,9 +237,5 @@ public class WARCRecordResponseEncapsulated {
             return null;
         }
         return year + month + day + hour + minute + second;
-    }
-
-    public String getWarcURL() {
-        return warcURL;
     }
 }

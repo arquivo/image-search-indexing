@@ -235,6 +235,15 @@ public class ImageInformationExtractor {
         }
     }
 
+    /**
+     * Create ImageData record for inline images
+     *
+     * @param url inline imgage URL
+     * @param timestamp image timestamp
+     * @param warcName name of the WARC whete the page was found
+     * @param warcOffset offset of the HTML file where the image was found in bytes
+     * @return ImageData record for inline image
+     */
     public ImageData saveImageMetadataInline(String url, String timestamp, String warcName, long warcOffset) {
         try {
             String[] surl = url.split(",");
@@ -261,7 +270,18 @@ public class ImageInformationExtractor {
         }
     }
 
-
+    /**
+     * Create ImageData record for regular images
+     *
+     * @param url iamge url
+     * @param imageURLHashKey iamge url hash key
+     * @param timestamp image capture timestamp
+     * @param reportedMimeType image mimetype reported by server
+     * @param contentBytes image bytes
+     * @param warcName name of the WARC
+     * @param warcOffset offset of the record in the WARC
+     * @return ImageData record for that image
+     */
     public ImageData saveImageMetadata(String url, String imageURLHashKey, String timestamp, String reportedMimeType, byte[] contentBytes, String warcName, long warcOffset) {
 
         String imgSurt = WARCInformationParser.toSURT(url);
@@ -625,6 +645,11 @@ public class ImageInformationExtractor {
             this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES_WITH_IMAGES).increment(1);
     }
 
+    /**
+     * Checks if url extension matches an image
+     * @param imgSrc URL to be tested
+     * @return true if ti matches
+     */
     public boolean isLinkToImage(String imgSrc) {
 
         String extension = "";
@@ -638,6 +663,12 @@ public class ImageInformationExtractor {
         return IMAGE_FILE_EXTENSIONS.contains(extension);
     }
 
+    /**
+     * Extracts caption from HTML parent
+     *
+     * @param node node where to start from finding caption
+     * @return image caption
+     */
     public String extractCaptionFromParent(Element node) {
         String imgCaption = "";
 
@@ -671,6 +702,13 @@ public class ImageInformationExtractor {
         return imgCaption;
     }
 
+
+    /**
+     * Get caption text for current element
+     *
+     * @param current node to parse
+     * @return children/caption text for the current element
+     */
     private String getCaption(Element current) {
         String id = getNodeId(current);
         String caption;
@@ -689,6 +727,12 @@ public class ImageInformationExtractor {
         return caption;
     }
 
+    /**
+     * Get current node id, according to its depth
+     *
+     * @param current current node
+     * @return node id
+     */
     private String getNodeId(Element current) {
         StringBuilder id = new StringBuilder();
         while (current != null) {
@@ -698,16 +742,22 @@ public class ImageInformationExtractor {
         return id.toString();
     }
 
-    private String getImgCaptionSibling(Element previous) {
+    /**
+     * Extract caption from node siblings
+     *
+     * @param current current node from which to get the nodes
+     * @return caption from siblings
+     */
+    private String getImgCaptionSibling(Element current) {
         String imgCaption;
-        Element sibling = previous.previousElementSibling();
+        Element sibling = current.previousElementSibling();
         String imgCaptionPrev = "";
         String imgCaptionNext = "";
         while (sibling != null && (imgCaptionPrev = getCaption(sibling)) != null && imgCaptionPrev.isEmpty()) {
             sibling = sibling.previousElementSibling();
         }
 
-        sibling = previous.nextElementSibling();
+        sibling = current.nextElementSibling();
         while (sibling != null && (imgCaptionNext = getCaption(sibling)) != null && imgCaptionNext.isEmpty()) {
             sibling = sibling.nextElementSibling();
         }
@@ -720,6 +770,12 @@ public class ImageInformationExtractor {
         return imgCaption;
     }
 
+    /**
+     * Trims captions so that words are not split
+     *
+     * @param imgCaption  caption to be trimmed
+     * @return trimmed caption
+     */
     private String trimCaption(String imgCaption) {
         if (imgCaption.length() > MAX_PARENT_CAPTION_SIZE) {
             // Crop until closest empty space near the chosen text border (MAX_PARENT_CAPTION_SIZE chars in the end of the caption)
@@ -737,6 +793,12 @@ public class ImageInformationExtractor {
         return imgCaption;
     }
 
+    /**
+     * Get max node depth to choose between sibling and parent method
+     *
+     * @param current image node to start from
+     * @return trimmed caption
+     */
     private int getMaxChildLevel(Element current) {
         int maxChildLevel = 0;
         int maxChildLevelCount = 0;
@@ -753,6 +815,12 @@ public class ImageInformationExtractor {
         return maxChildLevel;
     }
 
+    /**
+     * Get HTML attribute from node
+     * @param el node from which to extract atrribute
+     * @param atr attribute to extract
+     * @return attribute value
+     */
     public String getHTMLAttribute(Element el, String atr) {
         String atrVal = el.attr(atr);
         if (atrVal.length() >= MAX_IMAGE_FIELD_SIZE) {
@@ -761,6 +829,13 @@ public class ImageInformationExtractor {
         return atrVal;
     }
 
+    /**
+     * Find all potential image URLs for this node
+     *
+     * @param pageURL base page URL
+     * @param el current element
+     * @return set of URLs to parse
+     */
     public Set<String> getImgURLToParse(String pageURL, Element el) {
         Set<String> imgSrcAtrToParse = new HashSet<>();
 
@@ -797,7 +872,13 @@ public class ImageInformationExtractor {
         return imgSrcAtrToParse;
     }
 
-    public String getURLSrcTokens(String imgSrc) throws UnsupportedEncodingException {
+    /**
+     * SPlits URL into tokens
+     *
+     * @param imgSrc URL to split
+     * @return URL tokens
+     */
+    public String getURLSrcTokens(String imgSrc)  {
         try {
             imgSrc = URLDecoder.decode(imgSrc, "UTF-8"); /*Escape imgSrc URL e.g %C3*/
         } catch (Exception ignored) {
@@ -806,6 +887,25 @@ public class ImageInformationExtractor {
         return ImageSearchIndexingUtil.parseURL(imgSrc);
     }
 
+    /**
+     * Create an PageImageData entry from parsed data
+     *
+     * @param imgSrc img URL
+     * @param imgSrcTokens img URL tokens
+     * @param imgTitle image title (is exists)
+     * @param imgAlt image alt text (is exists)
+     * @param imgCaption image caption
+     * @param pageImages number of images in the page
+     * @param pageTstamp page capture timestamp
+     * @param pageURL page url
+     * @param pageHost page host
+     * @param pageProtocol page protocol
+     * @param pageTitle page title
+     * @param pageURLTokens page url tokens
+     * @param foundInTag found in which tags
+     * @param warc WARC name
+     * @param warcOffset Offset in WARC
+     */
     public void insertImageIndexes(String imgSrc, String imgSrcTokens, String imgTitle, String imgAlt,
                                    String imgCaption, int pageImages, String pageTstamp, String pageURL, String pageHost, String pageProtocol, String
                                            pageTitle, String pageURLTokens, String foundInTag, String warc, long warcOffset) {
@@ -827,10 +927,21 @@ public class ImageInformationExtractor {
         }
     }
 
+    /**
+     * Get parsed metadatas
+     *
+     * @return parsed metadatas
+     */
     public HashMap<String, FullImageMetadata> getEntries() {
         return entries;
     }
 
+
+    /**
+     * Record parser for HDFS WARCs
+     * @
+     * param rec record to be processed
+     */
     public void parseRecord(ArchiveRecord rec) {
         if (rec instanceof ARCRecord) {
             ARCRecord arcRecord = (ARCRecord) rec;

@@ -82,7 +82,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private String pageURLTokens;
 
     /**
-     * Deprecated img id form YYYYMMDDHHmmSS/{imageURLHash}
+     * Deprecated img id form yyyyMMddHHmmss/{imageURLHash}
      */
     private String imgId;
 
@@ -137,7 +137,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
     private LocalDateTime pageTimestampNewest;
 
     /**
-     * Oldest page capture timestamp in the YYYYMMDDHHmmSS format
+     * Oldest page capture timestamp in the yyyyMMddHHmmss format
      */
     private String pageTimestampString;
 
@@ -223,7 +223,7 @@ public class PageImageData implements Comparable<LocalDateTime>, Serializable {
      * @param imgURL Image URL
      * @param imageSurt Image SURT
      * @param imagesInPage Number of images in page
-     * @param pageTimestampString Page capture timestamp in the YYYYMMDDHHmmSS format
+     * @param pageTimestampString Page capture timestamp in the yyyyMMddHHmmss format
      * @param pageURL Page URL
      * @param pageHost Page host
      * @param pageProtocol Page protocol

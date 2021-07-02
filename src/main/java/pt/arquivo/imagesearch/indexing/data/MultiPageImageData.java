@@ -68,7 +68,7 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
     private String pageURLTokens;
 
     /**
-     * Deprecated img id form YYYYMMDDHHmmSS/{imageURLHash}
+     * Deprecated img id form yyyyMMddHHmmss/{imageURLHash}
      */
     private String imgId;
 
@@ -124,7 +124,7 @@ public class MultiPageImageData implements Comparable<LocalDateTime>, Serializab
     private LocalDateTime pageTimestamp;
 
     /**
-     * Oldest page capture timestamp in the YYYYMMDDHHmmSS format
+     * Oldest page capture timestamp in the yyyyMMddHHmmss format
      */
     private String pageTimestampString;
 
