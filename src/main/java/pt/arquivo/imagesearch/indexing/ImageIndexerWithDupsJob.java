@@ -33,8 +33,6 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
 
-import static pt.arquivo.imagesearch.indexing.DupDigestMergerJob.OUTPUT_MODE_NAME;
-
 /**
  * Hadoop process responsible for the 1nd stage of the pipeline.
  * Takes (W)ARCs, extracts image and page metadata and generates intermediate results ready for deduplication.
@@ -316,7 +314,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         assert args.length >= 2 : "Missing collection name argument";
         String collection = args[1];
-        String jobName = collection + "_FullIndexer";
+        String jobName = collection + "_ImageIndexerWithDups";
 
         assert args.length >= 3 : "Missing number of warcs per map";
         int linesPerMap = Integer.parseInt(args[2]);

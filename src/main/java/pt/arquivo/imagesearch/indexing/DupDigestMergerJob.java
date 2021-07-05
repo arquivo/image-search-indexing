@@ -208,7 +208,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
     public int run(String[] args) throws Exception {
         assert args.length >= 1 : "Missing collection name argument";
         String collection = args[0];
-        String jobName = collection + "_DupDigestMergerJob";
+        String jobName = collection + "_DupDigestMerger";
 
         assert args.length >= 2 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[1]);

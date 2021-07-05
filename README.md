@@ -25,7 +25,10 @@ An Hadoop image indexer for Web archiving - supports ARC/WARC files.
   - Output the`FullImageMetadata` as JSON
 
 ## Compile
+
 ```mvn clean install``` 
+
+The compiled jar with dependencies will be placed in target/image-search-indexing.jar
 
 ## Run
 
