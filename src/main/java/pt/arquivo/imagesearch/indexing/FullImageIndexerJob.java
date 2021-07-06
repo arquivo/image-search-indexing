@@ -19,7 +19,7 @@ public class FullImageIndexerJob {
         if (exitCode != 0)
             System.exit(exitCode);
 
-        String[] argsJob2 = new String[]{args[1], args[2], args[5]};
+        String[] argsJob2 = new String[]{args[1], args[3], args[5]};
         exitCode = ToolRunner.run(new DupDigestMergerJob(), argsJob2);
         System.exit(exitCode);
 
