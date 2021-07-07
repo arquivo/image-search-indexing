@@ -1,5 +1,8 @@
 package pt.arquivo.imagesearch.indexing;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
 
 
@@ -12,16 +15,49 @@ public class FullImageIndexerJob {
      * @throws Exception crash if there is an error getting required files from HDFS
      */
     public static void main(String[] args) throws Exception {
+        assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
+        String hdfsArcsPath = args[0];
 
-        String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4]};
+        assert args.length >= 2 : "Missing collection name argument";
+        String collection = args[1];
+
+        assert args.length >= 3 : "Missing number of warcs per map";
+        int linesPerMap = Integer.parseInt(args[2]);
+
+        assert args.length >= 4 : "Missing number of reduces";
+        int reducesCount = Integer.parseInt(args[3]);
+
+        assert args.length >= 5 : "Missing modeIsHDFS";
+        boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
+
+
+        long currentTime = System.currentTimeMillis();
+        // the output dir for the first Hadoop job is the input dir for the second job
+        String outputDirJob1 = "/image-search-indexing/output/" + collection + "/" + currentTime + "_dups";
+        String outputDirJob2 = "/image-search-indexing/output/" + collection + "/" + currentTime + "_nodups";
+
+        String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4], outputDirJob1};
 
         int exitCode = ToolRunner.run(new ImageIndexerWithDupsJob(), argsJob1);
-        if (exitCode != 0)
-            System.exit(exitCode);
 
-        String[] argsJob2 = new String[]{args[1], args[3], args[5]};
+        Configuration conf = new Configuration();
+        FileSystem hdfs = FileSystem.get(conf);
+
+        if (exitCode != 0){
+            // delete intermediate results, as the second job failed and they will not be used further
+            hdfs.delete(new Path(outputDirJob1), true);
+            System.exit(exitCode);
+        }
+
+        String[] argsJob2 = new String[]{args[1], args[3], args[5], outputDirJob1, outputDirJob2};
         exitCode = ToolRunner.run(new DupDigestMergerJob(), argsJob2);
+
+        // delete intermediate results from job1, as only the output of the final job is needed
+        hdfs.delete(new Path(outputDirJob1), true);
+
+
         System.exit(exitCode);
+
 
     }
 }

@@ -325,13 +325,8 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         assert args.length >= 5 : "Missing modeIsHDFS";
         boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
 
-        String outputDir;
-        if (args.length >= 6) {
-            outputDir = args[5];
-        } else {
-            // Default HDFS output dir, will be used as the input for that in the next stage
-            outputDir = "/user/amourao/output/" + collection + "/" + System.currentTimeMillis() + "_dups";
-        }
+        assert args.length >= 6 : "Missing output dir";
+        String outputDir = args[5];
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);

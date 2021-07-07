@@ -6,7 +6,7 @@ import subprocess
 import pika
 
 
-HDFS_OUTPUT="/user/amourao/output/{}"
+HDFS_OUTPUT="/image-search-indexing/output/{}"
 HDFS_COMMAND="/opt/hadoop-3.2.1/bin/hdfs dfs -fs hdfs://p43.arquivo.pt:9000 -ls -C {}"
 
 def main(args):

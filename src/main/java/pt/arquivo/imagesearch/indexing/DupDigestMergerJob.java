@@ -228,7 +228,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
             inputDir = args[3];
             outputDirDigest = args[4];
         } else {
-            inputDir = "/user/amourao/output/" + collection + "/";
+            inputDir = "/image-search-indexing/output/" + collection + "/";
 
             FileStatus[] fileStatus = hdfs.listStatus(new Path(inputDir));
             long latestValueLong = 0;
@@ -247,7 +247,8 @@ public class DupDigestMergerJob extends Configured implements Tool {
                 }
             }
             // Default output dir for HDFS processes
-            outputDirDigest = "/user/amourao/output/" + collection + "/" + latestValueLong + "_nodups/";
+            inputDir += latestValueLong + "_dups/";
+            outputDirDigest = "/image-search-indexing/output/" + collection + "/" + latestValueLong + "_nodups/";
         }
 
 
