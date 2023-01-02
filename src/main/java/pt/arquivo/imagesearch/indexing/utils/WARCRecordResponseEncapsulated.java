@@ -195,7 +195,7 @@ public class WARCRecordResponseEncapsulated {
             results = IOUtils.toByteArray(TikaInputStream.get(stream));
             return results;
         } catch (IOException e) {
-            LOG.error(String.format("Error getting content byte for WARC, %s", this.warcURL));
+            LOG.error(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage()));
         }
         throw new RuntimeException("Error getting content byte for WARC");
     }
