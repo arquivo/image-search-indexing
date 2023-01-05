@@ -195,9 +195,22 @@ public class WARCRecordResponseEncapsulated {
             results = IOUtils.toByteArray(TikaInputStream.get(stream));
             return results;
         } catch (IOException e) {
+            // Some WARCS don't have the encoding headers and fail to decode brotli encoded content. This tries to fix that.
+            if(e.getMessage().toLowerCase().contains("brotli")){
+                try{
+                    InputStream astream = warcrecord;
+                    byte[] results = IOUtils.toByteArray(astream);
+                    InputStream stream = new BrotliInputStream(new ByteArrayInputStream(results));
+                    results = IOUtils.toByteArray(TikaInputStream.get(stream));
+                    return results;
+                } catch (IOException err) {
+                    LOG.error(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, err.getMessage()));
+                    throw new RuntimeException(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, err.getMessage()));
+                }
+            }
             LOG.error(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage()));
+            throw new RuntimeException(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage()));
         }
-        throw new RuntimeException("Error getting content byte for WARC");
     }
 
     /**
