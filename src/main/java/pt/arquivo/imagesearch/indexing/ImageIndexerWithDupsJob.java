@@ -154,7 +154,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         private final Logger logger = Logger.getLogger(Map.class);
         public String collection;
         ImageInformationExtractor indexer;
-
+        private String warcFileTempBaseDir;
 
         @Override
         public void setup(Context context) {
@@ -163,6 +163,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
             collection = config.get("collection");
             logger.debug(collection + "_Images/img/");
             this.collection = config.get("collection");
+            this.warcFileTempBaseDir = config.get("warcFileTempBaseDir");
             indexer = new ImageInformationExtractor(collection, context);
         }
 
@@ -191,7 +192,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                 }
                 String[] surl = url.getPath().split("/");
                 String arcName = surl[surl.length - 1];
-                String filename = "/tmp/" + System.currentTimeMillis() + "_" + arcName;
+                String filename = warcFileTempBaseDir + "/" + System.currentTimeMillis() + "_" + arcName;
 
                 try {
                     int fileSize = ImageSearchIndexingUtil.getFileSize(url);
@@ -328,8 +329,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         assert args.length >= 6 : "Missing output dir";
         String outputDir = args[5];
 
+        assert args.length >= 7 : "Missing warcFileTempBaseDir";
+        String warcFileTempBaseDir = args[6];
+
         Configuration conf = new Configuration();
         conf.set("collection", collection);
+        conf.set("warcFileTempBaseDir", warcFileTempBaseDir);
 
         Job job = Job.getInstance(conf);
 

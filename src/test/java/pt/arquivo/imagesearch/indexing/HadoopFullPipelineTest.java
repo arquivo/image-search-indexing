@@ -75,7 +75,7 @@ public class HadoopFullPipelineTest {
         fs.mkdirs(new Path("target/output"));
         fs.mkdirs(new Path("target/outputI"));
 
-        String[] args = new String[]{tempFile.getPath(), collection, "1", "1", "false", "target/outputI"};
+        String[] args = new String[]{tempFile.getPath(), collection, "1", "1", "false", "target/outputI", "/tmp"};
 
         runMapReduceJob(new ImageIndexerWithDupsJob(), conf, args);
 
