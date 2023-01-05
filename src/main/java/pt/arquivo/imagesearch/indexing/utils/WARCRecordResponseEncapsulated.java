@@ -175,6 +175,7 @@ public class WARCRecordResponseEncapsulated {
      */
     public byte[] getContentBytes() {
 
+        Boolean usingBrotli = false;
         try {
             InputStream astream = warcrecord;
             byte[] results = IOUtils.toByteArray(astream);
@@ -187,6 +188,7 @@ public class WARCRecordResponseEncapsulated {
 
             if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
                 stream = new BrotliInputStream(stream);
+                usingBrotli = true;
             }
 
             //if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED))
@@ -195,21 +197,32 @@ public class WARCRecordResponseEncapsulated {
             results = IOUtils.toByteArray(TikaInputStream.get(stream));
             return results;
         } catch (IOException e) {
-            // Some WARCS don't have the encoding headers and fail to decode brotli encoded content. This tries to fix that.
+            // Sometimes Brotli decoding fails. This tries to fix that.
             if(e.getMessage().toLowerCase().contains("brotli")){
                 try{
                     InputStream astream = warcrecord;
                     byte[] results = IOUtils.toByteArray(astream);
-                    InputStream stream = new BrotliInputStream(new ByteArrayInputStream(results));
+                    InputStream stream; 
+                    if(usingBrotli){
+                        stream = new ByteArrayInputStream(results);
+                    } else {
+                        stream = new BrotliInputStream(new ByteArrayInputStream(results));
+                    }
                     results = IOUtils.toByteArray(TikaInputStream.get(stream));
                     return results;
                 } catch (IOException err) {
-                    LOG.error(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, err.getMessage()));
-                    throw new RuntimeException(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, err.getMessage()));
+                    String errorMessage = String.format("Error getting content byte for WARC, %s.%s Brotli related error detected, attempted to fix it but failed. Original Error: %s, New Error: %s", 
+                        this.warcURL,
+                        usingBrotli ? " Brotli encoding detected on header fields!" : "", 
+                        e.getMessage(),
+                        err.getMessage());
+                    LOG.error(errorMessage);
+                    throw new RuntimeException(errorMessage);
                 }
             }
-            LOG.error(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage()));
-            throw new RuntimeException(String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage()));
+            String errorMessage = String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage());
+            LOG.error(errorMessage);
+            throw new RuntimeException(errorMessage);
         }
     }
 
