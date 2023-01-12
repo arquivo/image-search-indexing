@@ -80,8 +80,8 @@ After placing the collection file lists in HDFS you can runt he following script
 #
 # The WORKING_PATH variable is the path to the folder to be used to do operations like decompressing .gz files. We had to   
 #   include this because some times big files would fill the partition where /tmp was, clogging the server and failing the 
-#   hadoop job in the process.
-# The WORKING_PATH folder must exist on all hadoop nodes with write permissions for all users. 
+#   hadoop job in the process. If this isn't a concern, it is recommended to change it back to /tmp. Otherwise, ensure that 
+#   the WORKING_PATH folder exists on all hadoop nodes with write permissions for all users. 
 
 mkdir -p counter
 FILE=$1
