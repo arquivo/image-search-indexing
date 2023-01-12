@@ -78,8 +78,9 @@ After placing the collection file lists in HDFS you can runt he following script
 #
 # Run inside a screen, this should be synchronous because we can only IndexImages after creating the database
 #
-# The WORKING_PATH variable is the path to the folder to be used to do operations like decompressing .gz files. We had to include this because some times 
-#   big files would fill the partition where /tmp was, clogging the server and failing the hadoop job in the process. 
+# The WORKING_PATH variable is the path to the folder to be used to do operations like decompressing .gz files. We had to   
+#   include this because some times big files would fill the partition where /tmp was, clogging the server and failing the 
+#   hadoop job in the process.
 # The WORKING_PATH folder must exist on all hadoop nodes with write permissions for all users. 
 
 mkdir -p counter
