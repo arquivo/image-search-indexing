@@ -203,8 +203,9 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                     FileUtils.copyURLToFile(url, dest, 1000 * 60, 1000 * 30);
                     dest = new File(filename);
                     if (fileSize != dest.length()) {
+                        long localFileSize = dest.length();
                         FileUtils.deleteQuietly(dest);
-                        throw new IOException("Incomplete file: " + fileSize + " " + dest.length());
+                        throw new IOException("Incomplete file: Local file and remote file have different sizes. Remote URL: " + url + " Remote file size: " + fileSize + " Local file name: " + filename + " Local file size: " + localFileSize);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
