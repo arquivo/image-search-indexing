@@ -195,7 +195,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                 String filename = warcFileTempBaseDir + "/" + System.currentTimeMillis() + "_" + arcName;
 
                 try {
-                    int fileSize = ImageSearchIndexingUtil.getFileSize(url);
+                    long fileSize = ImageSearchIndexingUtil.getFileSize(url);
                     //ImageSearchIndexingUtil.saveFile(url, filename);
                     File dest = new File(filename);
 

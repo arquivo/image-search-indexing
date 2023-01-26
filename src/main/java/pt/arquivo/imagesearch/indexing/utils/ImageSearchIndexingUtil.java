@@ -329,14 +329,14 @@ public class ImageSearchIndexingUtil {
      * @param url URL from which to get the size
      * @return File size under URL
      */
-    public static int getFileSize(URL url) {
+    public static long getFileSize(URL url) {
         URLConnection conn = null;
         try {
             conn = url.openConnection();
             if (conn instanceof HttpURLConnection) {
                 ((HttpURLConnection) conn).setRequestMethod("HEAD");
             }
-            return conn.getContentLength();
+            return conn.getContentLengthLong();
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
