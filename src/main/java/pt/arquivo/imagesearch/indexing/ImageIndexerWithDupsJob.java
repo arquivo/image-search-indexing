@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
+import pt.arquivo.imagesearch.indexing.utils.AlternativeFileUtils;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
 
@@ -200,7 +201,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                     File dest = new File(filename);
 
                     // download and parse WARC locally to avoid problems when streaming from remote server
-                    FileUtils.copyURLToFile(url, dest, 1000 * 60, 1000 * 30);
+                    AlternativeFileUtils.copyURLToFile(url, dest, 1000 * 60, 1000 * 30);
                     dest = new File(filename);
                     if (fileSize != dest.length()) {
                         long localFileSize = dest.length();
