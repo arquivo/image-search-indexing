@@ -3,8 +3,6 @@ package pt.arquivo.imagesearch.indexing.processors;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
-import org.checkerframework.checker.units.qual.g;
-
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.LocalFullPageIndexer.PAGE_INDEXER_COUNTERS;
 
@@ -13,14 +11,9 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
 import org.apache.log4j.Logger;
 import org.apache.tika.config.TikaConfig;
-import org.apache.tika.detect.CompositeDetector;
-import org.apache.tika.detect.Detector;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
-import org.apache.tika.mime.MediaTypeRegistry;
 import org.apache.tika.parser.AutoDetectParser;
-import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
@@ -66,6 +59,9 @@ public class PageInformationExtractor implements InformationExtractor {
 
     private HashMap<String, Counter> tmpCounters;
 
+
+    private TikaConfig config;
+
     /**
      * Constructor used for Hadoop
      *
@@ -95,6 +91,13 @@ public class PageInformationExtractor implements InformationExtractor {
      */
     private void init(String collection) {
         this.collection = collection;
+
+        ClassLoader classLoader = getClass().getClassLoader();
+        try {
+            config = new TikaConfig(classLoader.getResourceAsStream("tika-config.xml"));
+        } catch (TikaException | IOException | SAXException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -250,20 +253,6 @@ public class PageInformationExtractor implements InformationExtractor {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-
-        TikaConfig config = null;
-        /*
-        ClassLoader classLoader = getClass().getClassLoader();
-        try {
-            config = new TikaConfig(classLoader.getResourceAsStream("tika-config.xml"));
-        } catch (TikaException | IOException | SAXException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return "";
-        }
-        */
-
-        config = TikaConfig.getDefaultConfig();
 
         Parser parser = new AutoDetectParser(config);
         Metadata metadata = new Metadata();
