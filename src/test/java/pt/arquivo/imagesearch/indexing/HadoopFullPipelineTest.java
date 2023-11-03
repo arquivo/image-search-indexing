@@ -8,8 +8,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.Tool;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,7 +45,7 @@ public class HadoopFullPipelineTest {
         ClassLoader classLoader = getClass().getClassLoader();
 
         URL hdfsArcsPath = classLoader.getResource("FullOfflinePipelineTestWARCS.txt");
-
+        
         assertNotNull(hdfsArcsPath);
 
         String path = hdfsArcsPath.getPath();
