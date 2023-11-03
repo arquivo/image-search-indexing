@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 /**
  * Auxiliary class to extract metadat from pages and images
  */
-public class ImageInformationExtractor {
+public class ImageInformationExtractor implements InformationExtractor {
 
     /**
      * Image file extensions to be included when parsing from <a> tags
