@@ -165,37 +165,30 @@ public class WARCRecordResponseEncapsulated {
      * content-type content.
      */
     public String getContentMimetype() {
-        return (String) headerFields.get(WARCRecord.MIMETYPE_FIELD_KEY);
+        String mimeType = (String) headerFields.get(WARCRecord.MIMETYPE_FIELD_KEY);
+        if (mimeType != null) {
+            mimeType = mimeType.split(";")[0].trim();
+        }
+        return mimeType;
     }
 
     /**
-     * Get the WARCRecord content bytes
+     * Get the WARCRecord input stream
      *
-     * @return byte array with content
+     * @return InputStream with content
      */
-    public byte[] getContentBytes() {
+    public InputStream getInputStream() {
 
         Boolean usingBrotli = false;
         try {
-            InputStream astream = warcrecord;
-            byte[] results = IOUtils.toByteArray(astream);
-            InputStream stream = new ByteArrayInputStream(results);
-
-            if (results.length == 0)
-                return results;
-
+            InputStream stream = warcrecord;
             String contentEncoding = (String) headerFields.get(CONTENT_ENCODING);
 
             if (contentEncoding != null && contentEncoding.toLowerCase().contains(BROTLI)) {
                 stream = new BrotliInputStream(stream);
                 usingBrotli = true;
             }
-
-            //if (transferEncoding != null && transferEncoding.toLowerCase().contains(CHUNKED))
-            //    System.out.println("Chunked");
-
-            results = IOUtils.toByteArray(TikaInputStream.get(stream));
-            return results;
+            return stream;
         } catch (IOException e) {
             // Sometimes Brotli decoding fails. This tries to fix that.
             if(e.getMessage().toLowerCase().contains("brotli")){
@@ -208,8 +201,7 @@ public class WARCRecordResponseEncapsulated {
                     } else {
                         stream = new BrotliInputStream(new ByteArrayInputStream(results));
                     }
-                    results = IOUtils.toByteArray(TikaInputStream.get(stream));
-                    return results;
+                    return TikaInputStream.get(stream);
                 } catch (IOException err) {
                     String errorMessage = String.format("Error getting content byte for WARC, %s.%s Brotli related error detected, attempted to fix it but failed. Original Error: %s, New Error: %s", 
                         this.warcURL,
@@ -223,6 +215,21 @@ public class WARCRecordResponseEncapsulated {
             String errorMessage = String.format("Error getting content byte for WARC, %s. Message: %s", this.warcURL, e.getMessage());
             LOG.error(errorMessage);
             throw new RuntimeException(errorMessage);
+        }
+    }
+
+
+    /**
+     * Get the WARCRecord content bytes
+     *
+     * @return byte array with content
+     * @throws IOException
+     */
+    public byte[] getContentBytes() {
+        try {
+            return IOUtils.toByteArray(TikaInputStream.get(getInputStream()));
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
         }
     }
 
