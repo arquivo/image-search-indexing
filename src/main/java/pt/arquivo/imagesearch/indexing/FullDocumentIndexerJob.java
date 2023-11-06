@@ -6,7 +6,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
 
 
-public class FullImageIndexerJob {
+public class FullDocumentIndexerJob {
 
     /**
      * Runs the full indexing process for the desired input
@@ -35,8 +35,7 @@ public class FullImageIndexerJob {
 
         long currentTime = System.currentTimeMillis();
         // the output dir for the first Hadoop job is the input dir for the second job
-        String outputDirJob1 = "/image-search-indexing/output/" + collection + "/" + currentTime + "_dups";
-        String outputDirJob2 = "/image-search-indexing/output/" + collection + "/" + currentTime + "_nodups";
+        String outputDirJob1 = "/document-search-indexing/output/" + collection + "/" + currentTime;
 
         String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4], outputDirJob1, args[6]};
 
@@ -51,7 +50,7 @@ public class FullImageIndexerJob {
             System.exit(exitCode);
         }
 
-        String[] argsJob2 = new String[]{args[1], args[3], args[5], outputDirJob1, outputDirJob2};
+        String[] argsJob2 = new String[]{args[1], args[3], args[5], outputDirJob1};
         exitCode = ToolRunner.run(new DupDigestMergerJob(), argsJob2);
 
         // delete intermediate results from job1, as only the output of the final job is needed

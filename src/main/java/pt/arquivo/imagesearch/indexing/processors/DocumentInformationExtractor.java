@@ -3,8 +3,10 @@ package pt.arquivo.imagesearch.indexing.processors;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
-import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
-import pt.arquivo.imagesearch.indexing.LocalFullPageIndexer.PAGE_INDEXER_COUNTERS;
+import org.jsoup.helper.StringUtil;
+
+import pt.arquivo.imagesearch.indexing.LocalDocumentIndexer.PAGE_INDEXER_COUNTERS;
+import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -17,30 +19,31 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.LinkContentHandler;
+import org.apache.tika.sax.TeeContentHandler;
 import org.archive.io.arc.ARCRecord;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.xml.sax.SAXException;
 
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 
 import java.io.*;
-import java.net.MalformedURLException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
- * Auxiliary class to extract metadata from pages for page search
+ * Auxiliary class to extract metadata from pages and other documents for text search
  */
-public class PageInformationExtractor implements InformationExtractor {
+public class DocumentInformationExtractor implements InformationExtractor {
 
     /**
      * File extensions to be included when extracting text
      */
     private static final Set<String> FILES_TO_PARSE_MIMETYPES = new HashSet<>(Arrays.asList("application/msword", "application/pdf", "application/postscript", "application/rss+xml", "application/vnd.ms-excel", "application/vnd.ms-powerpoint", "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.text-template", "application/vnd.oasis.opendocument.text-master", "application/vnd.oasis.opendocument.text-web", "application/vnd.oasis.opendocument.presentation", "application/vnd.oasis.opendocument.presentation-template", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.spreadsheet-template", "application/vnd.sun.xml.calc", "application/vnd.sun.xml.calc.template", "application/vnd.sun.xml.impress", "application/vnd.sun.xml.impress.template", "application/vnd.sun.xml.writer", "application/vnd.sun.xml.writer.template", "application/xhtml+xml", "application/x-bzip2", "application/x-gzip", "application/x-kword", "application/x-kspread", "application/x-shockwave-flash", "application/zip", "text/html", "text/plain", "text/richtext", "text/rtf", "text/sgml", "text/tab-separated-values", "text/xml"));
 
-    private Logger logger = Logger.getLogger(PageInformationExtractor.class);
+    private Logger logger = Logger.getLogger(DocumentInformationExtractor.class);
 
     /**
      * Collection name
@@ -59,6 +62,13 @@ public class PageInformationExtractor implements InformationExtractor {
 
     private HashMap<String, Counter> tmpCounters;
 
+    private HashMap<String, Counter> linkTypes;
+
+    /**
+     * Documents already parsed during this session
+     */
+    protected HashMap<String, TextDocumentData> entries;
+
 
     private TikaConfig config;
 
@@ -68,7 +78,7 @@ public class PageInformationExtractor implements InformationExtractor {
      * @param collection collection name
      * @param context Hadoop context
      */
-    public PageInformationExtractor(String collection, Mapper.Context context) {
+    public DocumentInformationExtractor(String collection, Mapper.Context context) {
         init(collection);
         this.context = context;
     }
@@ -78,10 +88,9 @@ public class PageInformationExtractor implements InformationExtractor {
      *
      * @param collection collection name
      */
-    public PageInformationExtractor(String collection) {
+    public DocumentInformationExtractor(String collection) {
         init(collection);
         this.localCounters = new HashMap<>();
-        this.tmpCounters = new HashMap<>();
     }
 
     /**
@@ -98,6 +107,10 @@ public class PageInformationExtractor implements InformationExtractor {
         } catch (TikaException | IOException | SAXException e) {
             e.printStackTrace();
         }
+
+        this.entries = new HashMap<>();
+        this.linkTypes = new HashMap<>();
+        this.tmpCounters = new HashMap<>();
     }
 
     /**
@@ -193,23 +206,13 @@ public class PageInformationExtractor implements InformationExtractor {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
-                parseTextRecord(record, arcName);
+                String url = record.getHeader().getUrl();
+                String timestamp = record.getMetaData().getDate();
+                long offset = record.getMetaData().getOffset();
+
+                parseTextRecord(record, mimeType, arcName, url, timestamp, offset);
             }
         }
-    }
-
-    public void parseHTMLPage(String pageURL, String pageTstamp, String warcName, long warcOffset, String html) throws MalformedURLException, UnsupportedEncodingException {
-        boolean malformedPageForCaptions = false;
-        long startTime = System.nanoTime();
-
-        Document doc = Jsoup.parse(html, pageURL);
-
-        String pageTitle = doc.title(); /*returns empty string if no title in html document*/
-
-        this.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGES).increment(1);
-        //Find all images in img tags
-
-
     }
 
     /**
@@ -230,6 +233,12 @@ public class PageInformationExtractor implements InformationExtractor {
         }
     }
 
+    private String removeJunkCharacters(String str) {
+        Pattern pattern = Pattern.compile("\\s+");
+        Matcher matcher = pattern.matcher(str.trim().replaceAll("[\\n\\t]", " "));
+        return matcher.replaceAll(" ");
+    }
+
     /**
      * Parse a text record
      *
@@ -240,15 +249,27 @@ public class PageInformationExtractor implements InformationExtractor {
     public void parseTextRecord(WARCRecordResponseEncapsulated record, String arcName) {
         String mimeType = record.getContentMimetype();
         getCounter(mimeToCounter(mimeType)).increment(1);
-        parseTextRecord(record.getWARCRecord(), mimeType);
+        String url = record.getWARCRecord().getHeader().getUrl();
+        String timestamp = record.getTs();
+        long offset = record.getWARCRecord().getHeader().getOffset();
+
+        parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset);
     }
 
+    public TextDocumentData parseTextRecord(InputStream stream, String mimeType, String arcName, String url, String timestamp, long offset) {
+        TextDocumentData textDocumentData = new TextDocumentData();
 
+        textDocumentData.setURL(url);
+        textDocumentData.setTimestampString(timestamp);
+        textDocumentData.setWarc(arcName);
+        textDocumentData.setWarcOffset(offset);
 
-    public String parseTextRecord(InputStream stream, String mimeType) {
+        textDocumentData.setCollection(collection);
+        textDocumentData.setMimeTypeReported(mimeType);
+
         try {
             if (stream.available() == 0)
-                return "";
+                return textDocumentData;
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -256,34 +277,53 @@ public class PageInformationExtractor implements InformationExtractor {
 
         Parser parser = new AutoDetectParser(config);
         Metadata metadata = new Metadata();
-        BodyContentHandler handler = new BodyContentHandler(-1);
+        BodyContentHandler bodyHandler = new BodyContentHandler(-1);
+        LinkContentHandler linkHandler = new LinkContentHandler();
+        TeeContentHandler handler = new TeeContentHandler(bodyHandler, linkHandler);
         ParseContext context = new ParseContext();
 
         try {
-            System.out.println("Input stream length: " + stream.available());
             parser.parse(stream, handler, metadata, context);
-            System.out.println("Encoding: " + metadata.get("Content-Encoding"));
-            System.out.println("MIME type: " + metadata.get("Content-Type"));
+
+            String detectedEncoding = metadata.get("Content-Encoding");
+            String detectedMimeType = metadata.get("Content-Type").split(";")[0].trim();;
+
+
+            textDocumentData.setEncodingDetected(detectedEncoding);
+            textDocumentData.setMimeTypeDetected(detectedMimeType);
+
         } catch (IOException | SAXException | TikaException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
             System.out.println("Error parsing text record");
         }
-        String body = handler.toString();
+        String body = bodyHandler.toString();
 
-        for (String key : metadata.names()) {
-            String value = metadata.get(key);
-            if (value != null) {
-                if (key.equals("Content-Type")) {
-                    mimeType = value.split(";")[0].trim();
-                }
+        linkHandler.getLinks().forEach(link -> {
+            String linkURL = link.getUri();
+            boolean isInternalLink = ImageSearchIndexingUtil.isInteralOutlink(url, linkURL);
+
+            String linkType = link.getType() + (isInternalLink ? "_internal" : "_external");
+
+            linkTypes.putIfAbsent(linkType, new GenericCounter(linkType, linkType));
+            linkTypes.get(linkType).increment(1);
+
+
+            if (link.getType() == "a" && !linkURL.isEmpty() && !linkURL.startsWith("#") && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:") && !isInternalLink){
+                String linkAbsURL = StringUtil.resolve(url, linkURL);
+                textDocumentData.addOutlink(linkAbsURL);
             }
-        }
-        if (!body.isEmpty())
-            return body;
+        });
 
+        body = removeJunkCharacters(body);
 
-        return body;
+        textDocumentData.setTitle(metadata.get("title"));
+        textDocumentData.setMimeTypeDetected(mimeType);
+        
+        textDocumentData.setContent(body);
+
+        entries.put(url, textDocumentData);
+        return textDocumentData;
     }
 
 
@@ -316,5 +356,15 @@ public class PageInformationExtractor implements InformationExtractor {
         }
         return mimeType;
 
+    }
+
+
+    public HashMap<String, TextDocumentData> getEntries() {
+        return entries;
+    }
+
+    // linkTypes
+    public HashMap<String, Counter> getLinkTypes() {
+        return linkTypes;
     }
 }

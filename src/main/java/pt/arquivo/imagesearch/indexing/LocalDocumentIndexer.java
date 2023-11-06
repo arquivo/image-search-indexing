@@ -1,24 +1,14 @@
 package pt.arquivo.imagesearch.indexing;
 
-import pt.arquivo.imagesearch.indexing.LocalFullImageIndexer.ReduceDigest;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
-import pt.arquivo.imagesearch.indexing.data.ImageData;
-import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
-import pt.arquivo.imagesearch.indexing.data.PageImageData;
-import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
-import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
-import pt.arquivo.imagesearch.indexing.processors.PageInformationExtractor;
+import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 
 import java.io.*;
 import java.net.MalformedURLException;
@@ -30,7 +20,7 @@ import java.util.*;
  * Runs the full indexing process, similarly to FullImageIndexerJob, but without Hadoop dependencies, running fully locally
  *
  */
-public class LocalFullPageIndexer {
+public class LocalDocumentIndexer {
 
     public enum PAGE_INDEXER_COUNTERS {
         application_msword,
@@ -77,17 +67,17 @@ public class LocalFullPageIndexer {
 
         private Logger logger = Logger.getLogger(Map.class);
         public String collection;
-        public PageInformationExtractor indexer;
+        public DocumentInformationExtractor indexer;
 
         public Map(String collection) {
             this.collection = collection;
             logger.debug(collection + "_Images/img/");
-            indexer = new PageInformationExtractor(collection);
+            indexer = new DocumentInformationExtractor(collection);
         }
 
         public void map(String arcURL) {
             logger.info("(W)ARCNAME: " + arcURL);
-            indexer.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS).increment(1);
+            indexer.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS).increment(1);
 
             URL url = null;
             try {
@@ -138,17 +128,17 @@ public class LocalFullPageIndexer {
             logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
 
             if (result.getImageDatasValues().size() != 0 && result.getPageImageDatasValues().size() != 0) {
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
                 return result;
             } else if (result.getImageDatasValues().size() != 0) {
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
             } else if (result.getPageImageDatasValues().size() != 0) {
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
             }
             return null;
         }
@@ -173,7 +163,7 @@ public class LocalFullPageIndexer {
         assert args.length >= 3 : "Missing output file";
         String outputFile = args[2];
 
-        LocalFullPageIndexer.Map map = new Map(collection);
+        LocalDocumentIndexer.Map map = new Map(collection);
 
         try (BufferedReader br = new BufferedReader(new FileReader(hdfsArcsPath))) {
             for (String line; (line = br.readLine()) != null; ) {
@@ -183,6 +173,8 @@ public class LocalFullPageIndexer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        System.out.println(map.indexer.getEntries().size());
 
         System.out.println("FullPageIndexer$PAGE_INDEXER_COUNTERS");
 
@@ -196,6 +188,14 @@ public class LocalFullPageIndexer {
 
 
         for (Counter c :  map.indexer.getTmpCounters().values()) {
+            System.out.println("\t" + c.getName() + ";" + c.getValue());
+        }
+
+
+        System.out.println("FullPageIndexer$LINK_YPES");
+
+
+        for (Counter c :  map.indexer.getLinkTypes().values()) {
             System.out.println("\t" + c.getName() + ";" + c.getValue());
         }
 
