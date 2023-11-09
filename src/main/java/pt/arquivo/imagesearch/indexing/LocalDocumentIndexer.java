@@ -95,7 +95,7 @@ public class LocalDocumentIndexer {
                 FileUtils.copyURLToFile(url, dest);
                 indexer.parseRecord(arcName, dest.getPath());
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("Error downloading file: " + arcURL);
             }
             FileUtils.deleteQuietly(dest);
         }

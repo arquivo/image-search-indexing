@@ -278,6 +278,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
         Parser parser = new AutoDetectParser(config);
         Metadata metadata = new Metadata();
         BodyContentHandler bodyHandler = new BodyContentHandler(-1);
+        
+        //Add anchor text to the content
         LinkContentHandler linkHandler = new LinkContentHandler();
         TeeContentHandler handler = new TeeContentHandler(bodyHandler, linkHandler);
         ParseContext context = new ParseContext();
@@ -293,25 +295,16 @@ public class DocumentInformationExtractor implements InformationExtractor {
             textDocumentData.setMimeTypeDetected(detectedMimeType);
 
         } catch (IOException | SAXException | TikaException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            System.out.println("Error parsing text record");
+            logger.error("Error parsing record: " + url, e);
         }
         String body = bodyHandler.toString();
 
         linkHandler.getLinks().forEach(link -> {
             String linkURL = link.getUri();
-            boolean isInternalLink = ImageSearchIndexingUtil.isInteralOutlink(url, linkURL);
-
-            String linkType = link.getType() + (isInternalLink ? "_internal" : "_external");
-
-            linkTypes.putIfAbsent(linkType, new GenericCounter(linkType, linkType));
-            linkTypes.get(linkType).increment(1);
-
-
-            if (link.getType() == "a" && !linkURL.isEmpty() && !linkURL.startsWith("#") && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:") && !isInternalLink){
+            String anchorText = link.getText();
+            if (link.getType() == "a" && !linkURL.isEmpty() && !linkURL.startsWith("#") && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")){
                 String linkAbsURL = StringUtil.resolve(url, linkURL);
-                textDocumentData.addOutlink(linkAbsURL);
+                textDocumentData.addOutlink(linkAbsURL, anchorText);
             }
         });
 

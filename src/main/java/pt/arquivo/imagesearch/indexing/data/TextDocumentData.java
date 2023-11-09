@@ -114,7 +114,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     /** 
      * Outlinks
      */
-    private Set<String> outlinks;
+    private Set<Outlink> outlinks;
 
     public TextDocumentData() {
         this.outlinks = new HashSet<>();
@@ -222,7 +222,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return content;
     }
 
-    public Set<String> getOutlinks() {
+    public Set<Outlink> getOutlinks() {
         return outlinks;
     }
 
@@ -295,9 +295,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     }
 
-    public void addOutlink(String outlink) {
+    public void addOutlink(String outlink, String anchor) {
         String outlinkSurt = WARCInformationParser.toSURT(outlink);
-        this.outlinks.add(outlinkSurt);
+        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor);
+        this.outlinks.add(outlinkObj);
     }
 
     @Override
