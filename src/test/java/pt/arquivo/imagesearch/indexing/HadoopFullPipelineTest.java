@@ -1,21 +1,13 @@
 package pt.arquivo.imagesearch.indexing;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.Tool;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import pt.arquivo.imagesearch.indexing.data.ImageData;
-import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
-import pt.arquivo.imagesearch.indexing.data.serializers.ImageDataSerializer;
-import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
-
 import java.io.*;
 import java.net.URL;
 import java.util.stream.Collectors;
@@ -75,7 +67,7 @@ public class HadoopFullPipelineTest {
 
         String[] args = new String[]{tempFile.getPath(), collection, "1", "1", "false", "target/outputI", "/tmp"};
 
-        runMapReduceJob(new DocumentIndexerWithDupsJob(), conf, args);
+        runMapReduceJob(new ImageIndexerWithDupsJob(), conf, args);
 
         args = new String[]{collection, "1", "COMPACT", "target/outputI", "target/output"};
 
