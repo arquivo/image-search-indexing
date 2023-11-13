@@ -41,22 +41,6 @@ public class FullDocumentIndexerJob {
 
         int exitCode = ToolRunner.run(new DocumentIndexerWithDupsJob(), argsJob1);
 
-        Configuration conf = new Configuration();
-        FileSystem hdfs = FileSystem.get(conf);
-
-        if (exitCode != 0){
-            // delete intermediate results, as the second job failed and they will not be used further
-            hdfs.delete(new Path(outputDirJob1), true);
-            System.exit(exitCode);
-        }
-
-        String[] argsJob2 = new String[]{args[1], args[3], args[5], outputDirJob1};
-        exitCode = ToolRunner.run(new DupDigestMergerJob(), argsJob2);
-
-        // delete intermediate results from job1, as only the output of the final job is needed
-        hdfs.delete(new Path(outputDirJob1), true);
-
-
         System.exit(exitCode);
 
 

@@ -71,7 +71,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
      * IMAGES_IN_WARC_PARSED: number of images that were effectively parsed
      * IMAGES_IN_WARC_PARSED_DUP: number of images that were parsed (with duplicates from the same WARC removed)
      */
-    public enum IMAGE_COUNTERS {
+    public enum DOCUMENT_COUNTERS {
         WARCS,
         WARCS_DOWNLOAD_ERROR,
 
@@ -80,78 +80,14 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         WARCS_FAILED_STREAM,
 
         RECORDS_READ,
-        RECORDS_FAILED,
-        RECORD_NEXT_FAILED,
-
-        IMAGES_IN_WARC_TOTAL,
-        IMAGES_IN_WARC_FAILED,
-
-        IMAGES_IN_WARC_TOO_SMALL,
-        IMAGES_IN_WARC_TOO_SMALL_BASE64,
-        IMAGES_IN_WARC_TOO_LARGE,
-        IMAGES_IN_WARC_MIME_INVALID,
-        IMAGES_IN_WARC_MIME_WRONG,
-
-
-        IMAGES_IN_WARC_PARSED,
-        IMAGES_IN_WARC_PARSED_DUP
-
-    }
-
-
-    /**
-     * Counters for the first Hadoop process that are related to images
-     * <p>
-     * IMAGES_IN_HTML_TOTAL: total number of images found in HTML
-     * IMAGES_IN_HTML_FAILED: number of images that failed HTML processing
-     * IMAGES_IN_HTML_INVALID: number of images with invalid URLs
-     * IMAGES_IN_HTML_MATCHING: images that passed the first processing stage
-     * IMAGES_IN_HTML_EXCEDED: images that have over 10000 images. The parser stops at that level
-     * IMAGES_IN_HTML_NOT_PARSED: images that were not parsed due to the 10000 limit
-     * IMAGES_IN_HTML_MATCHING_ALT_ATRIB: <img> images were the URL was found in some palce other that the src attribute
-     * IMAGES_IN_HTML_MATCHING_LINK: images found in <a> tags
-     * IMAGES_IN_HTML_MATCHING_CSS: images found in css tags
-     * IMAGES_IN_HTML_BASE64: images represented in base64
-     * PAGES: total number of pages parser
-     * PAGES_WITH_IMAGES: total number of pages with images
-     * <p>
-     * PAGE_UTF8_MISMATCH: images that are UTF_8 but encoded in ISO_8859_1
-     * PAGE_UTF8_MISMATCH_DOUBLE: images with mixed encoding both UTF_8 and ISO_8859_1 that cannot be fixed
-     * <p>
-     * IMAGES_IN_HTML_SENT: images sent to the next processing stage
-     * IMAGES_IN_HTML_SENT_DUP: images sent to the next processing stage with duplicated from the same WARC removed
-     */
-    public enum PAGE_COUNTERS {
-        IMAGES_IN_HTML_TOTAL,
-        IMAGES_IN_HTML_FAILED,
-        IMAGES_IN_HTML_INVALID,
-        IMAGES_IN_HTML_MATCHING,
-        IMAGES_IN_HTML_EXCEDED,
-        IMAGES_IN_HTML_NOT_PARSED,
-        IMAGES_IN_HTML_MATCHING_ALT_ATRIB,
-        IMAGES_IN_HTML_MATCHING_LINK,
-        IMAGES_IN_HTML_MATCHING_CSS,
-        IMAGES_IN_HTML_BASE64,
-        PAGES,
-        PAGES_WITH_IMAGES,
-
-        PAGE_UTF8_MISMATCH,
-        PAGE_UTF8_MISMATCH_DOUBLE,
-
-        IMAGES_IN_HTML_SENT,
-        IMAGES_IN_HTML_SENT_DUP,
-    }
-
-    public enum REDUCE_COUNTERS {
-        URL_IMAGES_PAGES,
-        URL_IMAGES_PAGESALL,
-        URL_IMAGESALL_PAGES,
-        URL_IMAGES_NPAGES,
-        URL_IMAGESALL_NPAGES,
-        URL_NIMAGES_PAGES,
-        URL_NIMAGES_PAGESALL,
-        URL_IMAGES_PAGES_DIGESTALL,
-        URL_IMAGES_PAGES_MULIPLE_DIGEST
+        RECORDS_PARSED,
+        RECORDS_IGNORED_MIME_REPORTED,
+        RECORDS_IGNORED_MIME_DETECTED,
+        
+        TIKA_RECORDS_READ,
+        TIKA_RECORDS_FAILED,
+        TIKA_RECORDS_FAILED_NO_SUCH_METHOD,
+        TIKA_RECORDS_SUCCESS,
     }
 
     public static class Map extends Mapper<LongWritable, Text, Text, Writable> {
@@ -169,6 +105,11 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             logger.debug(collection + "_Docs/docs/");
             this.collection = config.get("collection");
             this.warcFileTempBaseDir = config.get("warcFileTempBaseDir");
+            // Make dir if not exists
+            File dir = new File(warcFileTempBaseDir);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
             indexer = new DocumentInformationExtractor(collection, context);
         }
 
@@ -187,13 +128,14 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             String arcURL = value.toString();
             if (!arcURL.isEmpty()) {
                 logger.info("(W)ARCNAME: " + arcURL);
-                context.getCounter(IMAGE_COUNTERS.WARCS).increment(1);
+                context.getCounter(DOCUMENT_COUNTERS.WARCS).increment(1);
 
                 URL url = null;
                 try {
                     url = new URL(arcURL);
-                } catch (MalformedURLException ignored) {
-
+                } catch (MalformedURLException e) {
+                    context.getCounter(DOCUMENT_COUNTERS.WARCS_FAILED).increment(1);
+                    throw e;
                 }
                 String[] surl = url.getPath().split("/");
                 String arcName = surl[surl.length - 1];
@@ -214,7 +156,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                     }
                 } catch (IOException e) {
                     logger.error(e.getMessage(), e);
-                    context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
+                    context.getCounter(DOCUMENT_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
                     File dest = new File(filename);
                     FileUtils.deleteQuietly(dest);
                     throw e;
@@ -271,6 +213,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
+                    .disableHtmlEscaping()
                     .create();
             for (Writable value : values) {
                 TextDocumentData metadata = (TextDocumentData) value;

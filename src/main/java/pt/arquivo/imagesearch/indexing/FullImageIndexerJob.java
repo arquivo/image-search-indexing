@@ -40,7 +40,7 @@ public class FullImageIndexerJob {
 
         String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4], outputDirJob1, args[6]};
 
-        int exitCode = ToolRunner.run(new DocumentIndexerWithDupsJob(), argsJob1);
+        int exitCode = ToolRunner.run(new ImageIndexerWithDupsJob(), argsJob1);
 
         Configuration conf = new Configuration();
         FileSystem hdfs = FileSystem.get(conf);

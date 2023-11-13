@@ -13,7 +13,8 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob;
+import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
+import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.processors.InformationExtractor;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -72,7 +73,7 @@ public class ImageSearchIndexingUtil {
         try {
             reader = ARCReaderFactory.get(arcURL);
         } catch (Exception e) {
-            context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
             return;
         }
 
@@ -90,15 +91,15 @@ public class ImageSearchIndexingUtil {
                 } catch (RuntimeException e) {
                     errors++;
                     // skip this record
-                    context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
                     logger.error("Exception reading next (W)ARC record", e);
                     throw e;
                 }
                 try {
                     consumer.accept(record);
-                    context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
                 } catch (RuntimeException e) {
-                    context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
                     logger.error("Exception reading (W)ARC record", e);
                     errors++;
                 }
@@ -119,7 +120,7 @@ public class ImageSearchIndexingUtil {
 
             }
         } catch (RuntimeException e) {
-            context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
             logger.error("Exception reading ARC bytes, WARCNAME: " + arcURL + " " + e.getMessage());
             if (!e.getMessage().startsWith("Retried") && !e.getMessage().startsWith("java.util.zip.ZipException: Corrupt GZIP trailer") && !e.getMessage().startsWith("(Record start") && !e.getMessage().startsWith("java.io.IOException: Record STARTING at")){
                 FileUtils.deleteQuietly(new File(arcURL));
@@ -159,7 +160,7 @@ public class ImageSearchIndexingUtil {
         try {
             reader = WARCReaderFactory.get(warcURL);
         } catch (Exception e) {
-            context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED).increment(1);
             logger.error("Exception starting reading WARC", e);
             return;
         }
@@ -177,14 +178,14 @@ public class ImageSearchIndexingUtil {
                     if (record != null)
                         consumer.accept(record);
                 } catch (RuntimeException re) {
-                    context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
+                    context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORD_NEXT_FAILED).increment(1);
                     errors++;
                     logger.error("Exception reading next WARC record", re);
                     throw re;
                 }
             }
         } catch (RuntimeException e) {
-            context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS_FAILED_STREAM).increment(1);
             FileUtils.deleteQuietly(new File(warcURL));
             logger.error("Exception reading WARC bytes, WARCNAME: " + warcURL + " " + e.getMessage());
             throw e;
@@ -220,21 +221,21 @@ public class ImageSearchIndexingUtil {
                 headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
                 headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
 
-                context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
                 return new WARCRecordResponseEncapsulated(warcRecord, headers, warcName);
 
             } else {
-                context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
+                context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
                 return new WARCRecordResponseEncapsulated(warcRecord, warcName);
             }
 
         } catch (InvalidWARCResponseIOException e) {
             /* This is not a WARCResponse; skip */
         } catch (IOException e) {
-            context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
             logger.error("IO Exception reading WARCrecord WARCNAME: " + warcName + " " + e.getMessage());
         } catch (Exception e) {
-            context.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_FAILED).increment(1);
             logger.error("Exception reading WARCrecord WARCNAME: " + warcName + " " + e.getMessage());
         }
         return null;
@@ -275,12 +276,12 @@ public class ImageSearchIndexingUtil {
         //if the chars in UTF8_MISMATCH were detected, this means that the page is in UTF_8 but encoded in ISO_8859_1
         //if we re-encode the string, the accented chars will be correctly represented
         if (ImageSearchIndexingUtil.UTF8_MISMATCH.matcher(html).find()){
-            context.getCounter(DocumentIndexerWithDupsJob.PAGE_COUNTERS.PAGE_UTF8_MISMATCH).increment(1);
+            context.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGE_UTF8_MISMATCH).increment(1);
             byte[] b = html.getBytes(StandardCharsets.ISO_8859_1);
             String newHtml = new String(b, StandardCharsets.UTF_8);
             //if the chars are detected again, the page is beyond repair and the initial encoding is used
             if (!ImageSearchIndexingUtil.UTF8_MISMATCH.matcher(newHtml).find()){
-                context.getCounter(DocumentIndexerWithDupsJob.PAGE_COUNTERS.PAGE_UTF8_MISMATCH_DOUBLE).increment(1);
+                context.getCounter(ImageIndexerWithDupsJob.PAGE_COUNTERS.PAGE_UTF8_MISMATCH_DOUBLE).increment(1);
                 html = newHtml;
             }
         }

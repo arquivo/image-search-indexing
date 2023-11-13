@@ -5,7 +5,7 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
 import org.jsoup.helper.StringUtil;
 
-import pt.arquivo.imagesearch.indexing.LocalDocumentIndexer.PAGE_INDEXER_COUNTERS;
+import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob.DOCUMENT_COUNTERS;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 
 import org.apache.hadoop.mapreduce.Counter;
@@ -26,6 +26,9 @@ import org.xml.sax.SAXException;
 
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
+import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS;
+import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
+import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
 
 import java.io.*;
 import java.util.*;
@@ -164,15 +167,18 @@ public class DocumentInformationExtractor implements InformationExtractor {
      * @param warcName WARC name
      */
     public void parseWarcRecord(WARCRecordResponseEncapsulated record, String warcName) {
+        getCounter(DOCUMENT_COUNTERS.RECORDS_READ).increment(1);
         String mimeType = record.getContentMimetype();
         if (this.tmpCounters.get(mimeType) == null)
             this.tmpCounters.put(mimeType, new GenericCounter(mimeType, mimeType));
         this.tmpCounters.get(mimeType).increment(1);
-        if (mimeType != null) {
-            if (FILES_TO_PARSE_MIMETYPES.contains(mimeType)){
-                parseTextRecord(record, warcName);
-            }
+        if (mimeType != null && FILES_TO_PARSE_MIMETYPES.contains(mimeType)){
+            getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED).increment(1);
+            parseTextRecord(record, warcName);
+        } else {
+            getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_REPORTED).increment(1);
         }
+        getCounter(mimeToCounter(mimeType)).increment(1);
     }
 
     /**
@@ -194,25 +200,29 @@ public class DocumentInformationExtractor implements InformationExtractor {
      * @param arcName ARC url
      */
     public void parseArcRecord(ARCRecord record, String arcName) {
+        getCounter(DOCUMENT_COUNTERS.RECORDS_READ).increment(1);
         String mimeType = getMimeType(record);
         if (this.tmpCounters.get(mimeType) == null)
             this.tmpCounters.put(mimeType, new GenericCounter(mimeType, mimeType));
         this.tmpCounters.get(mimeType).increment(1);
-        if (mimeType != null) {
-            if (FILES_TO_PARSE_MIMETYPES.contains(mimeType)){
-                try {
-                    record.skipHttpHeader();
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-                String url = record.getHeader().getUrl();
-                String timestamp = record.getMetaData().getDate();
-                long offset = record.getMetaData().getOffset();
-
-                parseTextRecord(record, mimeType, arcName, url, timestamp, offset);
+        if (mimeType != null && FILES_TO_PARSE_MIMETYPES.contains(mimeType)){
+            try {
+                record.skipHttpHeader();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
+            String url = record.getHeader().getUrl();
+            String timestamp = record.getMetaData().getDate();
+            long offset = record.getMetaData().getOffset();
+
+            getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED).increment(1);
+            parseTextRecord(record, mimeType, arcName, url, timestamp, offset);
+        } else {
+            getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_REPORTED).increment(1);
         }
+        getCounter(mimeToCounter(mimeType)).increment(1);
+
     }
 
     /**
@@ -248,7 +258,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
     public void parseTextRecord(WARCRecordResponseEncapsulated record, String arcName) {
         String mimeType = record.getContentMimetype();
-        getCounter(mimeToCounter(mimeType)).increment(1);
         String url = record.getWARCRecord().getHeader().getUrl();
         String timestamp = record.getTs();
         long offset = record.getWARCRecord().getHeader().getOffset();
@@ -257,6 +266,9 @@ public class DocumentInformationExtractor implements InformationExtractor {
     }
 
     public TextDocumentData parseTextRecord(InputStream stream, String mimeType, String arcName, String url, String timestamp, long offset) {
+        getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_READ).increment(1);
+        getCounter(mimeToCounterReported(mimeType)).increment(1);
+
         TextDocumentData textDocumentData = new TextDocumentData();
 
         textDocumentData.setURL(url);
@@ -294,9 +306,15 @@ public class DocumentInformationExtractor implements InformationExtractor {
             textDocumentData.setEncodingDetected(detectedEncoding);
             textDocumentData.setMimeTypeDetected(detectedMimeType);
 
+            getCounter(mimeToCounterDetected(detectedMimeType)).increment(1);
         } catch (IOException | SAXException | TikaException e) {
             logger.error("Error parsing record: " + url, e);
+            getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_FAILED).increment(1);
+        } catch (NoSuchMethodError e) {
+            logger.error("Error parsing record: " + url, e);
+            getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_FAILED_NO_SUCH_METHOD).increment(1);
         }
+
         String body = bodyHandler.toString();
 
         linkHandler.getLinks().forEach(link -> {
@@ -316,6 +334,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         textDocumentData.setContent(body);
 
         entries.put(url, textDocumentData);
+        getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_SUCCESS).increment(1);
         return textDocumentData;
     }
 
@@ -331,8 +350,37 @@ public class DocumentInformationExtractor implements InformationExtractor {
     }
 
     public Enum<PAGE_INDEXER_COUNTERS> mimeToCounter(String mimeType) {
+        if (mimeType == null)
+            return PAGE_INDEXER_COUNTERS.unknown;
         String enumName = mimeType.replace("/", "_").replace("+", "_").replace("-", "_").replace(".", "_").replace(";", "_").replace("=", "_").replace(" ", "_");
-        return PAGE_INDEXER_COUNTERS.valueOf(enumName);
+        try {
+            return PAGE_INDEXER_COUNTERS.valueOf(enumName);
+        } catch (IllegalArgumentException e) {
+            return PAGE_INDEXER_COUNTERS.other;
+        }
+    }
+
+    public Enum<PAGE_INDEXER_COUNTERS_DETECTED> mimeToCounterDetected(String mimeType) {
+        if (mimeType == null)
+            return PAGE_INDEXER_COUNTERS_DETECTED.unknown;
+        String enumName = mimeType.replace("/", "_").replace("+", "_").replace("-", "_").replace(".", "_").replace(";", "_").replace("=", "_").replace(" ", "_");
+        try {
+            return PAGE_INDEXER_COUNTERS_DETECTED.valueOf(enumName);
+        } catch (IllegalArgumentException e) {
+            return PAGE_INDEXER_COUNTERS_DETECTED.other;
+        }
+    }
+
+
+    public Enum<PAGE_INDEXER_COUNTERS_REPORTED> mimeToCounterReported(String mimeType) {
+        if (mimeType == null)
+            return PAGE_INDEXER_COUNTERS_REPORTED.unknown;
+        String enumName = mimeType.replace("/", "_").replace("+", "_").replace("-", "_").replace(".", "_").replace(";", "_").replace("=", "_").replace(" ", "_");
+        try {
+            return PAGE_INDEXER_COUNTERS_REPORTED.valueOf(enumName);
+        } catch (IllegalArgumentException e) {
+            return PAGE_INDEXER_COUNTERS_REPORTED.other;
+        }
     }
 
 

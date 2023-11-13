@@ -168,6 +168,8 @@ public class WARCRecordResponseEncapsulated {
         String mimeType = (String) headerFields.get(WARCRecord.MIMETYPE_FIELD_KEY);
         if (mimeType != null) {
             mimeType = mimeType.split(";")[0].trim();
+        } else {
+            mimeType = "unknown";
         }
         return mimeType;
     }

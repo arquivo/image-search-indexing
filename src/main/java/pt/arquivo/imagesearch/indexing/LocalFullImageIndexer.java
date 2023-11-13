@@ -46,13 +46,13 @@ public class LocalFullImageIndexer {
 
         public void map(String arcURL) {
             logger.info("(W)ARCNAME: " + arcURL);
-            indexer.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS).increment(1);
+            indexer.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.WARCS).increment(1);
 
             URL url = null;
             try {
                 url = new URL(arcURL);
-            } catch (MalformedURLException ignored) {
-
+            } catch (MalformedURLException e) {
+                
             }
 
             String[] surl = url.getPath().split("/");
@@ -105,17 +105,17 @@ public class LocalFullImageIndexer {
             logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
 
             if (result.getImageDatasValues().size() != 0 && result.getPageImageDatasValues().size() != 0) {
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
                 //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
                 return result;
             } else if (result.getImageDatasValues().size() != 0) {
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
             } else if (result.getPageImageDatasValues().size() != 0) {
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
+                merger.getCounter(ImageIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
             }
             return null;
         }
@@ -253,19 +253,19 @@ public class LocalFullImageIndexer {
 
         System.out.println("FullImageIndexer$IMAGE_COUNTERS");
 
-        for (DocumentIndexerWithDupsJob.IMAGE_COUNTERS counter : DocumentIndexerWithDupsJob.IMAGE_COUNTERS.values()) {
+        for (DocumentIndexerWithDupsJob.DOCUMENT_COUNTERS counter : DocumentIndexerWithDupsJob.DOCUMENT_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
         System.out.println("FullImageIndexer$PAGE_COUNTERS");
-        for (DocumentIndexerWithDupsJob.PAGE_COUNTERS counter : DocumentIndexerWithDupsJob.PAGE_COUNTERS.values()) {
+        for (ImageIndexerWithDupsJob.PAGE_COUNTERS counter : ImageIndexerWithDupsJob.PAGE_COUNTERS.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }
 
         System.out.println("FullImageIndexer$REDUCE_COUNTERS");
-        for (DocumentIndexerWithDupsJob.REDUCE_COUNTERS counter : DocumentIndexerWithDupsJob.REDUCE_COUNTERS.values()) {
+        for (ImageIndexerWithDupsJob.REDUCE_COUNTERS counter : ImageIndexerWithDupsJob.REDUCE_COUNTERS.values()) {
             Counter c = reduce.merger.getCounter(counter);
             System.out.println("\t" + c.getName() + ": " + c.getValue());
         }

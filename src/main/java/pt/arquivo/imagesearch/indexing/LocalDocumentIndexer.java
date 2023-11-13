@@ -8,6 +8,8 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
+import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS;
+import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 
 import java.io.*;
@@ -21,44 +23,6 @@ import java.util.*;
  *
  */
 public class LocalDocumentIndexer {
-
-    public enum PAGE_INDEXER_COUNTERS {
-        application_msword,
-        application_pdf,
-        application_postscript,
-        application_rss_xml,
-        application_vnd_ms_excel,
-        application_vnd_ms_powerpoint,
-        application_vnd_oasis_opendocument_text,
-        application_vnd_oasis_opendocument_text_template,
-        application_vnd_oasis_opendocument_text_master,
-        application_vnd_oasis_opendocument_text_web,
-        application_vnd_oasis_opendocument_presentation,
-        application_vnd_oasis_opendocument_presentation_template,
-        application_vnd_oasis_opendocument_spreadsheet,
-        application_vnd_oasis_opendocument_spreadsheet_template,
-        application_vnd_sun_xml_calc,
-        application_vnd_sun_xml_calc_template,
-        application_vnd_sun_xml_impress,
-        application_vnd_sun_xml_impress_template,
-        application_vnd_sun_xml_writer,
-        application_vnd_sun_xml_writer_template,
-        application_xhtml_xml,
-        application_x_bzip2,
-        application_x_gzip,
-        application_x_kword,
-        application_x_kspread,
-        application_x_shockwave_flash,
-        application_zip,
-        text_html,
-        text_plain,
-        text_richtext,
-        text_rtf,
-        text_sgml,
-        text_tab_separated_values,
-        text_xml
-    }
-
 
     /**
      * Similar to the Map stage in the ImageIndexerWithDupsJob
@@ -77,7 +41,7 @@ public class LocalDocumentIndexer {
 
         public void map(String arcURL) {
             logger.info("(W)ARCNAME: " + arcURL);
-            indexer.getCounter(DocumentIndexerWithDupsJob.IMAGE_COUNTERS.WARCS).increment(1);
+            indexer.getCounter(DocumentIndexerWithDupsJob.DOCUMENT_COUNTERS.WARCS).increment(1);
 
             URL url = null;
             try {
@@ -102,51 +66,6 @@ public class LocalDocumentIndexer {
 
         
     }
-
-    /**
-     * Similar to the Reduce stage in the ImageIndexerWithDupsJob
-     */
-    public static class Reduce {
-
-        private Logger logger = Logger.getLogger(Reduce.class);
-        public ImageInformationMerger merger;
-
-        public Reduce() {
-            merger = new ImageInformationMerger();
-        }
-
-        public Counter getCounter(Enum<?> counterName) {
-            return merger.getCounter(counterName);
-        }
-
-
-        public FullImageMetadata reduce(String key, List<Object> values) {
-
-            merger.reset();
-            int counter = merger.mergeAll(values);
-            FullImageMetadata result = merger.getBestMatch();
-            logger.debug(String.format("Found %d pages and %d images", result.getPageImageDatasValues().size(), result.getImageDatasValues().size()));
-
-            if (result.getImageDatasValues().size() != 0 && result.getPageImageDatasValues().size() != 0) {
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_PAGES).increment(result.getImageDatasValues().size());
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_PAGES).increment(1);
-                //logger.debug(String.format("%s: Found %d images and %d pages; image TS: \"%s\" page TS: \"%s\"", key, images.size(), pages.size(), images.get(0) == null ? "none" : images.get(0).getTimestamp().toString(), pages.get(0) == null ? "none" : pages.get(0).getTimestamp().toString()));
-                return result;
-            } else if (result.getImageDatasValues().size() != 0) {
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGES_NPAGES).increment(1);
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_IMAGESALL_NPAGES).increment(result.getImageDatasValues().size());
-            } else if (result.getPageImageDatasValues().size() != 0) {
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGES).increment(1);
-                merger.getCounter(DocumentIndexerWithDupsJob.REDUCE_COUNTERS.URL_NIMAGES_PAGESALL).increment(result.getPageImageDatasValues().size());
-            }
-            return null;
-        }
-
-
-    }
-
-
 
     public static void main(String[] args) {
         Logger logger = Logger.getLogger(Map.class);
@@ -179,6 +98,11 @@ public class LocalDocumentIndexer {
         System.out.println("FullPageIndexer$PAGE_INDEXER_COUNTERS");
 
         for (PAGE_INDEXER_COUNTERS counter : PAGE_INDEXER_COUNTERS.values()) {
+            Counter c = map.indexer.getCounter(counter);
+            System.out.println("\t" + c.getName() + ";" + c.getValue());
+        }
+
+        for (PAGE_INDEXER_COUNTERS_DETECTED counter : PAGE_INDEXER_COUNTERS_DETECTED.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ";" + c.getValue());
         }
