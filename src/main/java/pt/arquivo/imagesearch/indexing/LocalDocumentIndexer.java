@@ -8,8 +8,8 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
-import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
+import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 
 import java.io.*;
@@ -97,7 +97,7 @@ public class LocalDocumentIndexer {
 
         System.out.println("FullPageIndexer$PAGE_INDEXER_COUNTERS");
 
-        for (PAGE_INDEXER_COUNTERS counter : PAGE_INDEXER_COUNTERS.values()) {
+        for (PAGE_INDEXER_COUNTERS_REPORTED counter : PAGE_INDEXER_COUNTERS_REPORTED.values()) {
             Counter c = map.indexer.getCounter(counter);
             System.out.println("\t" + c.getName() + ";" + c.getValue());
         }

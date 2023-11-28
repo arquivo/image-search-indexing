@@ -26,7 +26,6 @@ import org.xml.sax.SAXException;
 
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
-import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
 
@@ -178,7 +177,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         } else {
             getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_REPORTED).increment(1);
         }
-        getCounter(mimeToCounter(mimeType)).increment(1);
+        getCounter(mimeToCounterReported(mimeType)).increment(1);
     }
 
     /**
@@ -221,7 +220,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         } else {
             getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_REPORTED).increment(1);
         }
-        getCounter(mimeToCounter(mimeType)).increment(1);
+        getCounter(mimeToCounterReported(mimeType)).increment(1);
 
     }
 
@@ -349,19 +348,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
         return tmpCounters;
     }
 
-    public Enum<PAGE_INDEXER_COUNTERS> mimeToCounter(String mimeType) {
-        if (mimeType == null)
-            return PAGE_INDEXER_COUNTERS.unknown;
-        String enumName = mimeType.replace("/", "_").replace("+", "_").replace("-", "_").replace(".", "_").replace(";", "_").replace("=", "_").replace(" ", "_");
-        try {
-            return PAGE_INDEXER_COUNTERS.valueOf(enumName);
-        } catch (IllegalArgumentException e) {
-            return PAGE_INDEXER_COUNTERS.other;
-        }
-    }
-
     public Enum<PAGE_INDEXER_COUNTERS_DETECTED> mimeToCounterDetected(String mimeType) {
-        if (mimeType == null)
+        if (mimeType == null || mimeType.isEmpty())
             return PAGE_INDEXER_COUNTERS_DETECTED.unknown;
         String enumName = mimeType.replace("/", "_").replace("+", "_").replace("-", "_").replace(".", "_").replace(";", "_").replace("=", "_").replace(" ", "_");
         try {
@@ -371,9 +359,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
     }
 
-
-    public Enum<PAGE_INDEXER_COUNTERS_REPORTED> mimeToCounterReported(String mimeType) {
-        if (mimeType == null)
+        public Enum<PAGE_INDEXER_COUNTERS_REPORTED> mimeToCounterReported(String mimeType) {
+        if (mimeType == null || mimeType.isEmpty())
             return PAGE_INDEXER_COUNTERS_REPORTED.unknown;
         String enumName = mimeType.replace("/", "_").replace("+", "_").replace("-", "_").replace(".", "_").replace(";", "_").replace("=", "_").replace(" ", "_");
         try {
@@ -382,7 +369,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
             return PAGE_INDEXER_COUNTERS_REPORTED.other;
         }
     }
-
 
     public String getMimeType(ArchiveRecord rec) {
         String mimeType = null;
