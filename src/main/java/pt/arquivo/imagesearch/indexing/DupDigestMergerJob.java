@@ -233,7 +233,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
             FileStatus[] fileStatus = hdfs.listStatus(new Path(inputDir));
             long latestValueLong = 0;
             for (FileStatus fileStat : fileStatus) {
-                if (fileStat.isDir()) {
+                if (fileStat.isDirectory()) {
                     if (fileStat.getPath().getName().endsWith("_dups")) {
                         try {
                             String name = fileStat.getPath().getName().replace("_dups", "");

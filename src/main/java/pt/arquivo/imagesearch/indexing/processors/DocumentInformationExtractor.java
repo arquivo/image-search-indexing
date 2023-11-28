@@ -171,13 +171,10 @@ public class DocumentInformationExtractor implements InformationExtractor {
         if (this.tmpCounters.get(mimeType) == null)
             this.tmpCounters.put(mimeType, new GenericCounter(mimeType, mimeType));
         this.tmpCounters.get(mimeType).increment(1);
-        if (mimeType != null && FILES_TO_PARSE_MIMETYPES.contains(mimeType)){
-            getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED).increment(1);
-            parseTextRecord(record, warcName);
-        } else {
-            getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_REPORTED).increment(1);
-        }
-        getCounter(mimeToCounterReported(mimeType)).increment(1);
+        
+        getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED).increment(1);
+        parseTextRecord(record, warcName);
+    
     }
 
     /**
@@ -204,23 +201,18 @@ public class DocumentInformationExtractor implements InformationExtractor {
         if (this.tmpCounters.get(mimeType) == null)
             this.tmpCounters.put(mimeType, new GenericCounter(mimeType, mimeType));
         this.tmpCounters.get(mimeType).increment(1);
-        if (mimeType != null && FILES_TO_PARSE_MIMETYPES.contains(mimeType)){
-            try {
-                record.skipHttpHeader();
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            String url = record.getHeader().getUrl();
-            String timestamp = record.getMetaData().getDate();
-            long offset = record.getMetaData().getOffset();
-
-            getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED).increment(1);
-            parseTextRecord(record, mimeType, arcName, url, timestamp, offset);
-        } else {
-            getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_REPORTED).increment(1);
+        try {
+            record.skipHttpHeader();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
-        getCounter(mimeToCounterReported(mimeType)).increment(1);
+        String url = record.getHeader().getUrl();
+        String timestamp = record.getMetaData().getDate();
+        long offset = record.getMetaData().getOffset();
+
+        getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED).increment(1);
+        parseTextRecord(record, mimeType, arcName, url, timestamp, offset);
 
     }
 
@@ -299,13 +291,21 @@ public class DocumentInformationExtractor implements InformationExtractor {
             parser.parse(stream, handler, metadata, context);
 
             String detectedEncoding = metadata.get("Content-Encoding");
-            String detectedMimeType = metadata.get("Content-Type").split(";")[0].trim();;
-
+            String detectedMimeType = metadata.get("Content-Type").split(";")[0].trim();
 
             textDocumentData.setEncodingDetected(detectedEncoding);
             textDocumentData.setMimeTypeDetected(detectedMimeType);
 
             getCounter(mimeToCounterDetected(detectedMimeType)).increment(1);
+            
+            if (!FILES_TO_PARSE_MIMETYPES.contains(detectedMimeType)){
+                getCounter(DOCUMENT_COUNTERS.RECORDS_IGNORED_MIME_DETECTED).increment(1);
+                return textDocumentData;
+            }
+
+            getCounter(DOCUMENT_COUNTERS.RECORDS_PARSED_MIME).increment(1);
+            
+
         } catch (IOException | SAXException | TikaException e) {
             logger.error("Error parsing record: " + url, e);
             getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_FAILED).increment(1);

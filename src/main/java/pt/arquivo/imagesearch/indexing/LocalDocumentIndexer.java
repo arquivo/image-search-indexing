@@ -1,13 +1,11 @@
 package pt.arquivo.imagesearch.indexing;
 
-import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import pt.arquivo.imagesearch.indexing.processors.ImageInformationMerger;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
@@ -15,7 +13,6 @@ import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
 
 
 /**

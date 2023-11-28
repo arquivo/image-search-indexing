@@ -26,7 +26,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
-import pt.arquivo.imagesearch.indexing.data.serializers.MultiPageImageDataSerializer;
 import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.AlternativeFileUtils;
@@ -81,7 +80,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         RECORDS_READ,
         RECORDS_PARSED,
-        RECORDS_IGNORED_MIME_REPORTED,
+        RECORDS_PARSED_MIME,
         RECORDS_IGNORED_MIME_DETECTED,
         
         TIKA_RECORDS_READ,
