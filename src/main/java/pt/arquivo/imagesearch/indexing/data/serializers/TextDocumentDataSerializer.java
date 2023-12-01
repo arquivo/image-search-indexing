@@ -32,15 +32,15 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         obj.addProperty("url", src.getUrl());
         obj.addProperty("date", src.getTimestampFormatted());
         obj.addProperty("tstamp", src.getTimestampString());
-        if (!src.getTitle().isEmpty())
+        if (src.getTitle() != null && !src.getTitle().isEmpty())
             obj.addProperty("title", src.getTitle());
         obj.addProperty("type", src.getMimeTypeDetected());
         obj.addProperty("typeReported", src.getMimeTypeReported());
-        if (!src.getContent().isEmpty())
+        if (src.getContent() != null && !src.getContent().isEmpty())
             obj.addProperty("content", src.getContent());
         obj.addProperty("urlTokens", src.getUrlTokens());
         obj.addProperty("host", src.getHost());
-        if (!src.getMetadata().isEmpty())
+        if (src.getMetadata() != null && !src.getMetadata().isEmpty())
             obj.addProperty("metadata", src.getMetadata());
 
 
