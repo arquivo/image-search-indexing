@@ -24,27 +24,33 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
     @Override
     public JsonElement serialize(TextDocumentData src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject obj = new JsonObject();
-        obj.addProperty("type", "document");
+        //obj.addProperty("type", "document");
 
         obj.addProperty("id", src.getId());
 
-        obj.addProperty("title", src.getTitle());
+        obj.addProperty("digestContainer", src.getDigestContainer());
         obj.addProperty("url", src.getUrl());
+        obj.addProperty("date", src.getTimestampFormatted());
+        obj.addProperty("tstamp", src.getTimestampString());
+        if (!src.getTitle().isEmpty())
+            obj.addProperty("title", src.getTitle());
+        obj.addProperty("type", src.getMimeTypeDetected());
+        obj.addProperty("typeReported", src.getMimeTypeReported());
+        if (!src.getContent().isEmpty())
+            obj.addProperty("content", src.getContent());
         obj.addProperty("urlTokens", src.getUrlTokens());
         obj.addProperty("host", src.getHost());
-        obj.addProperty("timestamp", src.getTimestampString());
-        obj.addProperty("mimeTypeDetected", src.getMimeTypeDetected());
-        obj.addProperty("mimeTypeReported", src.getMimeTypeReported());
-        obj.addProperty("content", src.getContent());
-        obj.addProperty("encodingDetected", src.getEncodingDetected());
-        obj.addProperty("encodingReported", src.getEncodingReported());
-        obj.addProperty("warc", src.getWarc());
-        obj.addProperty("warcOffset", src.getWarcOffset());
-        obj.addProperty("surt", src.getSurt());
+        if (!src.getMetadata().isEmpty())
+            obj.addProperty("metadata", src.getMetadata());
+
+
+        //obj.addProperty("warc", src.getWarc());
+        //obj.addProperty("warcOffset", src.getWarcOffset());
+        //obj.addProperty("surt", src.getSurt());
         //obj.addProperty("protocol", src.getProtocol());
-        obj.addProperty("urlHash", src.getURLHash());
+        //obj.addProperty("urlHash", src.getURLHash());
         obj.addProperty("collection", src.getCollection());
-        obj.add("outlinks", context.serialize(src.getOutlinks()));
+        //obj.add("outlinks", context.serialize(src.getOutlinks()));
         
         //obj.addProperty("safe", 0);
         //obj.addProperty("spam", 0);

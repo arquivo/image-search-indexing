@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.hadoop.io.Writable;
+import org.checkerframework.checker.units.qual.t;
 
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
@@ -39,16 +40,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     private long warcOffset;
 
     /**
-     * Encoding reported
-     */
-    private String encodingReported;
-
-    /**
-     * Encoding detected
-     */
-    private String encodingDetected;
-
-    /**
      * Mime type detected
      */
     private String mimeTypeDetected;
@@ -58,17 +49,15 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
      */
     private String mimeTypeReported;
 
-
-    /**
-     * Always full for this object
-     */
-    private String type;
-
-
     /**
      * title
      */
     private String title;
+
+    /**
+     * metadata
+     */
+    private String metadata;
 
     /**
      *  url split into word tokens
@@ -102,11 +91,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     private String host;
 
     /**
-     * protocol (http vs. https)
-     */
-    private String protocol;
-
-    /**
      *  content
      */
     private String content;
@@ -116,23 +100,33 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
      */
     private Set<Outlink> outlinks;
 
+    /**
+     * Digest of the document
+     */
+    private String digestContainer;
+
+    /**
+     * Digest of the content
+     */
+    private String digestContent;
+
     public TextDocumentData() {
         this.outlinks = new HashSet<>();
     }
 
-    public TextDocumentData(String URL, String title, String timestampString, String content, String encodingReported, String encodingDetected, String mimeTypeReported, String mimeTypeDetected, String warc, long warcOffset, String collection) {
+    public TextDocumentData(String URL, String title, String timestampString, String content, String mimeTypeReported, String mimeTypeDetected, String warc, long warcOffset, String collection, String digestContainer, String digestContent) {
         setURL(URL);
         this.title = title;
         this.timestampString = timestampString;
         this.content = content;
-        this.encodingReported = encodingReported;
-        this.encodingDetected = encodingDetected;
         this.mimeTypeReported = mimeTypeReported;
         this.mimeTypeDetected = mimeTypeDetected;
         this.warc = warc;
         this.warcOffset = warcOffset;
         this.collection = collection;
         this.outlinks = new HashSet<>();
+        this.digestContainer = digestContainer;
+        this.digestContent = digestContent;
     }
 
     @Override
@@ -146,7 +140,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public String getId() {
-        return timestampString + "/" + ImageSearchIndexingUtil.md5ofString(url);
+        return digestContent;
+        //return timestampString + "/" + ImageSearchIndexingUtil.md5ofString(url);
     }
 
     public String getURLHash() {
@@ -166,24 +161,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return warcOffset;
     }
 
-    public String getEncodingReported() {
-        return encodingReported;
-    }
-
-    public String getEncodingDetected() {
-        return encodingDetected;
-    }
-
     public String getMimeTypeDetected() {
         return mimeTypeDetected;
     }
 
     public String getMimeTypeReported() {
         return mimeTypeReported;
-    }
-
-    public String getType() {
-        return type;
     }
 
     public String getTitle() {
@@ -196,6 +179,16 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public LocalDateTime getTimestamp() {
         return timestamp;
+    }
+
+    public String getTimestampFormatted() {
+        return String.format("%04d-%02d-%02dT%02d:%02d:%02dZ",
+                timestamp.getYear(),
+                timestamp.getMonthValue(),
+                timestamp.getDayOfMonth(),
+                timestamp.getHour(),
+                timestamp.getMinute(),
+                timestamp.getSecond());
     }
 
     public String getTimestampString() {
@@ -212,10 +205,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public String getHost() {
         return host;
-    }
-
-    public String getProtocol() {
-        return protocol;
     }
 
     public String getContent() {
@@ -238,24 +227,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.warcOffset = warcOffset;
     }
 
-    public void setEncodingReported(String encodingReported) {
-        this.encodingReported = encodingReported;
-    }
-
-    public void setEncodingDetected(String encodingDetected) {
-        this.encodingDetected = encodingDetected;
-    }
-
     public void setMimeTypeDetected(String mimeTypeDetected) {
         this.mimeTypeDetected = mimeTypeDetected;
     }
 
     public void setMimeTypeReported(String mimeTypeReported) {
         this.mimeTypeReported = mimeTypeReported;
-    }
-
-    public void setType(String type) {
-        this.type = type;
     }
 
     public void setTitle(String Title) {
@@ -270,12 +247,41 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.urlTokens = URLTokens;
     }
 
-    public void setTimestamp(LocalDateTime Timestamp) {
-        this.timestamp = Timestamp;
+    public void setTimestamp(String TimestampString) {
+        this.timestampString = TimestampString;
+        // timestampString format is YYYYMMDDHHmmss
+        this.timestamp = LocalDateTime.of(
+                Integer.parseInt(TimestampString.substring(0, 4)),
+                Integer.parseInt(TimestampString.substring(4, 6)),
+                Integer.parseInt(TimestampString.substring(6, 8)),
+                Integer.parseInt(TimestampString.substring(8, 10)),
+                Integer.parseInt(TimestampString.substring(10, 12)),
+                Integer.parseInt(TimestampString.substring(12, 14))
+        );
+    }
+    
+    public void setDigestContainer(String digestContainer) {
+        this.digestContainer = digestContainer;
     }
 
-    public void setTimestampString(String TimestampString) {
-        this.timestampString = TimestampString;
+    public void setDigestContent(String digestContent) {
+        this.digestContent = digestContent;
+    }
+
+    public String getDigestContainer() {
+        return digestContainer;
+    }
+
+    public String getDigestContent() {
+        return digestContent;
+    }
+
+    public void setMetadata(String metadata) {
+        this.metadata = metadata;
+    }
+
+    public String getMetadata() {
+        return metadata;
     }
 
     public void setURL(String url) {
@@ -286,13 +292,13 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         try {
             uri = new URL(url);
             this.host = uri.getHost();
-            this.protocol = uri.getProtocol();
-            this.urlTokens = ImageInformationExtractor.getURLSrcTokens(url);
-            this.surt = WARCInformationParser.toSURT(url);
         } catch (MalformedURLException e) {
             e.printStackTrace();
+            url = url.replaceAll("http://", "").replaceAll("https://", "");
+            this.host = url.split("/")[0];
         }
-
+        this.urlTokens = ImageInformationExtractor.getURLSrcTokens(url);
+        this.surt = WARCInformationParser.toSURT(url);
     }
 
     public void addOutlink(String outlink, String anchor) {
@@ -325,11 +331,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.collection = other.collection;
             this.warc = other.warc;
             this.warcOffset = other.warcOffset;
-            this.encodingReported = other.encodingReported;
-            this.encodingDetected = other.encodingDetected;
             this.mimeTypeDetected = other.mimeTypeDetected;
             this.mimeTypeReported = other.mimeTypeReported;
-            this.type = other.type;
             this.title = other.title;
             this.urlTokens = other.urlTokens;
             this.timestamp = other.timestamp;
@@ -338,9 +341,11 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.url = other.url;
             this.surt = other.surt;
             this.host = other.host;
-            this.protocol = other.protocol;
             this.content = other.content;
             this.outlinks = other.outlinks;
+            this.digestContainer = other.digestContainer;
+            this.digestContent = other.digestContent;
+            this.metadata = other.metadata;
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

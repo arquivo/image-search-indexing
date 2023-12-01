@@ -30,9 +30,14 @@ import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNT
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
 
 import java.io.*;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.xml.bind.annotation.adapters.HexBinaryAdapter;
 
 
 /**
@@ -44,6 +49,12 @@ public class DocumentInformationExtractor implements InformationExtractor {
      * File extensions to be included when extracting text
      */
     private static final Set<String> FILES_TO_PARSE_MIMETYPES = new HashSet<>(Arrays.asList("application/msword", "application/pdf", "application/postscript", "application/rss+xml", "application/vnd.ms-excel", "application/vnd.ms-powerpoint", "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.text-template", "application/vnd.oasis.opendocument.text-master", "application/vnd.oasis.opendocument.text-web", "application/vnd.oasis.opendocument.presentation", "application/vnd.oasis.opendocument.presentation-template", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.spreadsheet-template", "application/vnd.sun.xml.calc", "application/vnd.sun.xml.calc.template", "application/vnd.sun.xml.impress", "application/vnd.sun.xml.impress.template", "application/vnd.sun.xml.writer", "application/vnd.sun.xml.writer.template", "application/xhtml+xml", "application/x-bzip2", "application/x-gzip", "application/x-kword", "application/x-kspread", "application/x-shockwave-flash", "application/zip", "text/html", "text/plain", "text/richtext", "text/rtf", "text/sgml", "text/tab-separated-values", "text/xml"));
+
+
+    private static final Set<String> METADATA_KEYS = new HashSet<>(Arrays.asList( "dc:creator", "dc:subject", "dc:description"));
+
+    //private static final int MAX_OUTLINKS = 1000;
+    private static final int CONTENT_CHAR_LIMIT = 10000000; // 1 000 000 chars == (8MB of text)
 
     private Logger logger = Logger.getLogger(DocumentInformationExtractor.class);
 
@@ -256,14 +267,28 @@ public class DocumentInformationExtractor implements InformationExtractor {
         parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset);
     }
 
-    public TextDocumentData parseTextRecord(InputStream stream, String mimeType, String arcName, String url, String timestamp, long offset) {
+    public TextDocumentData parseTextRecord(InputStream record, String mimeType, String arcName, String url, String timestamp, long offset) {
         getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_READ).increment(1);
         getCounter(mimeToCounterReported(mimeType)).increment(1);
 
+        MessageDigest md5Text;
+        MessageDigest md5Stream;
+        
+        try {
+            md5Text = MessageDigest.getInstance("MD5");
+            md5Stream = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+
+
+        DigestInputStream stream = new DigestInputStream(record, md5Stream);
         TextDocumentData textDocumentData = new TextDocumentData();
 
         textDocumentData.setURL(url);
-        textDocumentData.setTimestampString(timestamp);
+        textDocumentData.setTimestamp(timestamp);
         textDocumentData.setWarc(arcName);
         textDocumentData.setWarcOffset(offset);
 
@@ -280,7 +305,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
         Parser parser = new AutoDetectParser(config);
         Metadata metadata = new Metadata();
-        BodyContentHandler bodyHandler = new BodyContentHandler(-1);
+        BodyContentHandler bodyHandler = new BodyContentHandler(CONTENT_CHAR_LIMIT);
         
         //Add anchor text to the content
         LinkContentHandler linkHandler = new LinkContentHandler();
@@ -290,10 +315,9 @@ public class DocumentInformationExtractor implements InformationExtractor {
         try {
             parser.parse(stream, handler, metadata, context);
 
-            String detectedEncoding = metadata.get("Content-Encoding");
+            //String detectedEncoding = metadata.get("Content-Encoding");
             String detectedMimeType = metadata.get("Content-Type").split(";")[0].trim();
 
-            textDocumentData.setEncodingDetected(detectedEncoding);
             textDocumentData.setMimeTypeDetected(detectedMimeType);
 
             getCounter(mimeToCounterDetected(detectedMimeType)).increment(1);
@@ -315,6 +339,28 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
 
         String body = bodyHandler.toString();
+        md5Text.update(body.getBytes());
+
+        String title = metadata.get("dc:title");
+
+        if (title == null || title.isEmpty())
+            title = metadata.get("title");
+        
+        if (title != null && !title.isEmpty())
+            textDocumentData.setTitle(title);
+
+        List<String> metadataStrings = new LinkedList<>();
+
+        for (String name : metadata.names()) {
+            String value = metadata.get(name);
+            if (METADATA_KEYS.contains(name) && metadataStrings.indexOf(value) == -1 && value != null && !value.isEmpty() && !value.equalsIgnoreCase("unknown")){
+                metadataStrings.add(value);
+            }
+        }
+
+        String metadataString = String.join("\n", metadataStrings);
+        
+        textDocumentData.setMetadata(metadataString);
 
         linkHandler.getLinks().forEach(link -> {
             String linkURL = link.getUri();
@@ -326,13 +372,17 @@ public class DocumentInformationExtractor implements InformationExtractor {
         });
 
         body = removeJunkCharacters(body);
+        
+        HexBinaryAdapter hexBinaryAdapter = new HexBinaryAdapter();
+        String digest = hexBinaryAdapter.marshal(md5Text.digest());
 
-        textDocumentData.setTitle(metadata.get("title"));
-        textDocumentData.setMimeTypeDetected(mimeType);
+        String warcDigest = hexBinaryAdapter.marshal(stream.getMessageDigest().digest());
+        textDocumentData.setDigestContent(digest);
+        textDocumentData.setDigestContainer(warcDigest);
         
         textDocumentData.setContent(body);
 
-        entries.put(url, textDocumentData);
+        entries.put(digest, textDocumentData);
         getCounter(DOCUMENT_COUNTERS.TIKA_RECORDS_SUCCESS).increment(1);
         return textDocumentData;
     }

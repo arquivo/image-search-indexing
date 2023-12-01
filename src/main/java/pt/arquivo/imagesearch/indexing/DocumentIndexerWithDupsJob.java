@@ -77,6 +77,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         WARCS_FAILED,
 
         WARCS_FAILED_STREAM,
+        TIKA_RECORDS_FAILED_DIGEST,
 
         RECORDS_READ,
         RECORDS_PARSED,

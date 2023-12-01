@@ -885,6 +885,12 @@ public class ImageInformationExtractor implements InformationExtractor {
         } catch (Exception ignored) {
 
         }
+        if (imgSrc.startsWith("http://") || imgSrc.startsWith("https://")) {
+            imgSrc = imgSrc.substring(imgSrc.indexOf("://"));
+        }
+        if (imgSrc.startsWith("www.")) {
+            imgSrc = imgSrc.substring(imgSrc.indexOf("."));
+        }
         return ImageSearchIndexingUtil.parseURL(imgSrc);
     }
 

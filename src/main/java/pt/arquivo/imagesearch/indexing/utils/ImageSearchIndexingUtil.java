@@ -299,7 +299,7 @@ public class ImageSearchIndexingUtil {
     public static String parseURL(String toParse) {
         if (toParse.startsWith("hash:"))
             return "";
-        return cleanPunctuation(toParse);
+        return cleanPunctuation(toParse).trim();
     }
 
     /**
@@ -309,7 +309,7 @@ public class ImageSearchIndexingUtil {
      * @return string without punctuation
      */
     public static String cleanPunctuation(String toParse) {
-        return String.join(" ", toParse.split(SPLIT_PATTERN));
+        return String.join(" ", toParse.split(SPLIT_PATTERN)).replaceAll("\\s+", " ");
     }
 
     /**
