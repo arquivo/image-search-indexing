@@ -384,6 +384,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         // by setting the retry amount to 6, we ensure that only Maps from unusable WARCs fail processing
         job.getConfiguration().setInt("mapreduce.map.maxattempts", 6);
         job.getConfiguration().setInt("mapreduce.reduce.shuffle.parallelcopies", 10);
+        job.getConfiguration().setFloat("mapreduce.job.reduce.slowstart.completedmaps", 1.0f);
 
         // increased timeout ensure that even the most complex and largest (W)ARCS are processed
         job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);
