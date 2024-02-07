@@ -80,14 +80,19 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         TIKA_RECORDS_FAILED_DIGEST,
 
         RECORDS_READ,
-        RECORDS_PARSED,
-        RECORDS_PARSED_MIME,
-        RECORDS_IGNORED_MIME_DETECTED,
+        RECORDS_PREPARSING_FAILED,
+        RECORDS_TIKA_READ,
+        RECORDS_TIKA_FAILED,
+        RECORDS_TIKA_FAILED_NO_SUCH_METHOD,
+        RECORDS_TIKA_PARSED_MIME,
+        RECORDS_TIKA_IGNORED_MIME_DETECTED,
         
-        TIKA_RECORDS_READ,
-        TIKA_RECORDS_FAILED,
-        TIKA_RECORDS_FAILED_NO_SUCH_METHOD,
-        TIKA_RECORDS_SUCCESS,
+        RECORDS_PARSING_FAILED,
+        RECORDS_SUCCESS,
+        
+        REDUCE_UNIQUE_RECORDS,
+        REDUCE_TOTAL_RECORDS,
+        
     }
 
     public static class Map extends Mapper<LongWritable, Text, Text, Writable> {
@@ -215,8 +220,10 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                     .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
                     .disableHtmlEscaping()
                     .create();
+            context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_RECORDS).increment(1);
             for (Writable value : values) {
                 TextDocumentData metadata = (TextDocumentData) value;
+                context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
                 try {
                     context.write(NullWritable.get(), new Text(gson.toJson(metadata)));
                 } catch (IOException | InterruptedException e) {

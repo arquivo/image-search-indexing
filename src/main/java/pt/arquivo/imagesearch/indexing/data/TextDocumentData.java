@@ -250,6 +250,9 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     public void setTimestamp(String TimestampString) {
         this.timestampString = TimestampString;
         // timestampString format is YYYYMMDDHHmmss
+        if (TimestampString.length() < 14) {
+            TimestampString = TimestampString.concat("00000000000000").substring(0, 14);
+        }
         this.timestamp = LocalDateTime.of(
                 Integer.parseInt(TimestampString.substring(0, 4)),
                 Integer.parseInt(TimestampString.substring(4, 6)),
