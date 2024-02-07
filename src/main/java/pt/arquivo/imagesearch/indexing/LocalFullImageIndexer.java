@@ -64,7 +64,7 @@ public class LocalFullImageIndexer {
                 FileUtils.copyURLToFile(url, dest);
                 indexer.parseRecord(arcName, dest.getPath());
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("Error processing: " + arcURL, e);
             }
             FileUtils.deleteQuietly(dest);
         }
@@ -197,7 +197,7 @@ public class LocalFullImageIndexer {
                     map.map(line);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error reading file: " + hdfsArcsPath, e);
         }
 
         HashMap<String, List<Object>> mapResults = map.cleanup();
@@ -247,7 +247,7 @@ public class LocalFullImageIndexer {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error writing to file: " + outputFile, e);
         }
 
 

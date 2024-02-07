@@ -209,7 +209,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                         throw new IOException("Incomplete file: Local file and remote file have different sizes. Remote URL: " + url + " Remote file size: " + fileSize + " Local file name: " + filename + " Local file size: " + localFileSize);
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error("Error downloading WARC: " + arcURL + " " + e.getMessage());
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
                     File dest = new File(filename);
                     FileUtils.deleteQuietly(dest);

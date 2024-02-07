@@ -184,7 +184,7 @@ public class ImageParse {
 
         } catch (
                 NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            logger.error(String.format("Error parsing image: %s with error message %s", img.getURLWithTimestamp(), e.getMessage()));
         } catch (
                 IOException e) {
             logger.error(String.format("Error loading image url: %s with error message %s", img.getURLWithTimestamp(), e.getMessage()));

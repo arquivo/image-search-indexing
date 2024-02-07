@@ -192,7 +192,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
 
                 }
             } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
+                logger.error(e.getMessage());
             }
         }
     }
@@ -269,7 +269,8 @@ public class DupDigestMergerJob extends Configured implements Tool {
 
         jobDigest.setNumReduceTasks(reducesCount);
 
-        KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
+        jobDigest.getConfiguration().setFloat("mapreduce.job.reduce.slowstart.completedmaps", 1.0f);
+
 
         KeyValueTextInputFormat.setInputDirRecursive(jobDigest, true);
         KeyValueTextInputFormat.addInputPath(jobDigest, new Path(inputDir));
