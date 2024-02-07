@@ -165,8 +165,15 @@ public class LocalFullImageIndexer {
      * @param args args[0]: file with (W)ARC file list, args[1]: collection name, args[2]: output path, args[3]: output mode for the JSON format (FULL, COMPACT)
      */
     public static void main(String[] args) {
+
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
+        
         Logger logger = Logger.getLogger(Map.class);
-        logger.setLevel(Level.INFO);
         BasicConfigurator.configure();
 
 

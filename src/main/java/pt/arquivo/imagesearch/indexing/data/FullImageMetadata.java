@@ -1,7 +1,6 @@
 package pt.arquivo.imagesearch.indexing.data;
 
 import org.apache.hadoop.io.Writable;
-import org.apache.log4j.Logger;
 
 import pt.arquivo.imagesearch.indexing.data.comparators.ImageDataComparator;
 import pt.arquivo.imagesearch.indexing.data.comparators.PageImageDataComparator;
@@ -71,9 +70,6 @@ public class FullImageMetadata implements Writable, Serializable {
      * Number of times page metadata has changed in this object
      */
     private int pageMetadataChanges;
-
-    private Logger logger = Logger.getLogger(FullImageMetadata.class);
-
 
     /**
      * Basic builder for an empty object
@@ -384,7 +380,7 @@ public class FullImageMetadata implements Writable, Serializable {
             this.oldestSurtDate = other.getOldestSurtDate();
 
         } catch (ClassNotFoundException e) {
-            logger.error("Error reading FullImageMetadata from DataInput", e);
+            System.err.println("Error reading FullImageMetadata from DataInput " +  e);
         }
 
     }

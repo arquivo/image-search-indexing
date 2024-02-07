@@ -2,6 +2,7 @@ package pt.arquivo.imagesearch.indexing;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,6 +45,14 @@ public class HadoopFullPipelineTest {
 
     @Test
     public void testImageSearchIndexingWorkflow() throws Exception {
+
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
+
         ClassLoader classLoader = getClass().getClassLoader();
 
         URL hdfsArcsPath = classLoader.getResource("FullOfflinePipelineTestWARCS.txt");

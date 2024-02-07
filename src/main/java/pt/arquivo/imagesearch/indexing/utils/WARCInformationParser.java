@@ -71,7 +71,7 @@ public class WARCInformationParser {
             url = url.substring("ww3.".length());
 
         if (url.trim().isEmpty())
-            return "";
+            return url;
         return SURT.toSURT(url);
     }
 
