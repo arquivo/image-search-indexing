@@ -29,19 +29,19 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         obj.addProperty("id", src.getId());
 
         obj.addProperty("digestContainer", src.getDigestContainer());
-        obj.addProperty("url", src.getUrl());
+        obj.add("urls", context.serialize(src.getURL()));
         obj.addProperty("date", src.getTimestampFormatted());
         obj.addProperty("tstamp", src.getTimestampString());
         if (src.getTitle() != null && !src.getTitle().isEmpty())
-            obj.addProperty("title", src.getTitle());
+            obj.add("title", context.serialize(src.getTitle()));
         obj.addProperty("type", src.getMimeTypeDetected());
         obj.addProperty("typeReported", src.getMimeTypeReported());
         if (src.getContent() != null && !src.getContent().isEmpty())
-            obj.addProperty("content", src.getContent());
-        obj.addProperty("urlTokens", src.getUrlTokens());
-        obj.addProperty("host", src.getHost());
+            obj.add("content", context.serialize(src.getContent()));
+        obj.add("urlTokens", context.serialize(src.getURLTokens()));
+        obj.add("host", context.serialize(src.getHost()));
         if (src.getMetadata() != null && !src.getMetadata().isEmpty())
-            obj.addProperty("metadata", src.getMetadata());
+            obj.add("metadata", context.serialize(src.getMetadata()));
 
 
         //obj.addProperty("warc", src.getWarc());
@@ -49,7 +49,7 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.addProperty("surt", src.getSurt());
         //obj.addProperty("protocol", src.getProtocol());
         //obj.addProperty("urlHash", src.getURLHash());
-        obj.addProperty("collection", src.getCollection());
+        obj.add("collection", context.serialize(src.getCollection()));
         //obj.add("outlinks", context.serialize(src.getOutlinks()));
         
         //obj.addProperty("safe", 0);

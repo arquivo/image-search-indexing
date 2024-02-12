@@ -39,6 +39,14 @@ public class Outlink implements Serializable {
         this.anchor = anchor;
     }
 
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Outlink outlink = (Outlink) o;
+        if (surt != null ? !surt.equals(outlink.surt) : outlink.surt != null) return false;
+        return true;
+    }
+
 }
 
 

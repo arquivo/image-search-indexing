@@ -104,6 +104,12 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         @Override
         public void setup(Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
             //logger.setLevel(Level.DEBUG);
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
@@ -244,6 +250,13 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
      */
     @Override
     public int run(String[] args) throws Exception {
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
+
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
 
@@ -274,32 +287,10 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         job.setJarByClass(DocumentIndexerWithDupsJob.class);
 
-        // This class supports getting (W)ARCs from both HDFS or HTTP
-        // This flag changes Hadoop input format to match HDFS's data
-        if (modeIsHDFS) {
-            ///TODO
-            job.setMapperClass(HDFSImageIndexerWithDupsJob.Map.class);
-            job.setInputFormatClass(ArchiveFileInputFormat.class);
-            // Find ArcFiles to Process
-            FileSystem dfs = DistributedFileSystem.get(conf);
-
-            RemoteIterator<LocatedFileStatus> fileIterator = dfs.listFiles(new Path(hdfsArcsPath), true);
-            WarcPathFilter warcPathFilter = new WarcPathFilter();
-
-            while (fileIterator.hasNext()) {
-                LocatedFileStatus fileStatus = fileIterator.next();
-                if (fileStatus.isFile() && warcPathFilter.accept(fileStatus.getPath())) {
-                    ArchiveFileInputFormat.addInputPath(job, fileStatus.getPath());
-                }
-            }
-
-            jobName += "HDFS";
-        } else {
-            job.setMapperClass(DocumentIndexerWithDupsJob.Map.class);
-            job.setInputFormatClass(NLineInputFormat.class);
-            NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
-            job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
-        }
+        job.setMapperClass(DocumentIndexerWithDupsJob.Map.class);
+        job.setInputFormatClass(NLineInputFormat.class);
+        NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
+        job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(TextDocumentData.class);

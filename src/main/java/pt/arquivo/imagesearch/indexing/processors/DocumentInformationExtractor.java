@@ -295,12 +295,12 @@ public class DocumentInformationExtractor implements InformationExtractor {
         TextDocumentData textDocumentData = new TextDocumentData();
 
         try {
-            textDocumentData.setURL(url);
+            textDocumentData.addURL(url);
             textDocumentData.setTimestamp(timestamp);
             textDocumentData.setWarc(arcName);
             textDocumentData.setWarcOffset(offset);
 
-            textDocumentData.setCollection(collection);
+            textDocumentData.addCollection(collection);
             textDocumentData.setMimeTypeReported(mimeType);
         } catch (Exception e) {
             logger.error("Error parsing record before Tika: " + url, e);
@@ -361,7 +361,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 title = metadata.get("title");
 
             if (title != null && !title.isEmpty())
-                textDocumentData.setTitle(title);
+                textDocumentData.addTitle(title);
 
             title = "";
 
@@ -377,7 +377,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
             String metadataString = String.join("\n", metadataStrings).trim();
 
-            textDocumentData.setMetadata(metadataString);
+            textDocumentData.addMetadata(metadataString);
 
             linkHandler.getLinks().forEach(link -> {
                 String linkURL = link.getUri();
@@ -405,9 +405,9 @@ public class DocumentInformationExtractor implements InformationExtractor {
             textDocumentData.setDigestContent(digest);
             textDocumentData.setDigestContainer(warcDigest);
 
-            textDocumentData.setContent(body);
+            textDocumentData.addContent(body);
 
-            entries.put(digest, textDocumentData);
+            insertDocumentIndex(textDocumentData);
             getCounter(DOCUMENT_COUNTERS.RECORDS_SUCCESS).increment(1);
             return textDocumentData;
 
@@ -473,5 +473,15 @@ public class DocumentInformationExtractor implements InformationExtractor {
     // linkTypes
     public HashMap<String, Counter> getLinkTypes() {
         return linkTypes;
+    }
+
+    public void insertDocumentIndex(TextDocumentData pageImageData) {
+        if (entries.containsKey(pageImageData.getDigestContainer())) {
+            TextDocumentData oldPageImageData = entries.get(pageImageData.getDigestContainer());
+            TextDocumentData mergedImageData = TextDocumentData.merge(oldPageImageData, pageImageData);
+            entries.put(pageImageData.getDigestContainer(), mergedImageData);
+        } else {
+            entries.put(pageImageData.getDigestContainer(), pageImageData);
+        }
     }
 }

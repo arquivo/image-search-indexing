@@ -12,24 +12,21 @@ import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.hadoop.io.Writable;
-import org.checkerframework.checker.units.qual.t;
 
 import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
-import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
-
-import org.slf4j.Logger;
 
 public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Serializable {
 
     /**
      * Collection where to which this  matches
      */
-    private String collection;
+    private ArrayList<String> collection;
 
     /**
      * (W)ARC name
@@ -54,17 +51,17 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     /**
      * title
      */
-    private String title;
+    private ArrayList<String> title;
 
     /**
      * metadata
      */
-    private String metadata;
+    private ArrayList<String> metadata;
 
     /**
      *  url split into word tokens
      */
-    private String urlTokens;
+    private ArrayList<String> urlTokens;
 
     /**
      *  capture timestamp
@@ -80,22 +77,22 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     /**
      * Document URL
      */
-    private String url;
+    private ArrayList<String> url;
 
     /**
      * Document SURT
      */
-    private String surt;
+    private ArrayList<String> surt;
 
     /**
      * Host of the matching 
      */
-    private String host;
+    private ArrayList<String> host;
 
     /**
      *  content
      */
-    private String content;
+    private ArrayList<String> content;
 
     /** 
      * Outlinks
@@ -114,21 +111,14 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public TextDocumentData() {
         this.outlinks = new HashSet<>();
-    }
-
-    public TextDocumentData(String URL, String title, String timestampString, String content, String mimeTypeReported, String mimeTypeDetected, String warc, long warcOffset, String collection, String digestContainer, String digestContent) {
-        setURL(URL);
-        this.title = title;
-        this.timestampString = timestampString;
-        this.content = content;
-        this.mimeTypeReported = mimeTypeReported;
-        this.mimeTypeDetected = mimeTypeDetected;
-        this.warc = warc;
-        this.warcOffset = warcOffset;
-        this.collection = collection;
-        this.outlinks = new HashSet<>();
-        this.digestContainer = digestContainer;
-        this.digestContent = digestContent;
+        this.title = new ArrayList<>();
+        this.collection = new ArrayList<>();
+        this.content = new ArrayList<>();
+        this.urlTokens = new ArrayList<>();
+        this.surt = new ArrayList<>();
+        this.host = new ArrayList<>();
+        this.url = new ArrayList<>();
+        this.metadata = new ArrayList<>();
     }
 
     @Override
@@ -146,12 +136,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         //return timestampString + "/" + ImageSearchIndexingUtil.md5ofString(url);
     }
 
-    public String getURLHash() {
-        return ImageSearchIndexingUtil.md5ofString(url);
-    }
-
     // generate getters and setters
-    public String getCollection() {
+    public ArrayList<String> getCollection() {
         return collection;
     }
 
@@ -171,11 +157,11 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return mimeTypeReported;
     }
 
-    public String getTitle() {
+    public ArrayList<String> getTitle() {
         return title;
     }
 
-    public String getUrlTokens() {
+    public ArrayList<String> getURLTokens() {
         return urlTokens;
     }
 
@@ -197,19 +183,19 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return timestampString;
     }
 
-    public String getUrl() {
+    public ArrayList<String> getURL() {
         return url;
     }
 
-    public String getSurt() {
+    public ArrayList<String> getSurt() {
         return surt;
     }
 
-    public String getHost() {
+    public ArrayList<String> getHost() {
         return host;
     }
 
-    public String getContent() {
+    public ArrayList<String> getContent() {
         return content;
     }
 
@@ -217,8 +203,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return outlinks;
     }
 
-    public void setCollection(String collection) {
-        this.collection = collection;
+    public void addCollection(String collection) {
+        if (collection.isEmpty() || this.collection.contains(collection))
+            return;
+        this.collection.add(collection);
     }
 
     public void setWarc(String warc) {
@@ -237,16 +225,22 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.mimeTypeReported = mimeTypeReported;
     }
 
-    public void setTitle(String Title) {
-        this.title = Title;
+    public void addTitle(String title) {
+        if (title.isEmpty() || this.title.contains(title))
+            return;
+        this.title.add(title);
     }
 
-    public void setContent(String Content) {
-        this.content = Content;
+    public void addContent(String content) {
+        if (content.isEmpty() || this.content.contains(content))
+            return;
+        this.content.add(content);
     }
 
-    public void setURLTokens(String URLTokens) {
-        this.urlTokens = URLTokens;
+    public void addURLTokens(String urlTokens) {
+        if (urlTokens.isEmpty() || this.urlTokens.contains(urlTokens))
+            return;
+        this.urlTokens.add(urlTokens);
     }
 
     public void setTimestamp(String TimestampString) {
@@ -281,29 +275,33 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return digestContent;
     }
 
-    public void setMetadata(String metadata) {
-        this.metadata = metadata;
+    public void addMetadata(String metadata) {
+        if (metadata.isEmpty() || this.metadata.contains(metadata))
+            return;
+        this.metadata.add(metadata);
     }
 
-    public String getMetadata() {
+    public ArrayList<String> getMetadata() {
         return metadata;
     }
 
-    public void setURL(String url) {
-        this.url = url;
+    public void addURL(String url) {
+        if (this.url.contains(url))
+            return;
+        this.url.add(url);
         if (!url.startsWith("http"))
             url = "http://" + url;
         URL uri;
         try {
             uri = new URL(url);
-            this.host = uri.getHost();
+            this.host.add(uri.getHost());
         } catch (MalformedURLException e) {
             // e.printStackTrace();
             url = url.replaceAll("http://", "").replaceAll("https://", "");
-            this.host = url.split("/")[0];
+            this.host.add(url.split("/")[0]);
         }
-        this.urlTokens = ImageInformationExtractor.getURLSrcTokens(url);
-        this.surt = WARCInformationParser.toSURT(url);
+        this.urlTokens.add(ImageInformationExtractor.getURLSrcTokens(url));
+        this.surt.add(WARCInformationParser.toSURT(url));
     }
 
     public void addOutlink(String outlink, String anchor) {
@@ -355,6 +353,31 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         } catch (ClassNotFoundException e) {
             System.err.println("Error reading TextDocumentData from Writable");
         }
+    }
+
+    public static TextDocumentData merge(TextDocumentData a, TextDocumentData b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        TextDocumentData result = a.getTimestamp().isAfter(b.getTimestamp()) ? b : a;
+        TextDocumentData other = a.getTimestamp().isAfter(b.getTimestamp()) ? a : b;
+
+        other.getCollection().forEach(result::addCollection);
+        other.getTitle().forEach(result::addTitle);
+        other.getURLTokens().forEach(result::addURLTokens);
+        other.getURL().forEach(result::addURL);
+        other.getSurt().forEach(result::addURL);
+        other.getHost().forEach(result::addURL);
+        other.getContent().forEach(result::addContent);
+        other.getOutlinks().forEach(outlink -> result.addOutlink(outlink.getUrl(), outlink.getAnchor()));
+        other.getMetadata().forEach(result::addMetadata);
+
+        return result;
+
+
     }
 }
 
