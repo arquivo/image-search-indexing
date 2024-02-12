@@ -337,15 +337,6 @@ public class ImageInformationExtractor implements InformationExtractor {
                 this.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.IMAGES_IN_WARC_PARSED).increment(1);
 
             return imageData;
-                /*Gson gson = new Gson();
-                try {
-                    context.write(new Text(imgSurt), new Text(gson.toJson(imageData)));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                */
         }
         return null;
     }

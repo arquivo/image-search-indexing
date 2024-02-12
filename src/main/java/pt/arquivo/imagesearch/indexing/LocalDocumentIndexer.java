@@ -88,7 +88,7 @@ public class LocalDocumentIndexer {
                     map.map(line);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error reading file: " + hdfsArcsPath);
         }
 
         System.out.println(map.indexer.getEntries().size());

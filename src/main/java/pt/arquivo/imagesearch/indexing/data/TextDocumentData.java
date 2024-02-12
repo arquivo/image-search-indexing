@@ -22,6 +22,8 @@ import pt.arquivo.imagesearch.indexing.processors.ImageInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
+import org.slf4j.Logger;
+
 public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Serializable {
 
     /**
@@ -296,7 +298,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             uri = new URL(url);
             this.host = uri.getHost();
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
             url = url.replaceAll("http://", "").replaceAll("https://", "");
             this.host = url.split("/")[0];
         }
@@ -351,7 +353,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.metadata = other.metadata;
 
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            System.err.println("Error reading TextDocumentData from Writable");
         }
     }
 }

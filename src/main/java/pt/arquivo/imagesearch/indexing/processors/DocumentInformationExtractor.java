@@ -131,7 +131,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         try {
             config = new TikaConfig(classLoader.getResourceAsStream("tika-config.xml"));
         } catch (TikaException | IOException | SAXException e) {
-            e.printStackTrace();
+            logger.error("Error loading Tika config", e);
         }
 
         this.entries = new HashMap<>();
@@ -226,7 +226,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
             record.skipHttpHeader();
         } catch (IOException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error("Error parsing record: " + record.getHeader().getUrl(), e);
         }
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
@@ -315,7 +315,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 return textDocumentData;
         } catch (IOException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error("Error parsing record: " + url, e);
         }
 
         Parser parser = new AutoDetectParser(config);
