@@ -1,6 +1,7 @@
 package pt.arquivo.imagesearch.indexing.data;
 
 import org.apache.hadoop.io.Writable;
+
 import pt.arquivo.imagesearch.indexing.data.comparators.ImageDataComparator;
 import pt.arquivo.imagesearch.indexing.data.comparators.PageImageDataComparator;
 
@@ -379,7 +380,7 @@ public class FullImageMetadata implements Writable, Serializable {
             this.oldestSurtDate = other.getOldestSurtDate();
 
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            System.err.println("Error reading FullImageMetadata from DataInput " +  e);
         }
 
     }

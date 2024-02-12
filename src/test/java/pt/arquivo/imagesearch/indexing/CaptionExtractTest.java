@@ -19,6 +19,13 @@ public class CaptionExtractTest {
 
     @Test
     public void extractCaptionsPageCaptionParent() throws IOException {
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
+        
         ClassLoader classLoader = getClass().getClassLoader();
 
         ImageInformationExtractor iie = new ImageInformationExtractor("Teste");

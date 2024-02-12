@@ -70,6 +70,8 @@ public class WARCInformationParser {
         else if (url.startsWith("ww3."))
             url = url.substring("ww3.".length());
 
+        if (url.trim().isEmpty())
+            return url;
         return SURT.toSURT(url);
     }
 

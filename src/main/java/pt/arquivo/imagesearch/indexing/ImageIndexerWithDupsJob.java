@@ -159,6 +159,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         @Override
         public void setup(Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
             //logger.setLevel(Level.DEBUG);
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
@@ -209,7 +215,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
                         throw new IOException("Incomplete file: Local file and remote file have different sizes. Remote URL: " + url + " Remote file size: " + fileSize + " Local file name: " + filename + " Local file size: " + localFileSize);
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error("Error downloading WARC: " + arcURL + " " + e.getMessage());
                     context.getCounter(IMAGE_COUNTERS.WARCS_DOWNLOAD_ERROR).increment(1);
                     File dest = new File(filename);
                     FileUtils.deleteQuietly(dest);
@@ -251,6 +257,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         @Override
         public void setup(Reducer.Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
 
@@ -312,6 +324,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
      */
     @Override
     public int run(String[] args) throws Exception {
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
 
@@ -384,6 +402,7 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
         // by setting the retry amount to 6, we ensure that only Maps from unusable WARCs fail processing
         job.getConfiguration().setInt("mapreduce.map.maxattempts", 6);
         job.getConfiguration().setInt("mapreduce.reduce.shuffle.parallelcopies", 10);
+        job.getConfiguration().setFloat("mapreduce.job.reduce.slowstart.completedmaps", 1.0f);
 
         // increased timeout ensure that even the most complex and largest (W)ARCS are processed
         job.getConfiguration().setInt("mapreduce.task.timeout", 5400000);

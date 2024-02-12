@@ -15,6 +15,14 @@ public class FullImageIndexerJob {
      * @throws Exception crash if there is an error getting required files from HDFS
      */
     public static void main(String[] args) throws Exception {
+        // get system variable INDEXING_LOG_LEVEL and set log level accordingly
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
+        
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
 

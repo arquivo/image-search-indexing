@@ -28,6 +28,7 @@ import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.io.*;
 import java.security.DigestInputStream;
@@ -287,8 +288,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
             md5Text = MessageDigest.getInstance("MD5");
             md5Stream = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error("Error parsing record: " + url, e);
             return null;
         }
 
@@ -385,7 +385,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 if (link.getType() == "a" && !linkURL.isEmpty() && !linkURL.startsWith("#")
                         && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")) {
                     String linkAbsURL = StringUtil.resolve(url, linkURL);
-                    textDocumentData.addOutlink(linkAbsURL, anchorText);
+                    String surt = WARCInformationParser.toSURT(linkAbsURL);
+                    textDocumentData.addOutlink(surt, anchorText);
                 }
             });
 
