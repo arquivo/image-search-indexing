@@ -159,6 +159,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         @Override
         public void setup(Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
             //logger.setLevel(Level.DEBUG);
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
@@ -251,6 +257,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
 
         @Override
         public void setup(Reducer.Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
 
@@ -312,6 +324,12 @@ public class ImageIndexerWithDupsJob extends Configured implements Tool {
      */
     @Override
     public int run(String[] args) throws Exception {
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
 

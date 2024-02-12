@@ -93,7 +93,15 @@ public class DupDigestMergerJob extends Configured implements Tool {
 
         private final Logger logger = Logger.getLogger(Map.class);
 
-
+        @Override
+        public void setup(Mapper.Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
+        }
         /**
          * Map process groups FullImageMetadata records by digest by writing them to the "key" Hadoop entry
          *
@@ -120,6 +128,12 @@ public class DupDigestMergerJob extends Configured implements Tool {
 
         @Override
         public void setup(Reducer.Context context) {
+            String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+            if (logLevel != null) {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+            } else {
+                org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+            }
             merger = new ImageInformationMerger(context);
             Configuration config = context.getConfiguration();
             String legacyOutput = config.get(OUTPUT_MODE_NAME);
@@ -206,6 +220,13 @@ public class DupDigestMergerJob extends Configured implements Tool {
      */
     @Override
     public int run(String[] args) throws Exception {
+        String logLevel = System.getenv("INDEXING_LOG_LEVEL");
+        if (logLevel != null) {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
+        } else {
+            org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        }
+    
         assert args.length >= 1 : "Missing collection name argument";
         String collection = args[0];
         String jobName = collection + "_DupDigestMerger";
