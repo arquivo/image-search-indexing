@@ -25,17 +25,16 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import pt.arquivo.imagesearch.indexing.data.hadoop.ArchiveFileInputFormat;
 import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.AlternativeFileUtils;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
-import pt.arquivo.imagesearch.indexing.utils.WarcPathFilter;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashSet;
 
 /**
  * Hadoop process responsible for the 1nd stage of the pipeline.
@@ -90,8 +89,12 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         RECORDS_PARSING_FAILED,
         RECORDS_SUCCESS,
         
-        REDUCE_UNIQUE_RECORDS,
         REDUCE_TOTAL_RECORDS,
+        REDUCE_TOTAL_PAGES,
+        REDUCE_TOTAL_INLINKS,
+        REDUCE_MISSING_PAGES,
+        REDUCE_UNIQUE_PAGES,
+        REDUCE_UNIQUE_INLINKS
         
     }
 
@@ -194,8 +197,17 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             logger.info("Cleanup");
             super.cleanup(context);
             for (java.util.Map.Entry<String, TextDocumentData> entry : indexer.getEntries().entrySet()) {
-                String surt = entry.getKey();
-                context.write(new Text(surt), entry.getValue());
+                
+                TextDocumentData value = entry.getValue();
+                String surt = value.getSurt().get(0);
+                try {
+                    context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
+                    for (Outlink outlink : value.getOutlinks()) {
+                        context.write(new Text(outlink.getSurt()), new TextDocumentDataOutlinkPair(null, outlink));
+                    }
+                } catch (IOException | InterruptedException e) {
+                    logger.error("Error writing output", e);
+                }
             }
         }
     }
@@ -222,20 +234,55 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
          * @param context Hadoop context
          */
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
-            Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
-                    .disableHtmlEscaping()
-                    .create();
-            context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_RECORDS).increment(1);
-            for (Writable value : values) {
-                TextDocumentData metadata = (TextDocumentData) value;
-                context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
+            try {
+                Gson gson = new GsonBuilder()
+                        .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
+                        .disableHtmlEscaping()
+                        .create();
+                TextDocumentData docData = null;
+                HashSet<Outlink> inlinks = new HashSet<>();
+                
+                for (Writable value: values) {
+                    context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
+                    TextDocumentDataOutlinkPair newDocdata = (TextDocumentDataOutlinkPair) value;
+                    if (newDocdata.getTextDocumentData() != null) {
+                        TextDocumentData newDoc = new TextDocumentData(newDocdata.getTextDocumentData());
+                        context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_PAGES).increment(1);
+
+                        if (docData == null) {
+                            docData = newDoc;
+                        } else {
+                            docData = TextDocumentData.merge(docData, newDoc);
+                        }
+                    }
+                    if (newDocdata.getOutlink() != null) {
+                        inlinks.add((Outlink) newDocdata.getOutlink());
+                        context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_INLINKS).increment(1);
+
+                    }
+                }
+                if (docData == null) {
+                    context.getCounter(DOCUMENT_COUNTERS.REDUCE_MISSING_PAGES).increment(1);
+                    return;
+                }
+
+                context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_PAGES).increment(1);
+
+                if (inlinks.size() > 0) {
+                    for (Outlink inlink : inlinks) {
+                        docData.addInlink(inlink);
+                    }
+                }
+
+                context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(inlinks.size());
+
                 try {
-                    context.write(NullWritable.get(), new Text(gson.toJson(metadata)));
+                    context.write(NullWritable.get(), new Text(gson.toJson(docData)));
                 } catch (IOException | InterruptedException e) {
                     logger.error("Error writing output", e);
                 }
-
+            } catch (Exception e) {
+                logger.error("Error reducing", e);
             }
         }
     }
@@ -293,7 +340,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(TextDocumentData.class);
+        job.setMapOutputValueClass(TextDocumentDataOutlinkPair.class);
 
         job.setReducerClass(DocumentIndexerWithDupsJob.Reduce.class);
         job.setOutputKeyClass(NullWritable.class);
