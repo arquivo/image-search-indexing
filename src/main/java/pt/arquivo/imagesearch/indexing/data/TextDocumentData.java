@@ -99,6 +99,11 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
      */
     private Set<Outlink> outlinks;
 
+    /** 
+     * Inlinks
+     */
+    private Set<Outlink> inlinks;
+
     /**
      * Digest of the document
      */
@@ -109,8 +114,30 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
      */
     private String digestContent;
 
+    public TextDocumentData(TextDocumentData other){
+        this.collection = new ArrayList<>(other.collection);
+        this.warc = other.warc;
+        this.warcOffset = other.warcOffset;
+        this.mimeTypeDetected = other.mimeTypeDetected;
+        this.mimeTypeReported = other.mimeTypeReported;
+        this.title = new ArrayList<>(other.title);
+        this.urlTokens = new ArrayList<>(other.urlTokens);
+        this.timestamp = other.timestamp;
+        this.timestampString = other.timestampString;
+        this.url = new ArrayList<>(other.url);
+        this.surt = new ArrayList<>(other.surt);
+        this.host = new ArrayList<>(other.host);
+        this.content = new ArrayList<>(other.content);
+        this.outlinks = new HashSet<>(other.outlinks);
+        this.inlinks = new HashSet<>(other.inlinks);
+        this.digestContainer = other.digestContainer;
+        this.digestContent = other.digestContent;
+        this.metadata = new ArrayList<>(other.metadata);
+    }
+
     public TextDocumentData() {
         this.outlinks = new HashSet<>();
+        this.inlinks = new HashSet<>();
         this.title = new ArrayList<>();
         this.collection = new ArrayList<>();
         this.content = new ArrayList<>();
@@ -201,6 +228,28 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public Set<Outlink> getOutlinks() {
         return outlinks;
+    }
+
+    public Set<Outlink> getInlinks() {
+        return inlinks;
+    }
+
+    public ArrayList<String> getInlinkAnchors() {
+        Set<String> inlinkAnchors = new HashSet<>();
+        for (Outlink inlink : inlinks) {
+            if (inlink.getAnchor() != null && !inlink.getAnchor().trim().isEmpty())
+                inlinkAnchors.add(inlink.getAnchor());
+        }
+        return new ArrayList<>(inlinkAnchors);
+    }
+
+    public ArrayList<String> getInlinkSurts() {
+        Set<String> inlinkSurt = new HashSet<>();
+        for (Outlink inlink : inlinks) {
+            if (inlink.getSurt() != null && !inlink.getSurt().trim().isEmpty())
+            inlinkSurt.add(inlink.getSurt());
+        }
+        return new ArrayList<>(inlinkSurt);
     }
 
     public void addCollection(String collection) {
@@ -310,6 +359,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.outlinks.add(outlinkObj);
     }
 
+    public void addInlink(Outlink inlink) {
+        this.inlinks.add(inlink);
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -346,6 +399,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.host = other.host;
             this.content = other.content;
             this.outlinks = other.outlinks;
+            this.inlinks = other.inlinks;
             this.digestContainer = other.digestContainer;
             this.digestContent = other.digestContent;
             this.metadata = other.metadata;
@@ -367,12 +421,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
         other.getCollection().forEach(result::addCollection);
         other.getTitle().forEach(result::addTitle);
-        other.getURLTokens().forEach(result::addURLTokens);
         other.getURL().forEach(result::addURL);
-        other.getSurt().forEach(result::addURL);
-        other.getHost().forEach(result::addURL);
         other.getContent().forEach(result::addContent);
         other.getOutlinks().forEach(outlink -> result.addOutlink(outlink.getUrl(), outlink.getAnchor()));
+        other.getInlinks().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
 
         return result;

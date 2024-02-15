@@ -385,8 +385,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 if (link.getType() == "a" && !linkURL.isEmpty() && !linkURL.startsWith("#")
                         && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")) {
                     String linkAbsURL = StringUtil.resolve(url, linkURL);
-                    String surt = WARCInformationParser.toSURT(linkAbsURL);
-                    textDocumentData.addOutlink(surt, anchorText);
+                    textDocumentData.addOutlink(linkAbsURL, anchorText);
                 }
             });
 

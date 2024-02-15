@@ -51,6 +51,9 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.addProperty("urlHash", src.getURLHash());
         obj.add("collection", context.serialize(src.getCollection()));
         //obj.add("outlinks", context.serialize(src.getOutlinks()));
+        obj.add("inlinks", context.serialize(src.getInlinkSurts().size()));
+        obj.add("inlinkAnchors", context.serialize(src.getInlinkAnchors()));
+
         
         //obj.addProperty("safe", 0);
         //obj.addProperty("spam", 0);
