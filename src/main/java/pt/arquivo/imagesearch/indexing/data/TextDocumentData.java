@@ -359,6 +359,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.outlinks.add(outlinkObj);
     }
 
+    public void addOutlink(Outlink outlink) {
+        this.outlinks.add(outlink);
+    }
+
     public void addInlink(Outlink inlink) {
         this.inlinks.add(inlink);
     }
@@ -416,14 +420,18 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         if (b == null) {
             return a;
         }
+
+        if (a == b) {
+            return a;
+        }
         TextDocumentData result = a.getTimestamp().isAfter(b.getTimestamp()) ? b : a;
-        TextDocumentData other = a.getTimestamp().isAfter(b.getTimestamp()) ? a : b;
+        TextDocumentData other = a == result ? b : a;
 
         other.getCollection().forEach(result::addCollection);
         other.getTitle().forEach(result::addTitle);
         other.getURL().forEach(result::addURL);
         other.getContent().forEach(result::addContent);
-        other.getOutlinks().forEach(outlink -> result.addOutlink(outlink.getUrl(), outlink.getAnchor()));
+        other.getOutlinks().forEach(result::addOutlink);
         other.getInlinks().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
 

@@ -20,6 +20,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
@@ -212,7 +213,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         }
     }
 
-    public static class Reduce extends Reducer<Text, Writable, NullWritable, Text> {
+    public static class Reduce extends Reducer<Text, Writable, Text, TextDocumentData> {
 
         private final Logger logger = Logger.getLogger(Reduce.class);
         public String collection;
@@ -277,7 +278,9 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(inlinks.size());
 
                 try {
-                    context.write(NullWritable.get(), new Text(gson.toJson(docData)));
+                    String digestKey = docData.getDigestContent();
+                    Text digestKeyText = new Text(digestKey);
+                    context.write(digestKeyText, docData);
                 } catch (IOException | InterruptedException e) {
                     logger.error("Error writing output", e);
                 }
@@ -343,9 +346,9 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         job.setMapOutputValueClass(TextDocumentDataOutlinkPair.class);
 
         job.setReducerClass(DocumentIndexerWithDupsJob.Reduce.class);
-        job.setOutputKeyClass(NullWritable.class);
-        job.setOutputValueClass(Text.class);
-        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(TextDocumentData.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         job.setJobName(jobName);
 
