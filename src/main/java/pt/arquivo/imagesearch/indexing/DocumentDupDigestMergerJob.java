@@ -132,7 +132,7 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
             else
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITHOUT_INLINKS).increment(1);
 
-            logger.info(String.format("Found %d records", counter));
+            logger.debug(String.format("Found %d records", counter));
 
             merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ALL).increment(result.getInlinks().size());
 

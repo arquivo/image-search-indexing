@@ -104,7 +104,7 @@ public class DocumentInformationMerger {
     public int mergeAllHadoop(Iterable<Writable> values) {
         int counter = 0;
         for (Writable value : values) {
-            TextDocumentData metadata = (TextDocumentData) value;
+            TextDocumentData metadata =  new TextDocumentData((TextDocumentData) value);
             entry = TextDocumentData.merge(entry, metadata);
             counter++;
             if (counter >= MAX_OBJECTS_TO_MERGE)

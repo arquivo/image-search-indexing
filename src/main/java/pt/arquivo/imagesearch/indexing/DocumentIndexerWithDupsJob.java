@@ -236,10 +236,6 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
          */
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
             try {
-                Gson gson = new GsonBuilder()
-                        .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
-                        .disableHtmlEscaping()
-                        .create();
                 TextDocumentData docData = null;
                 HashSet<Outlink> inlinks = new HashSet<>();
                 
