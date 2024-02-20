@@ -316,14 +316,11 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         assert args.length >= 4 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[3]);
 
-        assert args.length >= 5 : "Missing modeIsHDFS";
-        boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
+        assert args.length >= 5 : "Missing output dir";
+        String outputDir = args[4];
 
-        assert args.length >= 6 : "Missing output dir";
-        String outputDir = args[5];
-
-        assert args.length >= 7 : "Missing warcFileTempBaseDir";
-        String warcFileTempBaseDir = args[6];
+        assert args.length >= 6 : "Missing warcFileTempBaseDir";
+        String warcFileTempBaseDir = args[5];
 
         Configuration conf = new Configuration();
         conf.set("collection", collection);

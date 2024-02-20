@@ -29,47 +29,41 @@ public class FullDocumentIndexerJob {
         assert args.length >= 4 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[3]);
 
-        assert args.length >= 5 : "Missing modeIsHDFS";
-        boolean modeIsHDFS = Boolean.parseBoolean(args[4]);
-
-        assert args.length >= 6 : "Missing outputDirJob1";
-        String outputDirJob1 = args[5];
+        assert args.length >= 5 : "Missing outputDirJob1";
+        String outputDirJob1 = args[4];
         //outputDirJob1 = "/document-search-indexing/output/" + collection + "/" + currentTime;
 
-        assert args.length >= 7 : "Missing outputDirJob2";
-        String outputDirJob2 = args[6];
+        assert args.length >= 6 : "Missing outputDirJob2";
+        String outputDirJob2 = args[5];
         //outputDirJob2 = "/document-search-indexing/output/" + collection + "/" + currentTime + "_nodups";
 
+        assert args.length >= 7 : "Missing warcTempDir";
         
         // the output dir for the first Hadoop job is the input dir for the second job
         
         
 
-        String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4], args[5], "/tmp/"};
+        String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4], args[6]};
 
         int exitCode = ToolRunner.run(new DocumentIndexerWithDupsJob(), argsJob1);
 
         Configuration conf = new Configuration();
         FileSystem hdfs = FileSystem.get(conf);
 
-        /*
+        // delete intermediate results from job1, as only the output of the final job is needed
+
         if (exitCode != 0){
             // delete intermediate results, as the second job failed and they will not be used further
             hdfs.delete(new Path(outputDirJob1), true);
             System.exit(exitCode);
         }
-        */
 
-        String[] argsJob2 = new String[]{args[1], args[3], args[5], args[5], args[6]};
+        String[] argsJob2 = new String[]{args[1], args[3], args[4], args[5]};
         exitCode = ToolRunner.run(new DocumentDupDigestMergerJob(), argsJob2);
-
-
-        // delete intermediate results from job1, as only the output of the final job is needed
-        // hdfs.delete(new Path(outputDirJob1), true);
-
+        
+        // delete intermediate results
+        hdfs.delete(new Path(outputDirJob1), true);
 
         System.exit(exitCode);
-
-
     }
 }

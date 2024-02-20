@@ -49,6 +49,8 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
         RECORDS_WITH_INLINKS,
         RECORDS_WITHOUT_INLINKS,
         INLINKS_ALL,
+        INLINKS_ANCHOR,
+        INLINKS_SURT
     }
 
     /**
@@ -135,6 +137,8 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
             logger.debug(String.format("Found %d records", counter));
 
             merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ALL).increment(result.getInlinks().size());
+            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_SURT).increment(result.getInlinkSurts().size());
+            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ANCHOR).increment(result.getInlinkAnchors().size());
 
             logger.debug("Reducing: " + key);
 
@@ -184,7 +188,6 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
         assert args.length >= 2 : "Missing number of reduces";
         int reducesCount = Integer.parseInt(args[1]);
 
-
         String inputDir;
         String outputDirDigest;
 
@@ -192,11 +195,11 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
         conf.set("collection", collection);
         FileSystem hdfs = FileSystem.get(conf);
 
-        if (args.length < 4)
+        if (args.length < 3)
             throw new IllegalArgumentException("Missing input and output directories");
 
-        inputDir = args[3];
-        outputDirDigest = args[4];
+        inputDir = args[2];
+        outputDirDigest = args[3];
 
 
         Job jobDigest = Job.getInstance(conf);
