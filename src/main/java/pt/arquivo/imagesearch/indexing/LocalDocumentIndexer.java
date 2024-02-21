@@ -45,7 +45,8 @@ public class LocalDocumentIndexer {
             try {
                 url = new URL(arcURL);
             } catch (MalformedURLException ignored) {
-
+                logger.error("Error parsing URL: " + arcURL);
+                return;
             }
 
             String[] surl = url.getPath().split("/");
@@ -76,9 +77,6 @@ public class LocalDocumentIndexer {
 
         assert args.length >= 2 : "Missing collection name argument";
         String collection = args[1];
-
-        assert args.length >= 3 : "Missing output file";
-        String outputFile = args[2];
 
         LocalDocumentIndexer.Map map = new Map(collection);
 

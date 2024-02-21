@@ -15,7 +15,7 @@ public class FullDocumentIndexerJob {
      * @throws Exception crash if there is an error getting required files from HDFS
      */
     public static void main(String[] args) throws Exception {
-        long currentTime = System.currentTimeMillis();
+        //long currentTime = System.currentTimeMillis();
 
         assert args.length >= 1 : "Missing hdfs file with all arcs path argument";
         String hdfsArcsPath = args[0];
@@ -24,10 +24,10 @@ public class FullDocumentIndexerJob {
         String collection = args[1];
 
         assert args.length >= 3 : "Missing number of warcs per map";
-        int linesPerMap = Integer.parseInt(args[2]);
+        String linesPerMap = args[2];
 
         assert args.length >= 4 : "Missing number of reduces";
-        int reducesCount = Integer.parseInt(args[3]);
+        String reducesCount = args[3];
 
         assert args.length >= 5 : "Missing outputDirJob1";
         String outputDirJob1 = args[4];
@@ -38,12 +38,13 @@ public class FullDocumentIndexerJob {
         //outputDirJob2 = "/document-search-indexing/output/" + collection + "/" + currentTime + "_nodups";
 
         assert args.length >= 7 : "Missing warcTempDir";
+        String warcTempDir = args[6];
         
         // the output dir for the first Hadoop job is the input dir for the second job
         
         
 
-        String[] argsJob1 = new String[]{args[0], args[1], args[2], args[3], args[4], args[6]};
+        String[] argsJob1 = new String[]{hdfsArcsPath, collection, linesPerMap, reducesCount, outputDirJob1, warcTempDir};
 
         int exitCode = ToolRunner.run(new DocumentIndexerWithDupsJob(), argsJob1);
 
@@ -58,7 +59,7 @@ public class FullDocumentIndexerJob {
             System.exit(exitCode);
         }
 
-        String[] argsJob2 = new String[]{args[1], args[3], args[4], args[5]};
+        String[] argsJob2 = new String[]{collection, reducesCount, outputDirJob1, outputDirJob2};
         exitCode = ToolRunner.run(new DocumentDupDigestMergerJob(), argsJob2);
         
         // delete intermediate results

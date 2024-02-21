@@ -5,7 +5,6 @@ import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
-import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.utils.ImageParse;
 import pt.arquivo.imagesearch.indexing.data.*;
 import org.apache.commons.io.FilenameUtils;
@@ -36,6 +35,7 @@ import java.util.regex.Pattern;
 /**
  * Auxiliary class to extract metadat from pages and images
  */
+@SuppressWarnings("rawtypes")
 public class ImageInformationExtractor implements InformationExtractor {
 
     /**

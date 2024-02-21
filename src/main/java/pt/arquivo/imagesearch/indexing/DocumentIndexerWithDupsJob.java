@@ -1,11 +1,7 @@
 package pt.arquivo.imagesearch.indexing;
 
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -15,7 +11,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
@@ -23,10 +18,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.AlternativeFileUtils;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
@@ -219,7 +210,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         public String collection;
 
         @Override
-        public void setup(Reducer.Context context) {
+        public void setup(Reduce.Context context) {
             Configuration config = context.getConfiguration();
             collection = config.get("collection");
 

@@ -7,11 +7,8 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
-import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
-import pt.arquivo.imagesearch.indexing.data.PageImageData;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
@@ -70,7 +67,7 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
         private final Logger logger = Logger.getLogger(Map.class);
 
         @Override
-        public void setup(Mapper.Context context) {
+        public void setup(Map.Context context) {
             String logLevel = System.getenv("INDEXING_LOG_LEVEL");
             if (logLevel != null) {
                 org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
@@ -102,7 +99,7 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
         private DocumentInformationMerger merger;
 
         @Override
-        public void setup(Reducer.Context context) {
+        public void setup(Reduce.Context context) {
             String logLevel = System.getenv("INDEXING_LOG_LEVEL");
             if (logLevel != null) {
                 org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));

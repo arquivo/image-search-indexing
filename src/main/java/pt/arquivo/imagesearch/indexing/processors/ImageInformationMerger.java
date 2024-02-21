@@ -4,7 +4,6 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
-import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.DupDigestMergerJob;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 
@@ -14,9 +13,8 @@ import java.util.List;
 /**
  * Merges FullImageMetadata records for deduplication
  */
+@SuppressWarnings("rawtypes")
 public class ImageInformationMerger {
-
-    private final org.apache.log4j.Logger logger = Logger.getLogger(ImageInformationMerger.class);
 
     /**
      * Maximum supported number of objects to merge

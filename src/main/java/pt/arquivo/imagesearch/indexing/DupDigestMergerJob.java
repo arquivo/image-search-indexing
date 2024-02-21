@@ -94,7 +94,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
         private final Logger logger = Logger.getLogger(Map.class);
 
         @Override
-        public void setup(Mapper.Context context) {
+        public void setup(Map.Context context) {
             String logLevel = System.getenv("INDEXING_LOG_LEVEL");
             if (logLevel != null) {
                 org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));
@@ -127,7 +127,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
         OUTPUT_MODE outputMode;
 
         @Override
-        public void setup(Reducer.Context context) {
+        public void setup(Reduce.Context context) {
             String logLevel = System.getenv("INDEXING_LOG_LEVEL");
             if (logLevel != null) {
                 org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.toLevel(logLevel));

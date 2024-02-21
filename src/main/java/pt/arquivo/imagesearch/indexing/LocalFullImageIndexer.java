@@ -3,7 +3,6 @@ package pt.arquivo.imagesearch.indexing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.Level;
 import pt.arquivo.imagesearch.indexing.data.FullImageMetadata;
 import pt.arquivo.imagesearch.indexing.data.ImageData;
 import pt.arquivo.imagesearch.indexing.data.MultiPageImageData;
@@ -52,6 +51,8 @@ public class LocalFullImageIndexer {
             try {
                 url = new URL(arcURL);
             } catch (MalformedURLException e) {
+                logger.error("Error parsing URL: " + arcURL, e);
+                return;
                 
             }
 
@@ -140,7 +141,7 @@ public class LocalFullImageIndexer {
             logger.debug("Reducing: " + key);
 
             merger.reset();
-            int counter = merger.mergeAll(values);
+            merger.mergeAll(values);
             FullImageMetadata result = merger.getBestMatch();
 
             merger.getCounter(DupDigestMergerJob.COUNTERS.RECORDS_OUT).increment(1);

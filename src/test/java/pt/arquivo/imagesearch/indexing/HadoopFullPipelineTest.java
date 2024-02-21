@@ -10,6 +10,7 @@ import org.junit.Before;
 import org.junit.Test;
 import java.io.*;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -65,9 +66,9 @@ public class HadoopFullPipelineTest {
                 pw.println(warcPath);
             }
         }
+        br.close();
         pw.close();
 
-        Path output = new Path("target/output");
         FileSystem fs = FileSystem.getLocal(conf);
 
         fs.mkdirs(new Path("target/output"));
@@ -87,14 +88,17 @@ public class HadoopFullPipelineTest {
 
         Path outputHDFS = new Path("target/output/part-r-00000");
         InputStream in = null;
+        BufferedReader br2 = null;
         String text = "";
         try {
             in = fs.open(outputHDFS);
-            text = new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.joining("\n"));
+            br2 = new BufferedReader(new InputStreamReader(in));
+            text = br2.lines().collect(Collectors.joining("\n"));
         } finally {
             IOUtils.closeStream(in);
+            IOUtils.closeStream(br2);
         }
-        String expectedText = FileUtils.readFileToString(expected);
+        String expectedText = FileUtils.readFileToString(expected, Charset.defaultCharset());
         assertEquals(expectedText, text);
     }
 }

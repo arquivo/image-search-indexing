@@ -2,9 +2,9 @@ package pt.arquivo.imagesearch.indexing.processors;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Counter;
-import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
-import org.apache.log4j.Logger;
+
+import pt.arquivo.imagesearch.indexing.DocumentDupDigestMergerJob;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 
 import java.util.HashMap;
@@ -14,8 +14,6 @@ import java.util.List;
  * Merges TextDocumentData records for deduplication
  */
 public class DocumentInformationMerger {
-
-    private final org.apache.log4j.Logger logger = Logger.getLogger(DocumentInformationMerger.class);
 
     /**
      * Maximum supported number of objects to merge
@@ -31,7 +29,7 @@ public class DocumentInformationMerger {
     /**
      * Hadoop context
      */
-    private Reducer.Context context = null;
+    private DocumentDupDigestMergerJob.Reduce.Context context = null;
 
     /**
      * Local counter cache
@@ -43,7 +41,7 @@ public class DocumentInformationMerger {
      *
      * @param context Hadoop context
      */
-    public DocumentInformationMerger(Reducer.Context context) {
+    public DocumentInformationMerger(DocumentDupDigestMergerJob.Reduce.Context context) {
         this.context = context;
         reset();
     }

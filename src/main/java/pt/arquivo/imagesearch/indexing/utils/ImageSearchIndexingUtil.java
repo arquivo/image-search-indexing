@@ -14,7 +14,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
-import pt.arquivo.imagesearch.indexing.ImageIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.processors.InformationExtractor;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -219,7 +218,7 @@ public class ImageSearchIndexingUtil {
                 Map<String, Object> headers = new HashMap<>();
                 headers.put(WARCConstants.CONTENT_LENGTH.toLowerCase(), String.valueOf(warcRecord.getHeader().getContentLength()));
                 headers.put(WARCConstants.CONTENT_TYPE.toLowerCase(), warcRecordMimetype);
-                headers.put(warcRecord.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
+                headers.put(WARCConstants.MIMETYPE_FIELD_KEY.toLowerCase(), warcRecordMimetype);
 
                 context.getCounter(ImageIndexerWithDupsJob.IMAGE_COUNTERS.RECORDS_READ).increment(1);
                 return new WARCRecordResponseEncapsulated(warcRecord, headers, warcName);

@@ -10,8 +10,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.apache.commons.httpclient.Header;
-import org.apache.commons.httpclient.HttpException;
-import org.apache.commons.httpclient.StatusLine;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,12 +26,12 @@ import org.brotli.dec.BrotliInputStream;
 public class WARCRecordResponseEncapsulated {
     public final Log LOG = LogFactory.getLog(WARCRecordResponseEncapsulated.class);
 
-    private static final String TRANSFER_ENCODING = "transfer-encoding";
+    // private static final String TRANSFER_ENCODING = "transfer-encoding";
     private static final String CONTENT_ENCODING = "content-encoding";
 
-    private static final String CHUNKED = "chunked";
-    private static final String GZIPPED = "gzip";
-    private static final String DEFLATE = "deflate";
+    // private static final String CHUNKED = "chunked";
+    // private static final String GZIPPED = "gzip";
+    // private static final String DEFLATE = "deflate";
     private static final String BROTLI = "br";
 
 
@@ -43,7 +41,7 @@ public class WARCRecordResponseEncapsulated {
      * <p>
      * May be null if record is not http.
      */
-    private StatusLine httpStatus = null;
+    // private StatusLine httpStatus = null;
 
     /**
      * Http headers.
@@ -57,7 +55,7 @@ public class WARCRecordResponseEncapsulated {
      * <p>
      * There may be no status.
      */
-    private String statusCode = null;
+    // private String statusCode = null;
 
     /**
      * URL for the WARC
@@ -109,16 +107,17 @@ public class WARCRecordResponseEncapsulated {
 
 
     private void readHttpHeader() throws IOException {
-        String statusLinestr = LaxHttpParser.readLine(warcrecord, WARCRecord.WARC_HEADER_ENCODING);
+        // String statusLinestr = LaxHttpParser.readLine(warcrecord, WARCRecord.WARC_HEADER_ENCODING);
 
+        /*
         try {
             this.httpStatus = new StatusLine(statusLinestr);
-            this.statusCode = String.valueOf(this.httpStatus.getStatusCode());
         } catch (HttpException e) {
             LOG.error("HttpException parsing statusCode isIndex ", e);
         } catch (Exception e) {
             LOG.error("Exception parsing statusCode isIndex ", e);
         }
+        */
 
         this.httpHeaders = LaxHttpParser.parseHeaders(warcrecord, WARCRecord.WARC_HEADER_ENCODING);
 

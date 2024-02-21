@@ -5,11 +5,11 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCRecord;
 import org.jsoup.helper.StringUtil;
 
+import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob.DOCUMENT_COUNTERS;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 
 import org.apache.hadoop.mapreduce.Counter;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
 import org.apache.log4j.Logger;
 import org.apache.tika.config.TikaConfig;
@@ -28,7 +28,6 @@ import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
 import pt.arquivo.imagesearch.indexing.utils.WARCRecordResponseEncapsulated;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_DETECTED;
 import pt.arquivo.imagesearch.indexing.utils.MimeTypeCounters.PAGE_INDEXER_COUNTERS_REPORTED;
-import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.io.*;
 import java.security.DigestInputStream;
@@ -79,7 +78,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
     /**
      * Hadoop context
      */
-    private Mapper.Context context;
+    private DocumentIndexerWithDupsJob.Map.Context context;
 
     /**
      * Stores the counters. This enables using this code both inside and outside
@@ -104,7 +103,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
      * @param collection collection name
      * @param context    Hadoop context
      */
-    public DocumentInformationExtractor(String collection, Mapper.Context context) {
+    public DocumentInformationExtractor(String collection, DocumentIndexerWithDupsJob.Map.Context context) {
         init(collection);
         this.context = context;
     }
