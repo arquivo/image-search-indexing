@@ -5,6 +5,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
+import pt.arquivo.imagesearch.indexing.data.TextDocumentData.INLINK_TYPES;
+
 import java.lang.reflect.Type;
 
 /**
@@ -51,8 +53,11 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.addProperty("urlHash", src.getURLHash());
         obj.add("collection", context.serialize(src.getCollection()));
         //obj.add("outlinks", context.serialize(src.getOutlinks()));
-        obj.add("inlinks", context.serialize(src.getInlinkSurts().size()));
-        obj.add("inlinkAnchors", context.serialize(src.getInlinkAnchors()));
+        obj.add("inlinksInternal", context.serialize(src.getInlinkSurts(INLINK_TYPES.INTERNAL).size()));
+        obj.add("inlinksExternal", context.serialize(src.getInlinkSurts(INLINK_TYPES.EXTERNAL).size()));
+        
+        obj.add("inlinkAnchorsInternal", context.serialize(src.getInlinkAnchors(INLINK_TYPES.INTERNAL)));
+        obj.add("inlinkAnchorsExternal", context.serialize(src.getInlinkAnchors(INLINK_TYPES.EXTERNAL)));
 
         
         //obj.addProperty("safe", 0);

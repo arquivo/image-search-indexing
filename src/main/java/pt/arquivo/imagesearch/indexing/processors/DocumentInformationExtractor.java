@@ -381,7 +381,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
             linkHandler.getLinks().forEach(link -> {
                 String linkURL = link.getUri();
                 String anchorText = link.getText();
-                if (link.getType() == "a" && !linkURL.isEmpty() && !linkURL.startsWith("#")
+                if (link.getType() == "a" && !linkURL.trim().isEmpty() && !linkURL.startsWith("#")
                         && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")) {
                     String linkAbsURL = StringUtil.resolve(url, linkURL);
                     textDocumentData.addOutlink(linkAbsURL, anchorText);

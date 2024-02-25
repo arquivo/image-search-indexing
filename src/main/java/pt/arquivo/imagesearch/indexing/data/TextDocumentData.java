@@ -23,6 +23,12 @@ import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Serializable {
 
+    public enum INLINK_TYPES {
+        INTERNAL,
+        EXTERNAL,
+        ALL
+    }    
+
     /**
      * Collection where to which this  matches
      */
@@ -234,7 +240,38 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return inlinks;
     }
 
+    public Set<Outlink> getInlinks(INLINK_TYPES type) {
+        switch (type) {
+            case INTERNAL:
+                return getInlinksInternal();
+            case EXTERNAL:
+                return getInlinksExternal();
+            default:
+                return inlinks;
+        }
+    }
+
+    public Set<Outlink> getInlinksInternal() {
+        // filter the set 
+        Set<Outlink> inlinksInternal = new HashSet<>();
+        for (Outlink inlink : inlinks) {
+            String domain = inlink.getSurt().split("/")[0];
+            if (surt.contains(domain))
+                inlinksInternal.add(inlink);
+        }
+        return inlinksInternal;
+    }
+
+    public Set<Outlink> getInlinksExternal() {
+        Set<Outlink> inlinksInternal = getInlinksInternal();
+        return inlinks.stream().filter(inlink -> !inlinksInternal.contains(inlink)).collect(HashSet::new, HashSet::add, HashSet::addAll);
+    }
+
     public ArrayList<String> getInlinkAnchors() {
+        return getInlinkAnchors(INLINK_TYPES.ALL);
+    }
+
+    public ArrayList<String> getInlinkAnchors(INLINK_TYPES type) {
         Set<String> inlinkAnchors = new HashSet<>();
         for (Outlink inlink : inlinks) {
             if (inlink.getAnchor() != null && !inlink.getAnchor().trim().isEmpty())
@@ -244,6 +281,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public ArrayList<String> getInlinkSurts() {
+        return getInlinkSurts(INLINK_TYPES.ALL);
+    }
+
+    public ArrayList<String> getInlinkSurts(INLINK_TYPES type) {
         Set<String> inlinkSurt = new HashSet<>();
         for (Outlink inlink : inlinks) {
             if (inlink.getSurt() != null && !inlink.getSurt().trim().isEmpty())
@@ -355,6 +396,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public void addOutlink(String outlink, String anchor) {
         String outlinkSurt = WARCInformationParser.toSURT(outlink);
+        if (outlinkSurt.trim().isEmpty())
+            return;
         Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor, this.timestamp);
         this.outlinks.add(outlinkObj);
     }
