@@ -273,7 +273,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public Set<Outlink> getInlinksExternal() {
         Set<Outlink> inlinksInternal = getInlinksInternal();
-        return inlinks.stream().filter(inlink -> !inlinksInternal.contains(inlink)).collect(HashSet::new, HashSet::add, HashSet::addAll);
+        Set<Outlink> external = inlinks.stream().filter(inlink -> !inlinksInternal.contains(inlink)).collect(HashSet::new, HashSet::add, HashSet::addAll);
+        return external;
     }
 
     public ArrayList<String> getInlinkAnchors() {
@@ -282,7 +283,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public ArrayList<String> getInlinkAnchors(INLINK_TYPES type) {
         Set<String> inlinkAnchors = new HashSet<>();
-        for (Outlink inlink : inlinks) {
+        for (Outlink inlink : getInlinks(type)) {
             if (inlink.getAnchor() != null && !inlink.getAnchor().trim().isEmpty())
                 inlinkAnchors.add(inlink.getAnchor());
         }
@@ -295,7 +296,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public ArrayList<String> getInlinkSurts(INLINK_TYPES type) {
         Set<String> inlinkSurt = new HashSet<>();
-        for (Outlink inlink : inlinks) {
+        for (Outlink inlink : getInlinks(type)) {
             if (inlink.getSurt() != null && !inlink.getSurt().trim().isEmpty())
             inlinkSurt.add(inlink.getSurt());
         }
