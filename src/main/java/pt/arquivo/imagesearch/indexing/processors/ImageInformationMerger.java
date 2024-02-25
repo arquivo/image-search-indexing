@@ -79,10 +79,6 @@ public class ImageInformationMerger {
         } else {
             entry.merge(metadata);
         }
-
-        getCounter(DupDigestMergerJob.COUNTERS.URL_IMAGES_PAGESALL).increment(metadata.getPageImageDatasValues().size());
-        getCounter(DupDigestMergerJob.COUNTERS.URL_IMAGESALL_PAGES).increment(metadata.getImageDatasValues().size());
-        getCounter(DupDigestMergerJob.COUNTERS.URL_IMAGES_PAGES).increment(1);
     }
 
     /**

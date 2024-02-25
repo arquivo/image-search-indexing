@@ -69,11 +69,7 @@ public class DupDigestMergerJob extends Configured implements Tool {
         RECORDS_IN,
         RECORDS_OUT,
         RECORDS_WITH_METADATA,
-        RECORDS_WITHOUT_METADATA,
-        URL_IMAGES_PAGESALL,
-        URL_IMAGESALL_PAGES,
-        URL_IMAGES_PAGES
-
+        RECORDS_WITHOUT_METADATA
     }
 
     /**
