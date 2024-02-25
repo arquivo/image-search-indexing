@@ -26,7 +26,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.time.Duration;
 
 /**
  * Hadoop process responsible for the 1nd stage of the pipeline.
@@ -34,6 +36,10 @@ import java.util.HashSet;
  * The output is a set of intermediate files ready for the 2nd stage of Hadoop processing
  */
 public class DocumentIndexerWithDupsJob extends Configured implements Tool {
+
+
+    // Maximum difference between two capture dates to consider them the same for inlink matching
+    public static final Duration MAX_CAPTURE_DATE_DIFFERENCE = Duration.ofDays(30);
 
     /**
      * Counters for the first Hadoop process that are related to images
@@ -86,7 +92,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         REDUCE_TOTAL_INLINKS,
         REDUCE_MISSING_PAGES,
         REDUCE_UNIQUE_PAGES,
-        REDUCE_UNIQUE_INLINKS
+        REDUCE_UNIQUE_INLINKS,
+        REDUCE_IGNORED_INLINKS
         
     }
 
@@ -227,7 +234,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
          */
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
             try {
-                TextDocumentData docData = null;
+                HashMap<String, TextDocumentData> docDatas = new HashMap<>();
                 HashSet<Outlink> inlinks = new HashSet<>();
                 
                 for (Writable value: values) {
@@ -237,37 +244,52 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                         TextDocumentData newDoc = new TextDocumentData(newDocdata.getTextDocumentData());
                         context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_PAGES).increment(1);
 
-                        if (docData == null) {
-                            docData = newDoc;
+                        if (docDatas.get(newDoc.getDigestContent()) == null) {
+                            docDatas.put(newDoc.getDigestContent(), newDoc);
                         } else {
+                            TextDocumentData docData = docDatas.get(newDoc.getDigestContent());
                             docData = TextDocumentData.merge(docData, newDoc);
+                            
                         }
                     }
                     if (newDocdata.getOutlink() != null) {
                         inlinks.add((Outlink) newDocdata.getOutlink());
                         context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_INLINKS).increment(1);
-
                     }
+
                 }
-                if (docData == null) {
+                if (docDatas.size() == 0) {
                     context.getCounter(DOCUMENT_COUNTERS.REDUCE_MISSING_PAGES).increment(1);
                     return;
                 }
 
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_PAGES).increment(1);
 
+                HashSet<Outlink> inlinksMatched = new HashSet<>();
                 if (inlinks.size() > 0) {
                     for (Outlink inlink : inlinks) {
-                        docData.addInlink(inlink);
+                        for (TextDocumentData docData : docDatas.values()) {
+                            Duration diff = Duration.between(inlink.getCaptureDate(), docData.getTimestamp());
+                            if (diff.isNegative()) {
+                                diff = diff.negated();
+                            }
+                            if (diff.compareTo(MAX_CAPTURE_DATE_DIFFERENCE) < 0) {
+                                docData.addInlink(inlink);
+                                inlinksMatched.add(inlink);
+                            }
+                        }
                     }
                 }
 
+                context.getCounter(DOCUMENT_COUNTERS.REDUCE_IGNORED_INLINKS).increment(inlinks.size() - inlinksMatched.size());
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(inlinks.size());
 
                 try {
-                    String digestKey = docData.getDigestContent();
-                    Text digestKeyText = new Text(digestKey);
-                    context.write(digestKeyText, docData);
+                    for (TextDocumentData docData : docDatas.values()) {
+                        String digestKey = docData.getDigestContent();
+                        Text digestKeyText = new Text(digestKey);
+                        context.write(digestKeyText, docData);
+                    }
                 } catch (IOException | InterruptedException e) {
                     logger.error("Error writing output", e);
                 }

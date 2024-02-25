@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 import org.apache.hadoop.io.Writable;
 
@@ -17,17 +18,20 @@ public class Outlink implements Serializable, Writable {
     private String surt;
     private String url;
     private String anchor;
+    private LocalDateTime captureDate;
 
     public Outlink() {
         this.surt = null;
         this.url = null;
         this.anchor = null;
+        this.captureDate = null;
     }
 
-    public Outlink(String surt, String url, String anchor) {
+    public Outlink(String surt, String url, String anchor, LocalDateTime captureDate) {
         this.surt = surt;
         this.url = url;
         this.anchor = anchor;
+        this.captureDate = captureDate;
     }
 
     public String getSurt() {
@@ -52,6 +56,14 @@ public class Outlink implements Serializable, Writable {
 
     public void setAnchor(String anchor) {
         this.anchor = anchor;
+    }
+
+    public LocalDateTime getCaptureDate() {
+        return captureDate;
+    }
+
+    public void setCaptureDate(LocalDateTime captureDate) {
+        this.captureDate = captureDate;
     }
 
     public boolean equals(Object o) {

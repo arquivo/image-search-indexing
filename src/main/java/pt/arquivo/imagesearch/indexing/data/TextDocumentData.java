@@ -355,7 +355,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public void addOutlink(String outlink, String anchor) {
         String outlinkSurt = WARCInformationParser.toSURT(outlink);
-        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor);
+        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor, this.timestamp);
         this.outlinks.add(outlinkObj);
     }
 
