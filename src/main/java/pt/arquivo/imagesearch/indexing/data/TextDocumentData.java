@@ -251,13 +251,22 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         }
     }
 
-    public Set<Outlink> getInlinksInternal() {
-        // filter the set 
+    // These will match the inlinks to the surt of the document
+    // Internal inlinks are those that match the subdomain of the document
+    // s.g. links from arquivo.pt/wayback and arquivo.pt/text_search are considered the same internal
+    // links to arquivo.pt from premio.arquivo.pt is considered external
+    public Set<Outlink> getInlinksInternal() {       
         Set<Outlink> inlinksInternal = new HashSet<>();
         for (Outlink inlink : inlinks) {
-            String domain = inlink.getSurt().split("/")[0];
-            if (surt.contains(domain))
-                inlinksInternal.add(inlink);
+            String domain = inlink.getSurt().split("\\)")[0];
+            // broader domain matching
+            for (String surt : surt){
+                String internalDomain = surt.split("\\)")[0];
+                if (internalDomain.equals(domain)) {
+                    inlinksInternal.add(inlink);
+                    break;
+                }
+            }
         }
         return inlinksInternal;
     }
