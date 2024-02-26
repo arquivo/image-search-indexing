@@ -474,12 +474,12 @@ public class DocumentInformationExtractor implements InformationExtractor {
     }
 
     public void insertDocumentIndex(TextDocumentData pageImageData) {
-        if (entries.containsKey(pageImageData.getDigestContainer())) {
-            TextDocumentData oldPageImageData = entries.get(pageImageData.getDigestContainer());
+        if (entries.containsKey(pageImageData.getDigestContent())) {
+            TextDocumentData oldPageImageData = entries.get(pageImageData.getDigestContent());
             TextDocumentData mergedImageData = TextDocumentData.merge(oldPageImageData, pageImageData);
-            entries.put(pageImageData.getDigestContainer(), mergedImageData);
+            entries.put(pageImageData.getDigestContent(), mergedImageData);
         } else {
-            entries.put(pageImageData.getDigestContainer(), pageImageData);
+            entries.put(pageImageData.getDigestContent(), pageImageData);
         }
     }
 }

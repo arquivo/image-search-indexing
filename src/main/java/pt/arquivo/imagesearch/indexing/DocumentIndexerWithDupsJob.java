@@ -201,7 +201,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                 String surt = value.getSurt().get(0);
                 try {
                     context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
-                    for (Outlink outlink : value.getOutlinks()) {
+                    for (Outlink outlink : value.getOutlinks().keySet()) {
                         context.write(new Text(outlink.getSurt()), new TextDocumentDataOutlinkPair(null, outlink));
                     }
                 } catch (IOException | InterruptedException e) {
@@ -269,11 +269,10 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                 if (inlinks.size() > 0) {
                     for (Outlink inlink : inlinks) {
                         for (TextDocumentData docData : docDatas.values()) {
-                            Duration diff = Duration.between(inlink.getCaptureDate(), docData.getTimestamp());
-                            if (diff.isNegative()) {
-                                diff = diff.negated();
-                            }
-                            if (diff.compareTo(MAX_CAPTURE_DATE_DIFFERENCE) < 0) {
+                            // add inlink to docData if inlink start date is before 30 days of docData start date,
+                            // between the start and end date of the document or 30 days after the end date of the document
+                             if (docData.getTimestamp().compareTo(inlink.getCaptureDateStart().minus(MAX_CAPTURE_DATE_DIFFERENCE)) >= 0 &&
+                                 docData.getTimestamp().compareTo(inlink.getCaptureDateEnd().plus(MAX_CAPTURE_DATE_DIFFERENCE)) <= 0) {
                                 docData.addInlink(inlink);
                                 inlinksMatched.add(inlink);
                             }

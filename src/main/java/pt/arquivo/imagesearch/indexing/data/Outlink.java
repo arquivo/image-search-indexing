@@ -14,24 +14,29 @@ import org.apache.hadoop.io.Writable;
 
 public class Outlink implements Serializable, Writable {
 
-
+    private String source;
     private String surt;
     private String url;
     private String anchor;
-    private LocalDateTime captureDate;
+    private LocalDateTime captureDateStart;
+    private LocalDateTime captureDateEnd;
+    private int count;
 
     public Outlink() {
         this.surt = null;
         this.url = null;
         this.anchor = null;
-        this.captureDate = null;
+        this.captureDateStart = null;
+        this.captureDateEnd = null;
     }
 
-    public Outlink(String surt, String url, String anchor, LocalDateTime captureDate) {
+    public Outlink(String surt, String url, String anchor, LocalDateTime captureDate, String source) {
         this.surt = surt;
         this.url = url;
         this.anchor = anchor;
-        this.captureDate = captureDate;
+        this.captureDateStart = captureDate;
+        this.captureDateEnd = captureDate;
+        this.source = source;
     }
 
     public String getSurt() {
@@ -58,19 +63,48 @@ public class Outlink implements Serializable, Writable {
         this.anchor = anchor;
     }
 
-    public LocalDateTime getCaptureDate() {
-        return captureDate;
+    public LocalDateTime getCaptureDateStart() {
+        return captureDateStart;
     }
 
-    public void setCaptureDate(LocalDateTime captureDate) {
-        this.captureDate = captureDate;
+    public void setCaptureDateStart(LocalDateTime captureDate) {
+        this.captureDateStart = captureDate;
+    }
+
+    public LocalDateTime getCaptureDateEnd() {
+        return captureDateEnd;
+    }
+
+    public void setCaptureDateEnd(LocalDateTime captureDate) {
+        this.captureDateEnd = captureDate;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public int getCount() {
+        return count;
+    }
+
+    public void incrementCount() {
+        this.count++;
+    }
+
+    @Override
+    public int hashCode() {
+        return surt.hashCode() + source.hashCode() + anchor.hashCode();
     }
 
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Outlink outlink = (Outlink) o;
-        return outlink.surt.equals(this.surt) && outlink.anchor.equals(this.anchor);
+        return outlink.surt.equals(this.surt) && outlink.anchor.equals(this.anchor) && outlink.source.equals(this.source);
     }
 
     @Override

@@ -13,7 +13,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.io.Writable;
@@ -27,7 +29,9 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         INTERNAL,
         EXTERNAL,
         ALL
-    }    
+    }
+
+    public static final int MAX_INLINKS = 1000;
 
     /**
      * Collection where to which this  matches
@@ -103,12 +107,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     /** 
      * Outlinks
      */
-    private Set<Outlink> outlinks;
+    private Map<Outlink,Outlink> outlinks;
 
     /** 
      * Inlinks
      */
-    private Set<Outlink> inlinks;
+    private Map<Outlink,Outlink> inlinks;
 
     /**
      * Digest of the document
@@ -134,16 +138,16 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.surt = new ArrayList<>(other.surt);
         this.host = new ArrayList<>(other.host);
         this.content = new ArrayList<>(other.content);
-        this.outlinks = new HashSet<>(other.outlinks);
-        this.inlinks = new HashSet<>(other.inlinks);
+        this.outlinks = new HashMap<>(other.outlinks);
+        this.inlinks = new HashMap<>(other.inlinks);
         this.digestContainer = other.digestContainer;
         this.digestContent = other.digestContent;
         this.metadata = new ArrayList<>(other.metadata);
     }
 
     public TextDocumentData() {
-        this.outlinks = new HashSet<>();
-        this.inlinks = new HashSet<>();
+        this.outlinks = new HashMap<>();
+        this.inlinks = new HashMap<>();
         this.title = new ArrayList<>();
         this.collection = new ArrayList<>();
         this.content = new ArrayList<>();
@@ -232,15 +236,15 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return content;
     }
 
-    public Set<Outlink> getOutlinks() {
+    public Map<Outlink,Outlink> getOutlinks() {
         return outlinks;
     }
 
-    public Set<Outlink> getInlinks() {
+    public Map<Outlink,Outlink> getInlinks() {
         return inlinks;
     }
 
-    public Set<Outlink> getInlinks(INLINK_TYPES type) {
+    public Map<Outlink,Outlink> getInlinks(INLINK_TYPES type) {
         switch (type) {
             case INTERNAL:
                 return getInlinksInternal();
@@ -255,15 +259,15 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     // Internal inlinks are those that match the subdomain of the document
     // s.g. links from arquivo.pt/wayback and arquivo.pt/text_search are considered the same internal
     // links to arquivo.pt from premio.arquivo.pt is considered external
-    public Set<Outlink> getInlinksInternal() {       
-        Set<Outlink> inlinksInternal = new HashSet<>();
-        for (Outlink inlink : inlinks) {
-            String domain = inlink.getSurt().split("\\)")[0];
+    public Map<Outlink,Outlink> getInlinksInternal() {       
+        Map<Outlink,Outlink> inlinksInternal = new HashMap<Outlink,Outlink>();
+        for (Outlink inlink : inlinks.keySet()) {
+            String domain = inlink.getSource().split("\\)")[0];
             // broader domain matching
             for (String surt : surt){
                 String internalDomain = surt.split("\\)")[0];
                 if (internalDomain.equals(domain)) {
-                    inlinksInternal.add(inlink);
+                    inlinksInternal.put(inlink, inlink);
                     break;
                 }
             }
@@ -271,9 +275,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return inlinksInternal;
     }
 
-    public Set<Outlink> getInlinksExternal() {
-        Set<Outlink> inlinksInternal = getInlinksInternal();
-        Set<Outlink> external = inlinks.stream().filter(inlink -> !inlinksInternal.contains(inlink)).collect(HashSet::new, HashSet::add, HashSet::addAll);
+    public Map<Outlink,Outlink> getInlinksExternal() {
+        Map<Outlink,Outlink> inlinksInternal = getInlinksInternal();
+        Map<Outlink,Outlink> external = new HashMap<Outlink,Outlink>(inlinks);
+        external.keySet().removeAll(inlinksInternal.keySet());
         return external;
     }
 
@@ -282,12 +287,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public ArrayList<String> getInlinkAnchors(INLINK_TYPES type) {
-        Set<String> inlinkAnchors = new HashSet<>();
-        for (Outlink inlink : getInlinks(type)) {
+        ArrayList<String> inlinkAnchors = new ArrayList<>();
+        for (Outlink inlink : getInlinks(type).keySet()) {
             if (inlink.getAnchor() != null && !inlink.getAnchor().trim().isEmpty())
                 inlinkAnchors.add(inlink.getAnchor());
         }
-        return new ArrayList<>(inlinkAnchors);
+        return inlinkAnchors;
     }
 
     public ArrayList<String> getInlinkSurts() {
@@ -296,7 +301,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public ArrayList<String> getInlinkSurts(INLINK_TYPES type) {
         Set<String> inlinkSurt = new HashSet<>();
-        for (Outlink inlink : getInlinks(type)) {
+        for (Outlink inlink : getInlinks(type).keySet()) {
             if (inlink.getSurt() != null && !inlink.getSurt().trim().isEmpty())
             inlinkSurt.add(inlink.getSurt());
         }
@@ -408,16 +413,30 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         String outlinkSurt = WARCInformationParser.toSURT(outlink);
         if (outlinkSurt.trim().isEmpty())
             return;
-        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor, this.timestamp);
-        this.outlinks.add(outlinkObj);
+        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor, this.timestamp, this.surt.get(0));
+        this.outlinks.put(outlinkObj, outlinkObj);
     }
 
     public void addOutlink(Outlink outlink) {
-        this.outlinks.add(outlink);
+        this.outlinks.put(outlink, outlink);
     }
 
     public void addInlink(Outlink inlink) {
-        this.inlinks.add(inlink);
+        if (this.inlinks.size() > MAX_INLINKS)
+            return;
+        Outlink existing = inlinks.get(inlink);
+        if (existing != null) {
+            if (existing.getCaptureDateStart().isBefore(inlink.getCaptureDateStart())) {
+                existing.setCaptureDateStart(inlink.getCaptureDateStart());
+            }
+            if (existing.getCaptureDateEnd().isAfter(inlink.getCaptureDateEnd())) {
+                existing.setCaptureDateEnd(inlink.getCaptureDateEnd());
+            }
+            existing.incrementCount();
+            return;
+        }
+            
+        this.inlinks.put(inlink, inlink);
     }
 
     @Override
@@ -484,8 +503,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         other.getTitle().forEach(result::addTitle);
         other.getURL().forEach(result::addURL);
         other.getContent().forEach(result::addContent);
-        other.getOutlinks().forEach(result::addOutlink);
-        other.getInlinks().forEach(result::addInlink);
+        other.getOutlinks().keySet().forEach(result::addOutlink);
+        other.getInlinks().keySet().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
 
         return result;
