@@ -32,6 +32,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public static final int MAX_INLINKS = 1000;
+    public static final int MAX_OUTLINKS = 1000;
+
 
     /**
      * Collection where to which this  matches
@@ -418,24 +420,36 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addOutlink(Outlink outlink) {
+        Outlink existing = outlinks.get(outlink);
+        if (existing != null) {
+            if (outlink.getCaptureDateStart().isBefore(existing.getCaptureDateStart())) {
+                existing.setCaptureDateStart(outlink.getCaptureDateStart());
+            }
+            if (outlink.getCaptureDateEnd().isAfter(existing.getCaptureDateEnd())) {
+                existing.setCaptureDateEnd(outlink.getCaptureDateEnd());
+            }
+            existing.incrementCount();
+            return;
+        }
+        if (this.outlinks.size() > MAX_OUTLINKS)
+            return;
         this.outlinks.put(outlink, outlink);
     }
 
     public void addInlink(Outlink inlink) {
-        if (this.inlinks.size() > MAX_INLINKS)
-            return;
         Outlink existing = inlinks.get(inlink);
         if (existing != null) {
-            if (existing.getCaptureDateStart().isBefore(inlink.getCaptureDateStart())) {
+            if (inlink.getCaptureDateStart().isBefore(existing.getCaptureDateStart())) {
                 existing.setCaptureDateStart(inlink.getCaptureDateStart());
             }
-            if (existing.getCaptureDateEnd().isAfter(inlink.getCaptureDateEnd())) {
+            if (inlink.getCaptureDateEnd().isAfter(existing.getCaptureDateEnd())) {
                 existing.setCaptureDateEnd(inlink.getCaptureDateEnd());
             }
             existing.incrementCount();
             return;
         }
-            
+        if (this.inlinks.size() > MAX_INLINKS)
+            return;
         this.inlinks.put(inlink, inlink);
     }
 
