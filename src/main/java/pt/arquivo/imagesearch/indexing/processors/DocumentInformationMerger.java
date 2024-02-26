@@ -18,7 +18,7 @@ public class DocumentInformationMerger {
     /**
      * Maximum supported number of objects to merge
      */
-    public static final int MAX_OBJECTS_TO_MERGE = 10000;
+    public static final int MAX_OBJECTS_TO_MERGE = 1000;
 
 
     /**
