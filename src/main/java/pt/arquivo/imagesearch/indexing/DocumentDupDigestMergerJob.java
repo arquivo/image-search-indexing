@@ -18,7 +18,6 @@ import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
-import pt.arquivo.imagesearch.indexing.data.TextDocumentData.INLINK_TYPES;
 import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationMerger;
 
@@ -133,29 +132,29 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
             merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_IN).increment(counter);
             merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_OUT).increment(1);
 
-            if (result.getInlinks(INLINK_TYPES.ALL).size() > 0)
+            if ((result.getInlinksInternal().size() + result.getInlinksExternal().size()) > 0)
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITH_INLINKS).increment(1);
             else
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITHOUT_INLINKS).increment(1);
 
 
-            if (result.getInlinks(INLINK_TYPES.INTERNAL).size() > 0)
+            if (result.getInlinksInternal().size() > 0)
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITH_INLINKS_INTERNAL).increment(1);
             else
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITHOUT_INLINKS_INTERNAL).increment(1);
 
-            if (result.getInlinks(INLINK_TYPES.EXTERNAL).size() > 0)
+            if (result.getInlinksExternal().size() > 0)
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITH_INLINKS_EXTERNAL).increment(1);
             else
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITHOUT_INLINKS_EXTERNAL).increment(1);
 
             logger.debug(String.format("Found %d records", counter));
 
-            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ALL_EXTERNAL).increment(result.getInlinks(INLINK_TYPES.EXTERNAL).size());
-            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_UNIQUE_SURT_EXTERNAL).increment(result.getInlinkSurts(INLINK_TYPES.EXTERNAL).size());
+            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ALL_EXTERNAL).increment(result.getInlinksExternal().size());
+            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_UNIQUE_SURT_EXTERNAL).increment(result.getInlinkSurtsExternal().size());
 
-            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ALL_INTERNAL).increment(result.getInlinks(INLINK_TYPES.INTERNAL).size());
-            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_UNIQUE_SURT_INTERNAL).increment(result.getInlinkSurts(INLINK_TYPES.INTERNAL).size());
+            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_ALL_INTERNAL).increment(result.getInlinksInternal().size());
+            merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.INLINKS_UNIQUE_SURT_INTERNAL).increment(result.getInlinkSurtsInternal().size());
 
             logger.debug("Reducing: " + key);
 

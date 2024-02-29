@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,13 +26,8 @@ import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Serializable {
 
-    public enum INLINK_TYPES {
-        INTERNAL,
-        EXTERNAL,
-        ALL
-    }
-
-    public static final int MAX_INLINKS = 1000;
+    public static final int MAX_INLINKS_INTERNAL = 1000;
+    public static final int MAX_INLINKS_EXTERNAL = 1000;
     public static final int MAX_OUTLINKS = 1000;
 
 
@@ -114,7 +110,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     /** 
      * Inlinks
      */
-    private Map<Outlink,Outlink> inlinks;
+    private Map<Outlink,Outlink> inlinksInternal;
+
+    /** 
+     * Inlinks
+     */
+    private Map<Outlink,Outlink> inlinksExternal;
 
     /**
      * Digest of the document
@@ -141,7 +142,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.host = new ArrayList<>(other.host);
         this.content = new ArrayList<>(other.content);
         this.outlinks = new HashMap<>(other.outlinks);
-        this.inlinks = new HashMap<>(other.inlinks);
+        this.inlinksInternal = new HashMap<>(other.inlinksInternal);
+        this.inlinksExternal = new HashMap<>(other.inlinksExternal);
         this.digestContainer = other.digestContainer;
         this.digestContent = other.digestContent;
         this.metadata = new ArrayList<>(other.metadata);
@@ -149,7 +151,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     public TextDocumentData() {
         this.outlinks = new HashMap<>();
-        this.inlinks = new HashMap<>();
+        this.inlinksInternal = new HashMap<>();
+        this.inlinksExternal = new HashMap<>();
         this.title = new ArrayList<>();
         this.collection = new ArrayList<>();
         this.content = new ArrayList<>();
@@ -242,72 +245,50 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return outlinks;
     }
 
-    public Map<Outlink,Outlink> getInlinks() {
-        return inlinks;
-    }
-
-    public Map<Outlink,Outlink> getInlinks(INLINK_TYPES type) {
-        switch (type) {
-            case INTERNAL:
-                return getInlinksInternal();
-            case EXTERNAL:
-                return getInlinksExternal();
-            default:
-                return inlinks;
-        }
-    }
-
     // These will match the inlinks to the surt of the document
     // Internal inlinks are those that match the subdomain of the document
     // s.g. links from arquivo.pt/wayback and arquivo.pt/text_search are considered the same internal
     // links to arquivo.pt from premio.arquivo.pt is considered external
     public Map<Outlink,Outlink> getInlinksInternal() {       
-        Map<Outlink,Outlink> inlinksInternal = new HashMap<Outlink,Outlink>();
-        for (Outlink inlink : inlinks.keySet()) {
-            String domain = inlink.getSource().split("\\)")[0];
-            // broader domain matching
-            for (String surt : surt){
-                String internalDomain = surt.split("\\)")[0];
-                if (internalDomain.equals(domain)) {
-                    inlinksInternal.put(inlink, inlink);
-                    break;
-                }
-            }
-        }
         return inlinksInternal;
     }
 
     public Map<Outlink,Outlink> getInlinksExternal() {
-        Map<Outlink,Outlink> inlinksInternal = getInlinksInternal();
-        Map<Outlink,Outlink> external = new HashMap<Outlink,Outlink>(inlinks);
-        external.keySet().removeAll(inlinksInternal.keySet());
-        return external;
+        return inlinksExternal;
     }
 
-    public ArrayList<String> getInlinkAnchors() {
-        return getInlinkAnchors(INLINK_TYPES.ALL);
-    }
-
-    public ArrayList<String> getInlinkAnchors(INLINK_TYPES type) {
+    private List<String> getInlinkAnchors(Map<Outlink,Outlink> inlinks) {
         ArrayList<String> inlinkAnchors = new ArrayList<>();
-        for (Outlink inlink : getInlinks(type).keySet()) {
+        for (Outlink inlink : inlinks.keySet()) {
             if (inlink.getAnchor() != null && !inlink.getAnchor().trim().isEmpty())
                 inlinkAnchors.add(inlink.getAnchor());
         }
         return inlinkAnchors;
     }
 
-    public ArrayList<String> getInlinkSurts() {
-        return getInlinkSurts(INLINK_TYPES.ALL);
-    }
-
-    public ArrayList<String> getInlinkSurts(INLINK_TYPES type) {
+    private List<String> getInlinkSurts(Map<Outlink,Outlink> inlinks) {
         Set<String> inlinkSurt = new HashSet<>();
-        for (Outlink inlink : getInlinks(type).keySet()) {
+        for (Outlink inlink : inlinks.keySet()) {
             if (inlink.getSurt() != null && !inlink.getSurt().trim().isEmpty())
             inlinkSurt.add(inlink.getSurt());
         }
         return new ArrayList<>(inlinkSurt);
+    }
+
+    public List<String> getInlinkAnchorsInternal() {
+        return getInlinkAnchors(inlinksInternal);
+    }
+
+    public List<String> getInlinkAnchorsExternal() {
+        return getInlinkAnchors(inlinksExternal);
+    }
+
+    public List<String> getInlinkSurtsInternal() {
+        return getInlinkSurts(inlinksInternal);
+    }
+
+    public List<String> getInlinkSurtsExternal() {
+        return getInlinkSurts(inlinksExternal);
     }
 
     public void addCollection(String collection) {
@@ -437,7 +418,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addInlink(Outlink inlink) {
-        Outlink existing = inlinks.get(inlink);
+        Outlink existing = inlinksInternal.get(inlink) != null ? inlinksInternal.get(inlink) : inlinksExternal.get(inlink);
         if (existing != null) {
             if (inlink.getCaptureDateStart().isBefore(existing.getCaptureDateStart())) {
                 existing.setCaptureDateStart(inlink.getCaptureDateStart());
@@ -448,9 +429,26 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             existing.incrementCount();
             return;
         }
-        if (this.inlinks.size() > MAX_INLINKS)
-            return;
-        this.inlinks.put(inlink, inlink);
+        boolean isInternal = false;
+        String domain = inlink.getSource().split("\\)")[0];
+        // broader domain matching
+        for (String surt : surt){
+            String internalDomain = surt.split("\\)")[0];
+            // is internal 
+            if (internalDomain.equals(domain)) {
+                isInternal = true;
+                break;
+            }
+        }
+        if (isInternal) {
+            if (this.inlinksInternal.size() > MAX_INLINKS_INTERNAL)
+                return;
+            this.inlinksInternal.put(inlink, inlink);
+        } else {
+            if (this.inlinksExternal.size() > MAX_INLINKS_EXTERNAL)
+                return;
+            this.inlinksExternal.put(inlink, inlink);
+        }
     }
 
     @Override
@@ -489,7 +487,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.host = other.host;
             this.content = other.content;
             this.outlinks = other.outlinks;
-            this.inlinks = other.inlinks;
+            this.inlinksInternal = other.inlinksInternal;
+            this.inlinksExternal = other.inlinksExternal;
             this.digestContainer = other.digestContainer;
             this.digestContent = other.digestContent;
             this.metadata = other.metadata;
@@ -518,7 +517,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         other.getURL().forEach(result::addURL);
         other.getContent().forEach(result::addContent);
         other.getOutlinks().keySet().forEach(result::addOutlink);
-        other.getInlinks().keySet().forEach(result::addInlink);
+        other.getInlinksInternal().keySet().forEach(result::addInlink);
+        other.getInlinksExternal().keySet().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
 
         return result;
