@@ -39,7 +39,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
 
     // Maximum difference between two capture dates to consider them the same for inlink matching
-    public static final Duration MAX_CAPTURE_DATE_DIFFERENCE = Duration.ofDays(30);
+    public static final Duration MAX_CAPTURE_DATE_DIFFERENCE = Duration.ofDays(90);
 
     /**
      * Counters for the first Hadoop process that are related to images
