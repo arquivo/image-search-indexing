@@ -97,14 +97,14 @@ public class Outlink implements Serializable, Writable {
 
     @Override
     public int hashCode() {
-        return surt.hashCode() + source.hashCode() + anchor.hashCode();
+        return surt.hashCode() + source.hashCode() + anchor.hashCode() + captureDateStart.hashCode();
     }
 
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Outlink outlink = (Outlink) o;
-        return outlink.surt.equals(this.surt) && outlink.anchor.equals(this.anchor) && outlink.source.equals(this.source);
+        return outlink.surt.equals(this.surt) && outlink.anchor.equals(this.anchor) && outlink.source.equals(this.source) && outlink.captureDateStart.equals(this.captureDateStart);
     }
 
     @Override
