@@ -17,6 +17,8 @@ import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
+
+import pt.arquivo.imagesearch.indexing.data.Outlink;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationMerger;
@@ -170,7 +172,7 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
          */
         private void exportToJson(Reducer<Text, Writable, NullWritable, Text>.Context context, TextDocumentData result) {
             Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
+                    .registerTypeAdapter(Outlink.class, new TextDocumentDataSerializer())
                     .create();
             
             try {

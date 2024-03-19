@@ -6,17 +6,25 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import pt.arquivo.imagesearch.indexing.data.*;
+import pt.arquivo.imagesearch.indexing.data.serializers.OutlinkAsInlinkSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.AlternativeFileUtils;
@@ -28,6 +36,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.time.Duration;
 
 /**
@@ -98,12 +107,18 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         
     }
 
+    public enum OUTPUT_MODE {
+        PAGES,
+        INLINKS
+    }
+
     public static class Map extends Mapper<LongWritable, Text, Text, Writable> {
 
         private final Logger logger = Logger.getLogger(Map.class);
         public String collection;
         DocumentInformationExtractor indexer;
         private String warcFileTempBaseDir;
+        
 
         @Override
         public void setup(Context context) {
@@ -225,12 +240,11 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             this.collection = config.get("collection");
         }
 
-
         /**
-         * Redude process that takes image and page records grouped by SURT and merges them by image digest
+         * 
          *
          * @param key     SURT for that specific entry
-         * @param values  Image and page metadatasa for that SURT
+         * @param values  Page and inlinks for that SURT
          * @param context Hadoop context
          */
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
@@ -299,6 +313,58 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         }
     }
 
+    public static class ReduceInlinks extends Reducer<Text, Writable, NullWritable, Text> {
+
+        private final Logger logger = Logger.getLogger(Reduce.class);
+        public String collection;
+
+        @Override
+        public void setup(ReduceInlinks.Context context) {
+            Configuration config = context.getConfiguration();
+            collection = config.get("collection");
+
+            this.collection = config.get("collection");
+        }
+
+
+        public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
+            try {
+                HashSet<Outlink> inlinks = new HashSet<>();
+                for (Writable value: values) {
+                    context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
+                    TextDocumentDataOutlinkPair newDocdata = (TextDocumentDataOutlinkPair) value;
+                    if (newDocdata.getOutlink() != null) {
+                        inlinks.add((Outlink) newDocdata.getOutlink());
+                        context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_INLINKS).increment(1);
+                    }
+                }
+                if (inlinks.size() == 0) {
+                    context.getCounter(DOCUMENT_COUNTERS.REDUCE_MISSING_PAGES).increment(1);
+                    return;
+                }
+
+                context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(1);
+
+                exportOutlinksToJson(context, key, inlinks);
+            } catch (Exception e) {
+                logger.error("Error reducing", e);
+            }
+        }
+
+        private void exportOutlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, Text target, Set<Outlink> result) {
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(OutlinkAsInlinkSerializer.SetOutlink.class, new OutlinkAsInlinkSerializer())
+                    .create();
+            
+            try {
+                context.write(NullWritable.get(), new Text(gson.toJson(new OutlinkAsInlinkSerializer.SetOutlink(result))));
+            } catch (IOException | InterruptedException e) {
+                logger.error(e.getMessage());
+            }
+        }
+    }
+
+
 
     /**
      * Class entry point, process all (W)ARCs and output intermediary non-deduplicated results ready for the next Hadoop stage
@@ -335,6 +401,11 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         assert args.length >= 6 : "Missing warcFileTempBaseDir";
         String warcFileTempBaseDir = args[5];
 
+        OUTPUT_MODE outputMode = OUTPUT_MODE.PAGES;
+        if (args.length >= 7) {
+            outputMode = OUTPUT_MODE.valueOf(args[6]);
+        }
+
         Configuration conf = new Configuration();
         conf.set("collection", collection);
         conf.set("warcFileTempBaseDir", warcFileTempBaseDir);
@@ -351,10 +422,18 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(TextDocumentDataOutlinkPair.class);
 
-        job.setReducerClass(DocumentIndexerWithDupsJob.Reduce.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(TextDocumentData.class);
-        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+        if (outputMode == OUTPUT_MODE.PAGES) {
+            job.setReducerClass(DocumentIndexerWithDupsJob.Reduce.class);
+            job.setOutputKeyClass(Text.class);
+            job.setOutputValueClass(TextDocumentData.class);
+            job.setOutputFormatClass(SequenceFileOutputFormat.class);
+        } else { // if (outputMode == OUTPUT_MODE.INLINKS) {
+            job.setReducerClass(DocumentIndexerWithDupsJob.ReduceInlinks.class);
+            job.setOutputKeyClass(NullWritable.class);
+            job.setOutputValueClass(Text.class);
+            job.setOutputFormatClass(TextOutputFormat.class);
+        }
+
 
         job.setJobName(jobName);
 

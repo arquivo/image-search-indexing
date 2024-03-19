@@ -5,6 +5,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
 
+import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob.OUTPUT_MODE;
+
 
 public class FullDocumentIndexerJob {
 
@@ -39,12 +41,19 @@ public class FullDocumentIndexerJob {
 
         assert args.length >= 7 : "Missing warcTempDir";
         String warcTempDir = args[6];
-        
-        // the output dir for the first Hadoop job is the input dir for the second job
-        
+
+        OUTPUT_MODE outputMode = OUTPUT_MODE.PAGES;
+
+        if (args.length >= 8) {
+            outputMode = OUTPUT_MODE.valueOf(args[7]);
+        }
         
 
-        String[] argsJob1 = new String[]{hdfsArcsPath, collection, linesPerMap, reducesCount, outputDirJob1, warcTempDir};
+        if (outputMode == OUTPUT_MODE.INLINKS)
+            outputDirJob1 = outputDirJob2;
+        
+        
+        String[] argsJob1 = new String[]{hdfsArcsPath, collection, linesPerMap, reducesCount, outputDirJob1, warcTempDir, outputMode.toString()};
 
         int exitCode = ToolRunner.run(new DocumentIndexerWithDupsJob(), argsJob1);
 
@@ -59,6 +68,12 @@ public class FullDocumentIndexerJob {
             System.exit(exitCode);
         }
 
+        if (outputMode == OUTPUT_MODE.INLINKS) {
+            // if the output mode is INLINKS, there is no need to run the second job
+            System.exit(exitCode);
+        }
+
+        // the output dir for the first Hadoop job is the input dir for the second job
         String[] argsJob2 = new String[]{collection, reducesCount, outputDirJob1, outputDirJob2};
         exitCode = ToolRunner.run(new DocumentDupDigestMergerJob(), argsJob2);
         
