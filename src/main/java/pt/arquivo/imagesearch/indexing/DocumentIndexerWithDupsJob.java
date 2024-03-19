@@ -387,7 +387,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         assert args.length >= 2 : "Missing collection name argument";
         String collection = args[1];
-        String jobName = collection + "_DocumentIndexerWithDups";
+        
 
         assert args.length >= 3 : "Missing number of warcs per map";
         int linesPerMap = Integer.parseInt(args[2]);
@@ -422,18 +422,20 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(TextDocumentDataOutlinkPair.class);
 
+        String jobName;
         if (outputMode == OUTPUT_MODE.PAGES) {
             job.setReducerClass(DocumentIndexerWithDupsJob.Reduce.class);
             job.setOutputKeyClass(Text.class);
             job.setOutputValueClass(TextDocumentData.class);
             job.setOutputFormatClass(SequenceFileOutputFormat.class);
+            jobName = collection + "_DocumentIndexerWithDups";
         } else { // if (outputMode == OUTPUT_MODE.INLINKS) {
             job.setReducerClass(DocumentIndexerWithDupsJob.ReduceInlinks.class);
             job.setOutputKeyClass(NullWritable.class);
             job.setOutputValueClass(Text.class);
             job.setOutputFormatClass(TextOutputFormat.class);
+            jobName = collection + "_InlinkExtractor";
         }
-
 
         job.setJobName(jobName);
 
