@@ -254,9 +254,10 @@ public class DocumentInformationExtractor implements InformationExtractor {
     }
 
     private String removeJunkCharacters(String str) {
-        Pattern pattern = Pattern.compile("\\s+");
+        // remove all whitespace characters
+        Pattern pattern = Pattern.compile("[\\s\\u00A0\\u1680\\u180E\\u2000-\\u200B\\u202F\\u205F\\u3000\\uFEFF]+");
         Matcher matcher = pattern.matcher(str.trim().replaceAll("[\\n\\t]", " "));
-        return matcher.replaceAll(" ");
+        return matcher.replaceAll(" ").trim();
     }
 
     /**
@@ -381,13 +382,13 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 }
             }
 
-            String metadataString = String.join("\n", metadataStrings).trim();
+            String metadataString = removeJunkCharacters(String.join("\n", metadataStrings).trim());
 
             textDocumentData.addMetadata(metadataString);
 
             linkHandler.getLinks().forEach(link -> {
                 String linkURL = link.getUri();
-                String anchorText = link.getText();
+                String anchorText = removeJunkCharacters(link.getText());
                 if (link.getType() == "a" && !linkURL.trim().isEmpty() && !linkURL.startsWith("#")
                         && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")) {
                     String linkAbsURL = StringUtil.resolve(url, linkURL);
