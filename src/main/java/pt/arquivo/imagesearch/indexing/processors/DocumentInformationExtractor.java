@@ -288,6 +288,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
             md5Stream = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
             logger.error("Error parsing record: " + url, e);
+            getCounter(DOCUMENT_COUNTERS.RECORDS_PREPARSING_FAILED).increment(1);
             return null;
         }
 
@@ -310,8 +311,10 @@ public class DocumentInformationExtractor implements InformationExtractor {
         DigestInputStream stream = new DigestInputStream(record, md5Stream);
 
         try {
-            if (stream.available() == 0)
+            if (stream.available() == 0){
+                getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_EMPTY).increment(1);
                 return textDocumentData;
+            }
         } catch (IOException e) {
             // TODO Auto-generated catch block
             logger.error("Error parsing record: " + url, e);
@@ -349,6 +352,10 @@ public class DocumentInformationExtractor implements InformationExtractor {
         } catch (NoSuchMethodError e) {
             logger.error("Error parsing record: " + url, e);
             getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_FAILED_NO_SUCH_METHOD).increment(1);
+        } catch (Exception e) {
+            logger.error("Error parsing record: " + url, e);
+            getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_FAILED).increment(1);
+            throw e;
         }
 
         try {

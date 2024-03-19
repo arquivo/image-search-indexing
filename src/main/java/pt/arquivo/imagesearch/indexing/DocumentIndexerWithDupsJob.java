@@ -78,6 +78,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         RECORDS_READ,
         RECORDS_PREPARSING_FAILED,
+        RECORDS_TIKA_EMPTY,
         RECORDS_TIKA_READ,
         RECORDS_TIKA_FAILED,
         RECORDS_TIKA_FAILED_NO_SUCH_METHOD,
