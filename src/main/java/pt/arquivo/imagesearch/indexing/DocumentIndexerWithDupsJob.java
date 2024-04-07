@@ -28,6 +28,7 @@ import com.google.gson.GsonBuilder;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationExtractor;
 import pt.arquivo.imagesearch.indexing.utils.AlternativeFileUtils;
 import pt.arquivo.imagesearch.indexing.utils.ImageSearchIndexingUtil;
+import pt.arquivo.imagesearch.indexing.utils.WARCInformationParser;
 
 import java.io.File;
 import java.io.IOException;
@@ -328,35 +329,43 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
             try {
-                HashSet<Outlink> inlinks = new HashSet<>();
+                HashSet<Outlink> inlinksInternal = new HashSet<>();
+                HashSet<Outlink> inlinksExternal = new HashSet<>();
+
                 for (Writable value: values) {
                     context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
                     TextDocumentDataOutlinkPair newDocdata = (TextDocumentDataOutlinkPair) value;
                     if (newDocdata.getOutlink() != null) {
-                        inlinks.add((Outlink) newDocdata.getOutlink());
-                        context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_INLINKS).increment(1);
+                        Outlink outlink = (Outlink) newDocdata.getOutlink();
+                        boolean isInternal = WARCInformationParser.isInternal(key.toString(), outlink.getSurt());
+                        if (isInternal && inlinksInternal.size() < TextDocumentData.MAX_INLINKS_INTERNAL) {
+                            inlinksInternal.add(outlink);
+                        } else if (!isInternal && inlinksExternal.size() < TextDocumentData.MAX_INLINKS_EXTERNAL) {
+                            inlinksExternal.add(outlink);
+                        }
+                        
                     }
                 }
-                if (inlinks.size() == 0) {
+                if (inlinksInternal.size()+inlinksExternal.size() == 0) {
                     context.getCounter(DOCUMENT_COUNTERS.REDUCE_MISSING_PAGES).increment(1);
                     return;
                 }
 
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(1);
 
-                exportOutlinksToJson(context, key, inlinks);
+                exportOutlinksToJson(context, key, inlinksInternal, inlinksExternal);
             } catch (Exception e) {
                 logger.error("Error reducing", e);
             }
         }
 
-        private void exportOutlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, Text target, Set<Outlink> result) {
+        private void exportOutlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, Text target, Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(OutlinkAsInlinkSerializer.SetOutlink.class, new OutlinkAsInlinkSerializer())
                     .create();
             
             try {
-                context.write(NullWritable.get(), new Text(gson.toJson(new OutlinkAsInlinkSerializer.SetOutlink(result))));
+                context.write(NullWritable.get(), new Text(gson.toJson(new OutlinkAsInlinkSerializer.SetOutlink(inlinksInternal, inlinksExternal))));
             } catch (IOException | InterruptedException e) {
                 logger.error(e.getMessage());
             }

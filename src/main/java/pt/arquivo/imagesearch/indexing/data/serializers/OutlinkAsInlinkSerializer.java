@@ -1,6 +1,7 @@
 package pt.arquivo.imagesearch.indexing.data.serializers;
 
 import java.lang.reflect.Type;
+import java.util.HashSet;
 import java.util.Set;
 
 import com.google.gson.JsonArray;
@@ -15,10 +16,12 @@ public class OutlinkAsInlinkSerializer implements JsonSerializer<OutlinkAsInlink
 
     // Serializer for Outlink objects doesn't like generic types (Set<Outlink>), so we need to wrap it in a class
     public static class SetOutlink {
-        public Set<Outlink> inlinks;
+        public Set<Outlink> inlinksInternal;
+        public Set<Outlink> inlinksExternal;
 
-        public SetOutlink(Set<Outlink> inlinks) {
-            this.inlinks = inlinks;
+        public SetOutlink(Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
+            this.inlinksInternal = inlinksInternal;
+            this.inlinksExternal = inlinksExternal;
         }
     }
 
@@ -32,11 +35,19 @@ public class OutlinkAsInlinkSerializer implements JsonSerializer<OutlinkAsInlink
      */
     @Override
     public JsonElement serialize(SetOutlink inlinks, Type typeOfSrc, JsonSerializationContext context) {
+
+        String target = inlinks.inlinksInternal.iterator().next().getSurt();
+
+        JsonObject output = new JsonObject();
+
         JsonArray array = new JsonArray();
 
-        String target = inlinks.inlinks.iterator().next().getSurt();
+        Set<Outlink> inlinksAll = new HashSet<>();
+        inlinksAll.addAll(inlinks.inlinksInternal);
+        inlinksAll.addAll(inlinks.inlinksExternal);
 
-        for (Outlink inlink: inlinks.inlinks) {
+
+        for (Outlink inlink: inlinksAll) {
             JsonObject jsonOutlink = new JsonObject();
             jsonOutlink.addProperty("date", inlink.getCaptureDateStart().toString());
             //jsonOutlink.addProperty("end", inlink.getCaptureDateEnd().toString());
@@ -44,11 +55,13 @@ public class OutlinkAsInlinkSerializer implements JsonSerializer<OutlinkAsInlink
             jsonOutlink.addProperty("anchor", inlink.getAnchor());
             array.add(jsonOutlink);
         }
-
-        JsonObject output = new JsonObject();
-        output.addProperty("url", target);
-        output.addProperty("count", inlinks.inlinks.size());
         output.add("inlinks", array);
+
+        output.addProperty("url", target);
+        output.addProperty("count", inlinksAll.size());
+        output.addProperty("countInternal", inlinks.inlinksInternal.size());
+        output.addProperty("countExternal", inlinks.inlinksExternal.size());
+        
 
         return output;
     }
