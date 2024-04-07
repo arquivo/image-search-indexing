@@ -430,12 +430,9 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             return;
         }
         boolean isInternal = false;
-        String domain = inlink.getSource().split("\\)")[0];
         // broader domain matching
         for (String surt : surt){
-            String internalDomain = surt.split("\\)")[0];
-            // is internal 
-            if (internalDomain.equals(domain)) {
+            if (WARCInformationParser.isInternal(surt, inlink.getSource())) {
                 isInternal = true;
                 break;
             }
