@@ -397,11 +397,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
             });
 
             body = removeJunkCharacters(body);
-
-            if (title != null && !title.isEmpty())
-                md5Text.update(title.getBytes());
-            if (metadataString != null && !metadataString.isEmpty())
-                md5Text.update(metadataString.getBytes());
             md5Text.update(body.getBytes());
 
             HexBinaryAdapter hexBinaryAdapter = new HexBinaryAdapter();
