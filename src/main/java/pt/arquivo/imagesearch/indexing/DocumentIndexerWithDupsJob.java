@@ -7,7 +7,6 @@ import org.apache.hadoop.util.ToolRunner;
 
 import pt.arquivo.imagesearch.indexing.data.*;
 import pt.arquivo.imagesearch.indexing.data.serializers.OutlinkAsInlinkSerializer;
-import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
