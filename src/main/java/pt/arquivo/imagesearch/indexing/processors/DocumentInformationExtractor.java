@@ -67,6 +67,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
     // private static final int MAX_OUTLINKS = 1000;
     private static final int CONTENT_CHAR_LIMIT = 10000000; // 1 000 000 chars == (8MB of text)
+    private static final int ANCHOR_CHAR_LIMIT = 100; // 1 000 chars == (800B of text)
+    
 
     private Logger logger = Logger.getLogger(DocumentInformationExtractor.class);
 
@@ -388,7 +390,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
             linkHandler.getLinks().forEach(link -> {
                 String linkURL = link.getUri();
-                String anchorText = removeJunkCharacters(link.getText());
+                String anchorText = removeJunkCharacters(link.getText()).substring(ANCHOR_CHAR_LIMIT);
                 if (link.getType() == "a" && !linkURL.trim().isEmpty() && !linkURL.startsWith("#")
                         && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")) {
                     String linkAbsURL = StringUtil.resolve(url, linkURL);
