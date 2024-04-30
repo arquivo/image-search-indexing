@@ -6,7 +6,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import pt.arquivo.imagesearch.indexing.data.*;
-import pt.arquivo.imagesearch.indexing.data.serializers.OutlinkAsInlinkSerializer;
+import pt.arquivo.imagesearch.indexing.data.serializers.InlinkSerializer;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -36,7 +36,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
+import java.util.Collection;
 import java.time.Duration;
 
 /**
@@ -329,8 +329,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
         public void reduce(Text key, Iterable<Writable> values, Context context) throws IOException, InterruptedException {
             try {
-                HashSet<Outlink> inlinksInternal = new HashSet<>();
-                HashSet<Outlink> inlinksExternal = new HashSet<>();
+                HashMap<Inlink,Inlink> inlinksInternal = new HashMap<>();
+                HashMap<Inlink,Inlink> inlinksExternal = new HashMap<>();
                 boolean wasCaptured = false;
 
                 for (Writable value: values) {
@@ -338,11 +338,33 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                     TextDocumentDataOutlinkPair newDocdata = (TextDocumentDataOutlinkPair) value;
                     if (newDocdata.getOutlink() != null) {
                         Outlink outlink = (Outlink) newDocdata.getOutlink();
+                        Inlink inlink = new Inlink(outlink);
                         boolean isInternal = WARCInformationParser.isInternal(key.toString(), outlink.getSurt());
-                        if (isInternal && inlinksInternal.size() < TextDocumentData.MAX_INLINKS_INTERNAL) {
-                            inlinksInternal.add(outlink);
-                        } else if (!isInternal && inlinksExternal.size() < TextDocumentData.MAX_INLINKS_EXTERNAL) {
-                            inlinksExternal.add(outlink);
+                        if (isInternal){
+
+                            if (inlinksInternal.containsKey(inlink)) {
+                                Inlink existingInlink = inlinksInternal.get(inlink);
+                                if (existingInlink.getCaptureDateStart().compareTo(inlink.getCaptureDateStart()) > 0) {
+                                    inlink.incrementCount(existingInlink.getCount());
+                                    inlinksInternal.put(inlink, inlink);
+                                } else {
+                                    existingInlink.incrementCount(inlink.getCount());
+                                }
+                            } else if (inlinksInternal.size() < TextDocumentData.MAX_INLINKS_INTERNAL) {
+                                inlinksInternal.put(inlink, inlink);   
+                            }
+                        } else {
+                            if (inlinksExternal.containsKey(inlink)) {
+                                Inlink existingInlink = inlinksExternal.get(inlink);
+                                if (existingInlink.getCaptureDateStart().compareTo(inlink.getCaptureDateStart()) > 0) {
+                                    inlink.incrementCount(existingInlink.getCount());
+                                    inlinksExternal.put(inlink, inlink);
+                                } else {
+                                    existingInlink.incrementCount(inlink.getCount());
+                                }
+                            } else if (inlinksExternal.size() < TextDocumentData.MAX_INLINKS_EXTERNAL) {
+                                inlinksExternal.put(inlink, inlink);
+                            }
                         }
                         
                     } else if (newDocdata.getTextDocumentData() != null) {
@@ -356,19 +378,20 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(1);
 
-                exportOutlinksToJson(context, key, wasCaptured, inlinksInternal, inlinksExternal);
+                exportInlinksToJson(context, key.toString(), wasCaptured, inlinksInternal.values(), inlinksExternal.values());
             } catch (Exception e) {
                 logger.error("Error reducing", e);
             }
         }
 
-        private void exportOutlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, Text target, boolean wasCaptured, Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
+        private void exportInlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, String target, boolean wasCaptured, Collection<Inlink> inlinksInternal, Collection<Inlink> inlinksExternal) {
             Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(OutlinkAsInlinkSerializer.SetOutlink.class, new OutlinkAsInlinkSerializer())
+                    .registerTypeAdapter(InlinkSerializer.SetInlink.class, new InlinkSerializer())
+                    .disableHtmlEscaping()
                     .create();
             
             try {
-                context.write(NullWritable.get(), new Text(gson.toJson(new OutlinkAsInlinkSerializer.SetOutlink(wasCaptured, inlinksInternal, inlinksExternal))));
+                context.write(NullWritable.get(), new Text(gson.toJson(new InlinkSerializer.SetInlink(target, wasCaptured, inlinksInternal, inlinksExternal))));
             } catch (IOException | InterruptedException e) {
                 logger.error(e.getMessage());
             }
