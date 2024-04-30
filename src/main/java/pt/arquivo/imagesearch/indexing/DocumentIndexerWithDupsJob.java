@@ -331,6 +331,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             try {
                 HashSet<Outlink> inlinksInternal = new HashSet<>();
                 HashSet<Outlink> inlinksExternal = new HashSet<>();
+                boolean wasCaptured = false;
 
                 for (Writable value: values) {
                     context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
@@ -344,6 +345,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                             inlinksExternal.add(outlink);
                         }
                         
+                    } else if (newDocdata.getTextDocumentData() != null) {
+                        wasCaptured = true;
                     }
                 }
                 if (inlinksInternal.size()+inlinksExternal.size() == 0) {
@@ -353,19 +356,19 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(1);
 
-                exportOutlinksToJson(context, key, inlinksInternal, inlinksExternal);
+                exportOutlinksToJson(context, key, wasCaptured, inlinksInternal, inlinksExternal);
             } catch (Exception e) {
                 logger.error("Error reducing", e);
             }
         }
 
-        private void exportOutlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, Text target, Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
+        private void exportOutlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, Text target, boolean wasCaptured, Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(OutlinkAsInlinkSerializer.SetOutlink.class, new OutlinkAsInlinkSerializer())
                     .create();
             
             try {
-                context.write(NullWritable.get(), new Text(gson.toJson(new OutlinkAsInlinkSerializer.SetOutlink(inlinksInternal, inlinksExternal))));
+                context.write(NullWritable.get(), new Text(gson.toJson(new OutlinkAsInlinkSerializer.SetOutlink(wasCaptured, inlinksInternal, inlinksExternal))));
             } catch (IOException | InterruptedException e) {
                 logger.error(e.getMessage());
             }

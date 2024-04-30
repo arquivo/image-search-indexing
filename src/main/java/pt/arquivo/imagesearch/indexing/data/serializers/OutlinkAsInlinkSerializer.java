@@ -16,10 +16,12 @@ public class OutlinkAsInlinkSerializer implements JsonSerializer<OutlinkAsInlink
 
     // Serializer for Outlink objects doesn't like generic types (Set<Outlink>), so we need to wrap it in a class
     public static class SetOutlink {
+        public boolean wasCaptured;
         public Set<Outlink> inlinksInternal;
         public Set<Outlink> inlinksExternal;
 
-        public SetOutlink(Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
+        public SetOutlink(boolean wasCaptured, Set<Outlink> inlinksInternal, Set<Outlink> inlinksExternal) {
+            this.wasCaptured = wasCaptured;
             this.inlinksInternal = inlinksInternal;
             this.inlinksExternal = inlinksExternal;
         }
@@ -61,6 +63,7 @@ public class OutlinkAsInlinkSerializer implements JsonSerializer<OutlinkAsInlink
         output.addProperty("count", inlinksAll.size());
         output.addProperty("countInternal", inlinks.inlinksInternal.size());
         output.addProperty("countExternal", inlinks.inlinksExternal.size());
+        output.addProperty("wasCaptured", inlinks.wasCaptured);
         
 
         return output;
