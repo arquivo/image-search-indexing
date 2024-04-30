@@ -390,7 +390,10 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
             linkHandler.getLinks().forEach(link -> {
                 String linkURL = link.getUri();
-                String anchorText = removeJunkCharacters(link.getText()).substring(ANCHOR_CHAR_LIMIT);
+                String anchorText = removeJunkCharacters(link.getText());
+                if (anchorText.length() > ANCHOR_CHAR_LIMIT) {
+                    anchorText = anchorText.substring(0, ANCHOR_CHAR_LIMIT);
+                }
                 if (link.getType() == "a" && !linkURL.trim().isEmpty() && !linkURL.startsWith("#")
                         && !linkURL.startsWith("mailto:") && !linkURL.startsWith("javascript:")) {
                     String linkAbsURL = StringUtil.resolve(url, linkURL);
