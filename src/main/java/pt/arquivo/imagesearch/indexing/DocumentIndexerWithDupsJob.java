@@ -101,6 +101,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         REDUCE_TOTAL_PAGES,
         REDUCE_TOTAL_INLINKS,
         REDUCE_MISSING_PAGES,
+        REDUCE_NO_INLINKS,
         REDUCE_UNIQUE_PAGES,
         REDUCE_UNIQUE_INLINKS,
         REDUCE_IGNORED_INLINKS
@@ -118,6 +119,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         public String collection;
         DocumentInformationExtractor indexer;
         private String warcFileTempBaseDir;
+        private boolean inlinksOnly = false;
         
 
         @Override
@@ -139,7 +141,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             if (!dir.exists()) {
                 dir.mkdirs();
             }
-            indexer = new DocumentInformationExtractor(collection, context);
+            inlinksOnly = config.getBoolean("inlinksOnly", false);
+            indexer = new DocumentInformationExtractor(collection, inlinksOnly, context);
         }
 
         /**
@@ -339,7 +342,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                     if (newDocdata.getOutlink() != null) {
                         Outlink outlink = (Outlink) newDocdata.getOutlink();
                         Inlink inlink = new Inlink(outlink);
-                        boolean isInternal = WARCInformationParser.isInternal(key.toString(), outlink.getSurt());
+                        boolean isInternal = WARCInformationParser.isInternal(key.toString(), outlink.getSource());
                         if (isInternal){
 
                             if (inlinksInternal.containsKey(inlink)) {
@@ -371,8 +374,14 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                         wasCaptured = true;
                     }
                 }
-                if (inlinksInternal.size()+inlinksExternal.size() == 0) {
+
+                if (!wasCaptured) {
                     context.getCounter(DOCUMENT_COUNTERS.REDUCE_MISSING_PAGES).increment(1);
+                    return;
+                }
+
+                if (inlinksInternal.size()+inlinksExternal.size() == 0) {
+                    context.getCounter(DOCUMENT_COUNTERS.REDUCE_NO_INLINKS).increment(1);
                     return;
                 }
 
@@ -452,6 +461,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         job.setInputFormatClass(NLineInputFormat.class);
         NLineInputFormat.addInputPath(job, new Path(hdfsArcsPath));
         job.getConfiguration().setInt("mapreduce.input.lineinputformat.linespermap", linesPerMap);
+        job.getConfiguration().setBoolean("inlinksOnly", outputMode == OUTPUT_MODE.INLINKS);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(TextDocumentDataOutlinkPair.class);
@@ -469,8 +479,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             job.setOutputValueClass(Text.class);
             job.setOutputFormatClass(TextOutputFormat.class);
             jobName = collection + "_InlinkExtractor";
+            //job.getConfiguration().setFloat("mapreduce.job.reduce.slowstart.completedmaps", 1);
         }
-
         job.setJobName(jobName);
 
         //job.getConfiguration().setInt("mapreduce.job.running.map.limit", 80);

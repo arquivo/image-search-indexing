@@ -99,15 +99,18 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
     private TikaConfig config;
 
+    private boolean inlinksOnly = false;
+
     /**
      * Constructor used for Hadoop
      *
      * @param collection collection name
      * @param context    Hadoop context
      */
-    public DocumentInformationExtractor(String collection, DocumentIndexerWithDupsJob.Map.Context context) {
+    public DocumentInformationExtractor(String collection, boolean inlinksOnly, DocumentIndexerWithDupsJob.Map.Context context) {
         init(collection);
         this.context = context;
+        this.inlinksOnly = inlinksOnly;
     }
 
     /**
