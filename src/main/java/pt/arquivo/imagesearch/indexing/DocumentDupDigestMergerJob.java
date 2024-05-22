@@ -172,7 +172,7 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
          */
         private void exportToJson(Reducer<Text, Writable, NullWritable, Text>.Context context, TextDocumentData result) {
             Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(Outlink.class, new TextDocumentDataSerializer())
+                    .registerTypeAdapter(TextDocumentData.class, new TextDocumentDataSerializer())
                     .create();
             
             try {
