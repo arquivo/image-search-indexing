@@ -308,6 +308,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
 
             textDocumentData.addCollection(collection);
             textDocumentData.setMimeTypeReported(mimeType);
+            textDocumentData.setStatusCode(statusCode);
         } catch (Exception e) {
             logger.error("Error parsing record before Tika: " + url, e);
             getCounter(DOCUMENT_COUNTERS.RECORDS_PREPARSING_FAILED).increment(1);
