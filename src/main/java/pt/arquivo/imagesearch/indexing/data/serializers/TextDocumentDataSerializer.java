@@ -27,37 +27,43 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         JsonObject obj = new JsonObject();
         //obj.addProperty("type", "document");
 
-        obj.addProperty("id", src.getId());
+        //obj.addProperty("id", src.getId());
+        //obj.addProperty("digestContainer", src.getDigestContainer());
 
-        obj.addProperty("digestContainer", src.getDigestContainer());
-        obj.add("urls", context.serialize(src.getURL()));
-        obj.addProperty("date", src.getTimestampFormatted());
-        obj.addProperty("tstamp", src.getTimestampString());
-        if (src.getTitle() != null && !src.getTitle().isEmpty())
-            obj.add("title", context.serialize(src.getTitle()));
-        obj.addProperty("type", src.getMimeTypeDetected());
-        obj.addProperty("typeReported", src.getMimeTypeReported());
+        obj.addProperty("id", src.getDigestContainer());
+
+        
+        obj.add("collection", context.serialize(src.getCollection()));
         if (src.getContent() != null && !src.getContent().isEmpty())
             obj.add("content", context.serialize(src.getContent()));
-        obj.add("urlTokens", context.serialize(src.getURLTokens()));
-        obj.add("host", context.serialize(src.getHost()));
+        
         if (src.getMetadata() != null && !src.getMetadata().isEmpty())
             obj.add("metadata", context.serialize(src.getMetadata()));
+        obj.addProperty("type", src.getMimeTypeDetected());
+        obj.addProperty("typeReported", src.getMimeTypeReported());
+        obj.addProperty("tstamp", src.getTimestampString());
+        obj.addProperty("date", src.getTimestampFormatted());
+        obj.add("host", context.serialize(src.getHost()));
 
+        obj.add("urls", context.serialize(src.getURL()));
+        if (src.getTitle() != null && !src.getTitle().isEmpty())
+            obj.add("title", context.serialize(src.getTitle()));
+        obj.add("urlTokens", context.serialize(src.getURLTokens()));
+ 
 
         //obj.addProperty("warc", src.getWarc());
         //obj.addProperty("warcOffset", src.getWarcOffset());
         //obj.addProperty("surt", src.getSurt());
         //obj.addProperty("protocol", src.getProtocol());
         //obj.addProperty("urlHash", src.getURLHash());
-        obj.add("collection", context.serialize(src.getCollection()));
         //obj.add("outlinks", context.serialize(src.getOutlinks()));
         obj.add("inlinksInternal", context.serialize(src.getInlinkSurtsInternal().size()));
         obj.add("inlinksExternal", context.serialize(src.getInlinkSurtsExternal().size()));
         
         obj.add("inlinkAnchorsInternal", context.serialize(src.getInlinkAnchorsInternal()));
         obj.add("inlinkAnchorsExternal", context.serialize(src.getInlinkAnchorsExternal()));
-
+        obj.add("captureCount", context.serialize(src.getCaptureCount()));
+        obj.add("statusCode", context.serialize(src.getStatusCode()));
         
         //obj.addProperty("safe", 0);
         //obj.addProperty("spam", 0);

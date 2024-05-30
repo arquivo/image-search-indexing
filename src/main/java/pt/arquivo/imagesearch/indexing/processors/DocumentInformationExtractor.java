@@ -235,8 +235,9 @@ public class DocumentInformationExtractor implements InformationExtractor {
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
         long offset = record.getMetaData().getOffset();
+        int code = record.getStatusCode();
 
-        parseTextRecord(record, mimeType, arcName, url, timestamp, offset);
+        parseTextRecord(record, mimeType, arcName, url, timestamp, offset, code);
 
     }
 
@@ -277,12 +278,11 @@ public class DocumentInformationExtractor implements InformationExtractor {
         String url = record.getWARCRecord().getHeader().getUrl();
         String timestamp = record.getTs();
         long offset = record.getWARCRecord().getHeader().getOffset();
-
-        parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset);
+        parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset, record.getStatusCode());
     }
 
     public TextDocumentData parseTextRecord(InputStream record, String mimeType, String arcName, String url,
-            String timestamp, long offset) {
+            String timestamp, long offset, int statusCode) {
         getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_READ).increment(1);
         getCounter(mimeToCounterReported(mimeType)).increment(1);
 

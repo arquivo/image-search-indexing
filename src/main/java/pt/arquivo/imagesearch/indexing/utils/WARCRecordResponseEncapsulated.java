@@ -28,6 +28,7 @@ public class WARCRecordResponseEncapsulated {
 
     // private static final String TRANSFER_ENCODING = "transfer-encoding";
     private static final String CONTENT_ENCODING = "content-encoding";
+    private static final String STATUS_STRING = "httpclient-bad-header-line-failed-parse";
 
     // private static final String CHUNKED = "chunked";
     // private static final String GZIPPED = "gzip";
@@ -271,5 +272,16 @@ public class WARCRecordResponseEncapsulated {
             return null;
         }
         return year + month + day + hour + minute + second;
+    }
+
+    public int getStatusCode() {
+        String statusCode = (String) headerFields.get(STATUS_STRING);
+        try {
+            statusCode = statusCode.split(" ")[1];
+            return Integer.parseInt(statusCode);
+        } catch (Throwable e) {
+            // assume 200 OK if code is not processable
+            return 200;
+        }
     }
 }

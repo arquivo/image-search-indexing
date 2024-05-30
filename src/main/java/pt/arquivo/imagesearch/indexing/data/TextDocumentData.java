@@ -127,6 +127,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
      */
     private String digestContent;
 
+    private int code;
+
+    private int captureCount;
+
     public TextDocumentData(TextDocumentData other){
         this.collection = new ArrayList<>(other.collection);
         this.warc = other.warc;
@@ -147,6 +151,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.digestContainer = other.digestContainer;
         this.digestContent = other.digestContent;
         this.metadata = new ArrayList<>(other.metadata);
+        this.code = other.code;
+        this.captureCount = other.captureCount;
     }
 
     public TextDocumentData() {
@@ -161,6 +167,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.host = new ArrayList<>();
         this.url = new ArrayList<>();
         this.metadata = new ArrayList<>();
+        this.captureCount = 1;
     }
 
     @Override
@@ -313,6 +320,24 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.mimeTypeReported = mimeTypeReported;
     }
 
+    public void addHost(String host) {
+        if (host.isEmpty() || this.host.contains(host))
+            return;
+        this.host.add(host);
+    }
+
+    public void addSurt(String surt) {
+        if (surt.isEmpty() || this.surt.contains(surt))
+            return;
+        this.surt.add(surt);
+    }
+
+    public void addUrlTokens(String urlTokens) {
+        if (urlTokens.isEmpty() || this.urlTokens.contains(urlTokens))
+            return;
+        this.urlTokens.add(urlTokens);
+    }
+
     public void addTitle(String title) {
         if (title.isEmpty() || this.title.contains(title))
             return;
@@ -382,14 +407,14 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         URL uri;
         try {
             uri = new URL(url);
-            this.host.add(uri.getHost());
+            this.addHost(uri.getHost());
         } catch (MalformedURLException e) {
             // e.printStackTrace();
             url = url.replaceAll("http://", "").replaceAll("https://", "");
-            this.host.add(url.split("/")[0]);
+            this.addHost(url.split("/")[0]);
         }
-        this.urlTokens.add(ImageInformationExtractor.getURLSrcTokens(url));
-        this.surt.add(WARCInformationParser.toSURT(url));
+        this.addUrlTokens(ImageInformationExtractor.getURLSrcTokens(url));
+        this.addSurt(WARCInformationParser.toSURT(url));
     }
 
     public void addOutlink(String outlink, String anchor) {
@@ -448,6 +473,18 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         }
     }
 
+    public int getStatusCode() {
+        return code;
+    }
+
+    public void setStatusCode(int code) {
+        this.code = code;
+    }
+
+    public int getCaptureCount() {
+        return captureCount;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -489,6 +526,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.digestContainer = other.digestContainer;
             this.digestContent = other.digestContent;
             this.metadata = other.metadata;
+            this.code = other.code;
+            this.captureCount = other.captureCount;
 
         } catch (ClassNotFoundException e) {
             System.err.println("Error reading TextDocumentData from Writable");
@@ -517,6 +556,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         other.getInlinksInternal().keySet().forEach(result::addInlink);
         other.getInlinksExternal().keySet().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
+        result.captureCount += other.captureCount;
 
         return result;
 
