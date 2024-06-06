@@ -7,6 +7,7 @@ import org.jsoup.helper.StringUtil;
 
 import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob;
 import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob.DOCUMENT_COUNTERS;
+import pt.arquivo.imagesearch.indexing.DocumentIndexerWithDupsJob.STATUS_CODES;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 
 import org.apache.hadoop.mapreduce.Counter;
@@ -18,6 +19,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
@@ -97,9 +99,12 @@ public class DocumentInformationExtractor implements InformationExtractor {
      */
     protected HashMap<String, TextDocumentData> entries;
 
-    private TikaConfig config;
+    /**
+     * Documents already parsed during this session (301, 302, 303, 307, 308)
+     */
+    protected HashMap<String, TextDocumentData> entriesRedirect;
 
-    private boolean inlinksOnly = false;
+    private TikaConfig config;
 
     /**
      * Constructor used for Hadoop
@@ -107,10 +112,9 @@ public class DocumentInformationExtractor implements InformationExtractor {
      * @param collection collection name
      * @param context    Hadoop context
      */
-    public DocumentInformationExtractor(String collection, boolean inlinksOnly, DocumentIndexerWithDupsJob.Map.Context context) {
+    public DocumentInformationExtractor(String collection, DocumentIndexerWithDupsJob.Map.Context context) {
         init(collection);
         this.context = context;
-        this.inlinksOnly = inlinksOnly;
     }
 
     /**
@@ -139,6 +143,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
 
         this.entries = new HashMap<>();
+        this.entriesRedirect = new HashMap<>();
         this.linkTypes = new HashMap<>();
         this.tmpCounters = new HashMap<>();
     }
@@ -235,9 +240,22 @@ public class DocumentInformationExtractor implements InformationExtractor {
         String url = record.getHeader().getUrl();
         String timestamp = record.getMetaData().getDate();
         long offset = record.getMetaData().getOffset();
-        int code = record.getStatusCode();
+        int statusCode = record.getStatusCode();
+        incrementStatusCodeCounter(statusCode);
 
-        parseTextRecord(record, mimeType, arcName, url, timestamp, offset, code);
+        if (statusCode >= 300 && statusCode < 400) {
+            String redirectUrl = null;
+            try {
+                redirectUrl = record.getHeader().getHeaderValue("location").toString();
+                parseRedirectRecord(record, mimeType, arcName, url, timestamp, offset, statusCode, redirectUrl);
+            } catch (Exception e) {
+                logger.error("Error parsing redirect URL", e);
+            }
+            parseRedirectRecord(record, mimeType, arcName, url, timestamp, offset, statusCode, redirectUrl);
+
+        } else {
+            parseTextRecord(record, mimeType, arcName, url, timestamp, offset, statusCode);
+        }
 
     }
 
@@ -266,6 +284,26 @@ public class DocumentInformationExtractor implements InformationExtractor {
         return matcher.replaceAll(" ").trim();
     }
 
+    private void incrementStatusCodeCounter(int statusCode) {
+        if (statusCode < 0) {
+            getCounter(STATUS_CODES.statusUnknown).increment(1);
+        } else
+        if (statusCode >= 100 && statusCode < 200) {
+            getCounter(STATUS_CODES.status1xx).increment(1);
+        } else if (statusCode >= 200 && statusCode < 300) {
+            getCounter(STATUS_CODES.status2xx).increment(1);
+        } else if (statusCode >= 300 && statusCode < 400) {
+            getCounter(STATUS_CODES.status3xx).increment(1);
+        } else if (statusCode >= 400 && statusCode < 500) {
+            getCounter(STATUS_CODES.status4xx).increment(1);
+        } else if (statusCode >= 500 && statusCode < 600) {
+            getCounter(STATUS_CODES.status5xx).increment(1);
+        } else {
+            getCounter(STATUS_CODES.statusOther).increment(1);
+        }
+    }
+
+
     /**
      * Parse a text record
      *
@@ -278,13 +316,28 @@ public class DocumentInformationExtractor implements InformationExtractor {
         String url = record.getWARCRecord().getHeader().getUrl();
         String timestamp = record.getTs();
         long offset = record.getWARCRecord().getHeader().getOffset();
-        parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset, record.getStatusCode());
+        int statusCode = record.getStatusCode();
+        incrementStatusCodeCounter(statusCode);
+        if (statusCode >= 300 && statusCode < 400) {
+            String redirectUrl = record.getRedirectURL();
+            parseRedirectRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset, statusCode, redirectUrl);
+        } else {
+            parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset, statusCode);
+        }
     }
 
     public TextDocumentData parseTextRecord(InputStream record, String mimeType, String arcName, String url,
             String timestamp, long offset, int statusCode) {
         getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_READ).increment(1);
         getCounter(mimeToCounterReported(mimeType)).increment(1);
+
+        TextDocumentData textDocumentData = new TextDocumentData();
+
+        // ignore all non-OK status codes
+        if (statusCode >= 400) {
+            getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_FAILED_STATUS_CODE).increment(1);
+            return textDocumentData;
+        }
 
         MessageDigest md5Text;
         MessageDigest md5Stream;
@@ -297,8 +350,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
             getCounter(DOCUMENT_COUNTERS.RECORDS_PREPARSING_FAILED).increment(1);
             return null;
         }
-
-        TextDocumentData textDocumentData = new TextDocumentData();
 
         try {
             textDocumentData.addURL(url);
@@ -326,6 +377,27 @@ public class DocumentInformationExtractor implements InformationExtractor {
             // TODO Auto-generated catch block
             logger.error("Error parsing record: " + url, e);
         }
+
+        /*
+        class AllTagMapper implements HtmlMapper {
+
+            @Override
+            public String mapSafeElement(String name) {
+                return name.toLowerCase();
+            }
+
+            @Override
+            public boolean isDiscardElement(String name) {
+                return false;
+            }
+
+            @Override
+            public String mapSafeAttribute(String elementName, String attributeName) {
+                return attributeName.toLowerCase();
+            }
+
+        }
+         */
 
         Parser parser = new AutoDetectParser(config);
         Metadata metadata = new Metadata();
@@ -428,6 +500,50 @@ public class DocumentInformationExtractor implements InformationExtractor {
         return null;
     }
 
+
+
+    public TextDocumentData parseRedirectRecord(InputStream record, String mimeType, String arcName, String url,
+            String timestamp, long offset, int statusCode, String redirectUrl) {
+        getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_READ).increment(1);
+        getCounter(mimeToCounterReported(mimeType)).increment(1);
+
+        TextDocumentData textDocumentData = new TextDocumentData();
+
+        if (redirectUrl == null || redirectUrl.isEmpty()) {
+            getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_FAILED_REDIRECT).increment(1);
+            return textDocumentData;
+        }
+
+        try {
+            textDocumentData.addURL(url);
+            textDocumentData.addURL(redirectUrl);
+            textDocumentData.setTimestamp(timestamp);
+            textDocumentData.setWarc(arcName);
+            textDocumentData.setWarcOffset(offset);
+
+            textDocumentData.addCollection(collection);
+            textDocumentData.setMimeTypeReported(mimeType);
+            textDocumentData.setStatusCode(statusCode);
+            textDocumentData.setRedirect(true);
+        } catch (Exception e) {
+            logger.error("Error parsing record before Tika: " + url, e);
+            getCounter(DOCUMENT_COUNTERS.RECORDS_PREPARSING_FAILED).increment(1);
+            return null;
+        }
+
+        try {
+
+            insertRedirectDocumentIndex(textDocumentData);
+            getCounter(DOCUMENT_COUNTERS.RECORDS_SUCCESS).increment(1);
+            return textDocumentData;
+
+        } catch (Exception e) {
+            logger.error("Error parsing record: " + url, e);
+            getCounter(DOCUMENT_COUNTERS.RECORDS_PARSING_FAILED).increment(1);
+        }
+        return null;
+    }
+
     // Get all counters
     public HashMap<Enum<?>, Counter> getCounters() {
         return localCounters;
@@ -480,6 +596,10 @@ public class DocumentInformationExtractor implements InformationExtractor {
         return entries;
     }
 
+    public HashMap<String, TextDocumentData> getEntriesRedirect() {
+        return entriesRedirect;
+    }
+
     // linkTypes
     public HashMap<String, Counter> getLinkTypes() {
         return linkTypes;
@@ -492,6 +612,18 @@ public class DocumentInformationExtractor implements InformationExtractor {
             entries.put(pageImageData.getDigestContent(), mergedImageData);
         } else {
             entries.put(pageImageData.getDigestContent(), pageImageData);
+        }
+    }
+
+    public void insertRedirectDocumentIndex(TextDocumentData pageImageData) {
+        for (String surt : pageImageData.getSurt()) {
+            if (entriesRedirect.containsKey(surt)) {
+                TextDocumentData oldPageImageData = entriesRedirect.get(surt);
+                TextDocumentData mergedImageData = TextDocumentData.merge(oldPageImageData, pageImageData);
+                entriesRedirect.put(surt, mergedImageData);
+            } else {
+                entriesRedirect.put(surt, pageImageData);
+            }
         }
     }
 }

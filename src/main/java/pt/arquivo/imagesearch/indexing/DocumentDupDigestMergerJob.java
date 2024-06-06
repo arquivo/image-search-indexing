@@ -18,7 +18,6 @@ import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 
-import pt.arquivo.imagesearch.indexing.data.Outlink;
 import pt.arquivo.imagesearch.indexing.data.TextDocumentData;
 import pt.arquivo.imagesearch.indexing.data.serializers.TextDocumentDataSerializer;
 import pt.arquivo.imagesearch.indexing.processors.DocumentInformationMerger;
@@ -51,6 +50,7 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
         RECORDS_WITHOUT_INLINKS_INTERNAL,
         RECORDS_WITH_INLINKS_EXTERNAL,
         RECORDS_WITHOUT_INLINKS_EXTERNAL,
+        RECORDS_IS_REDIRECT,
         INLINKS_ALL_INTERNAL,
         INLINKS_UNIQUE_SURT_INTERNAL,
         INLINKS_ALL_EXTERNAL,
@@ -133,6 +133,13 @@ public class DocumentDupDigestMergerJob extends Configured implements Tool {
 
             merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_IN).increment(counter);
             merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_OUT).increment(1);
+
+
+            if (result.isRedirect()) {
+                logger.error("No result found for digest: " + key);
+                merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_IS_REDIRECT).increment(1);
+                return;
+            }
 
             if ((result.getInlinksInternal().size() + result.getInlinksExternal().size()) > 0)
                 merger.getCounter(DocumentDupDigestMergerJob.COUNTERS.RECORDS_WITH_INLINKS).increment(1);

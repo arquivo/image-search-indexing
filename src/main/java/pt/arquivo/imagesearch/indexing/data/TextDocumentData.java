@@ -76,11 +76,15 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
      */
     private LocalDateTime timestamp;
 
-
     /**
      * Oldest capture timestamp in the yyyyMMddHHmmss format
      */
     private String timestampString;
+
+    /**
+     *  latest capture timestamp
+     */
+    private LocalDateTime timestampLatest;
 
     /**
      * Document URL
@@ -131,6 +135,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     private int captureCount;
 
+    private boolean isRedirect;
+
     public TextDocumentData(TextDocumentData other){
         this.collection = new ArrayList<>(other.collection);
         this.warc = other.warc;
@@ -141,6 +147,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.urlTokens = new ArrayList<>(other.urlTokens);
         this.timestamp = other.timestamp;
         this.timestampString = other.timestampString;
+        this.timestampLatest = other.timestampLatest;
         this.url = new ArrayList<>(other.url);
         this.surt = new ArrayList<>(other.surt);
         this.host = new ArrayList<>(other.host);
@@ -218,6 +225,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return timestamp;
     }
 
+    public LocalDateTime getTimestampLatest() {
+        return timestampLatest;
+    }
+
     public String getTimestampFormatted() {
         return String.format("%04d-%02d-%02dT%02d:%02d:%02dZ",
                 timestamp.getYear(),
@@ -228,6 +239,16 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
                 timestamp.getSecond());
     }
 
+    public String getTimestampLatestFormatted() {
+        return String.format("%04d-%02d-%02dT%02d:%02d:%02dZ",
+                timestampLatest.getYear(),
+                timestampLatest.getMonthValue(),
+                timestampLatest.getDayOfMonth(),
+                timestampLatest.getHour(),
+                timestampLatest.getMinute(),
+                timestampLatest.getSecond());
+    }
+    
     public String getTimestampString() {
         return timestampString;
     }
@@ -356,20 +377,22 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.urlTokens.add(urlTokens);
     }
 
-    public void setTimestamp(String TimestampString) {
-        this.timestampString = TimestampString;
+    public void setTimestamp(String timestampString) {
+        this.timestampString = timestampString;
         // timestampString format is YYYYMMDDHHmmss
-        if (TimestampString.length() < 14) {
-            TimestampString = TimestampString.concat("00000000000000").substring(0, 14);
+        if (timestampString.length() < 14) {
+            timestampString = timestampString.concat("00000000000000").substring(0, 14);
         }
         this.timestamp = LocalDateTime.of(
-                Integer.parseInt(TimestampString.substring(0, 4)),
-                Integer.parseInt(TimestampString.substring(4, 6)),
-                Integer.parseInt(TimestampString.substring(6, 8)),
-                Integer.parseInt(TimestampString.substring(8, 10)),
-                Integer.parseInt(TimestampString.substring(10, 12)),
-                Integer.parseInt(TimestampString.substring(12, 14))
+                Integer.parseInt(timestampString.substring(0, 4)),
+                Integer.parseInt(timestampString.substring(4, 6)),
+                Integer.parseInt(timestampString.substring(6, 8)),
+                Integer.parseInt(timestampString.substring(8, 10)),
+                Integer.parseInt(timestampString.substring(10, 12)),
+                Integer.parseInt(timestampString.substring(12, 14))
         );
+        // deep copy timestamp to timestampLatest
+        this.timestampLatest = this.timestamp;
     }
     
     public void setDigestContainer(String digestContainer) {
@@ -485,6 +508,23 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return captureCount;
     }
 
+    public boolean isRedirect() {
+        return isRedirect;
+    }
+
+    public void setRedirect(boolean redirect) {
+        isRedirect = redirect;
+    }
+
+    public void addTimestampLatest(LocalDateTime otherTimestamp) {
+        if (timestampLatest == null || otherTimestamp == null) {
+            return;
+        }
+        if (otherTimestamp.isAfter(timestampLatest)) {
+            timestampLatest = timestamp;
+        }
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -514,8 +554,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.title = other.title;
             this.urlTokens = other.urlTokens;
             this.timestamp = other.timestamp;
-
             this.timestampString = other.timestampString;
+            this.timestampLatest = other.timestampLatest;
             this.url = other.url;
             this.surt = other.surt;
             this.host = other.host;
@@ -528,6 +568,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.metadata = other.metadata;
             this.code = other.code;
             this.captureCount = other.captureCount;
+            this.isRedirect = other.isRedirect;
 
         } catch (ClassNotFoundException e) {
             System.err.println("Error reading TextDocumentData from Writable");
@@ -545,7 +586,17 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         if (a == b) {
             return a;
         }
+
+
         TextDocumentData result = a.getTimestamp().isAfter(b.getTimestamp()) ? b : a;
+
+        // prefer records that are not redirects, regardless of timestamp
+        if (a.isRedirect() && !b.isRedirect()) {
+            result = b;
+        } else if (!a.isRedirect() && b.isRedirect()) {
+            result = a;
+        }
+
         TextDocumentData other = a == result ? b : a;
 
         other.getCollection().forEach(result::addCollection);
@@ -556,7 +607,9 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         other.getInlinksInternal().keySet().forEach(result::addInlink);
         other.getInlinksExternal().keySet().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
-        result.captureCount += other.captureCount;
+
+        result.captureCount += other.captureCount; 
+        result.addTimestampLatest(other.getTimestampLatest());
 
         return result;
 

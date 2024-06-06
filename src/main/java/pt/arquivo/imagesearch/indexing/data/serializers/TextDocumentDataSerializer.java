@@ -27,10 +27,10 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         JsonObject obj = new JsonObject();
         //obj.addProperty("type", "document");
 
-        //obj.addProperty("id", src.getId());
+        obj.addProperty("id", src.getId());
         //obj.addProperty("digestContainer", src.getDigestContainer());
 
-        obj.addProperty("id", src.getDigestContainer());
+        //obj.addProperty("id", src.getDigestContainer());
 
         
         obj.add("collection", context.serialize(src.getCollection()));
@@ -43,6 +43,7 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         obj.addProperty("typeReported", src.getMimeTypeReported());
         obj.addProperty("tstamp", src.getTimestampString());
         obj.addProperty("date", src.getTimestampFormatted());
+        obj.addProperty("dateLatest", src.getTimestampLatestFormatted());
         obj.add("host", context.serialize(src.getHost()));
 
         obj.add("urls", context.serialize(src.getURL()));

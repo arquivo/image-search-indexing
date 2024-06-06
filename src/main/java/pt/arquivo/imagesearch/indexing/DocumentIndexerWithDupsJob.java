@@ -90,6 +90,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         RECORDS_TIKA_EMPTY,
         RECORDS_TIKA_READ,
         RECORDS_TIKA_FAILED,
+        RECORDS_TIKA_FAILED_REDIRECT,
+        RECORDS_TIKA_FAILED_STATUS_CODE,
         RECORDS_TIKA_FAILED_NO_SUCH_METHOD,
         RECORDS_TIKA_PARSED_MIME,
         RECORDS_TIKA_IGNORED_MIME_DETECTED,
@@ -108,6 +110,18 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         
     }
 
+    public enum STATUS_CODES {
+        status1xx,
+        status2xx,
+        status3xx,
+        status4xx,
+        status5xx,
+        statusOther,
+        statusUnknown,
+    }
+
+    
+    
     public enum OUTPUT_MODE {
         PAGES,
         INLINKS
@@ -119,7 +133,6 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         public String collection;
         DocumentInformationExtractor indexer;
         private String warcFileTempBaseDir;
-        private boolean inlinksOnly = false;
         
 
         @Override
@@ -141,8 +154,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             if (!dir.exists()) {
                 dir.mkdirs();
             }
-            inlinksOnly = config.getBoolean("inlinksOnly", false);
-            indexer = new DocumentInformationExtractor(collection, inlinksOnly, context);
+            indexer = new DocumentInformationExtractor(collection, context);
         }
 
         /**
@@ -217,9 +229,24 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
             for (java.util.Map.Entry<String, TextDocumentData> entry : indexer.getEntries().entrySet()) {
                 
                 TextDocumentData value = entry.getValue();
-                String surt = value.getSurt().get(0);
                 try {
-                    context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
+                    for (String surt : value.getSurt()) {
+                        context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
+                    }
+                    for (Outlink outlink : value.getOutlinks().keySet()) {
+                        context.write(new Text(outlink.getSurt()), new TextDocumentDataOutlinkPair(null, outlink));
+                    }
+                } catch (IOException | InterruptedException e) {
+                    logger.error("Error writing output", e);
+                }
+            }
+            for (java.util.Map.Entry<String, TextDocumentData> entry : indexer.getEntriesRedirect().entrySet()) {
+                
+                TextDocumentData value = entry.getValue();
+                try {
+                    for (String surt : value.getSurt()) {
+                        context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
+                    }
                     for (Outlink outlink : value.getOutlinks().keySet()) {
                         context.write(new Text(outlink.getSurt()), new TextDocumentDataOutlinkPair(null, outlink));
                     }

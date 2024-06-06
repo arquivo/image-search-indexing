@@ -280,8 +280,16 @@ public class WARCRecordResponseEncapsulated {
             statusCode = statusCode.split(" ")[1];
             return Integer.parseInt(statusCode);
         } catch (Throwable e) {
-            // assume 200 OK if code is not processable
-            return 200;
+            // assume -1 if code is not processable
+            return -1;
+        }
+    }
+
+    public String getRedirectURL() {
+        try {
+            return (String) headerFields.get("location");
+        } catch (Throwable e) {
+            return null;
         }
     }
 }
