@@ -11,6 +11,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -102,6 +103,11 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     private ArrayList<String> host;
 
     /**
+     * URL timestamp
+     */
+    private ArrayList<String> urlTimestamp;
+
+    /**
      *  content
      */
     private ArrayList<String> content;
@@ -158,6 +164,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.digestContainer = other.digestContainer;
         this.digestContent = other.digestContent;
         this.metadata = new ArrayList<>(other.metadata);
+        this.urlTimestamp = new ArrayList<>(other.urlTimestamp);
         this.code = other.code;
         this.captureCount = other.captureCount;
     }
@@ -174,6 +181,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.host = new ArrayList<>();
         this.url = new ArrayList<>();
         this.metadata = new ArrayList<>();
+        this.urlTimestamp = new ArrayList<>();
         this.captureCount = 1;
     }
 
@@ -247,6 +255,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
                 timestampLatest.getHour(),
                 timestampLatest.getMinute(),
                 timestampLatest.getSecond());
+    }
+
+    public long getTimerange() {
+        return Duration.between(timestamp, timestampLatest).toMillis() / 1000;
     }
     
     public String getTimestampString() {
@@ -342,6 +354,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addHost(String host) {
+        host = host.replaceAll("www.", "");
         if (host.isEmpty() || this.host.contains(host))
             return;
         this.host.add(host);
@@ -421,6 +434,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return metadata;
     }
 
+    public void addURL(String url, String timestamp) {
+        this.addURLTimestamp(url, timestamp);
+        this.addURL(url);
+    }
+
+    
     public void addURL(String url) {
         if (this.url.contains(url))
             return;
@@ -525,6 +544,22 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         }
     }
 
+    public ArrayList<String> getUrlTimestamp() {
+        return urlTimestamp;
+    }
+
+    public void addURLTimestamp(String urlTimestamp) {
+        if (urlTimestamp.isEmpty() || this.urlTimestamp.contains(urlTimestamp))
+            return;
+        this.urlTimestamp.add(urlTimestamp);
+    }
+
+    public void addURLTimestamp(String url, String timestamp) {
+        String surt = WARCInformationParser.toSURT(url);
+        String urlTimestamp = timestamp + "/" + surt;
+        this.addURLTimestamp(urlTimestamp);
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -569,6 +604,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.code = other.code;
             this.captureCount = other.captureCount;
             this.isRedirect = other.isRedirect;
+            this.urlTimestamp = other.urlTimestamp;
 
         } catch (ClassNotFoundException e) {
             System.err.println("Error reading TextDocumentData from Writable");
@@ -607,6 +643,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         other.getInlinksInternal().keySet().forEach(result::addInlink);
         other.getInlinksExternal().keySet().forEach(result::addInlink);
         other.getMetadata().forEach(result::addMetadata);
+        other.getUrlTimestamp().forEach(result::addURLTimestamp);
 
         result.captureCount += other.captureCount; 
         result.addTimestampLatest(other.getTimestampLatest());

@@ -19,7 +19,6 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
-import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
@@ -352,7 +351,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
 
         try {
-            textDocumentData.addURL(url);
+            textDocumentData.addURL(url, timestamp);
             textDocumentData.setTimestamp(timestamp);
             textDocumentData.setWarc(arcName);
             textDocumentData.setWarcOffset(offset);
@@ -448,7 +447,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
             if (title != null && !title.isEmpty())
                 textDocumentData.addTitle(title);
 
-            title = "";
+            if (title == null)
+                title = "";
 
             List<String> metadataStrings = new LinkedList<>();
 
@@ -477,8 +477,11 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 }
             });
 
+
             body = removeJunkCharacters(body);
-            md5Text.update(body.getBytes());
+            md5Text.update((body+"\t").getBytes());
+            md5Text.update((metadataString+"\t").getBytes());
+            md5Text.update((title+"\t").getBytes());
 
             HexBinaryAdapter hexBinaryAdapter = new HexBinaryAdapter();
             String digest = hexBinaryAdapter.marshal(md5Text.digest());
@@ -515,8 +518,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
 
         try {
-            textDocumentData.addURL(url);
-            textDocumentData.addURL(redirectUrl);
+            textDocumentData.addURL(url, timestamp);
+            textDocumentData.addURL(redirectUrl, timestamp);
             textDocumentData.setTimestamp(timestamp);
             textDocumentData.setWarc(arcName);
             textDocumentData.setWarcOffset(offset);

@@ -13,13 +13,16 @@ public class WARCToolsTest {
         String surt = WARCInformationParser.toSURT(url);
         assertEquals("(pt,fccn,", surt);
 
+        url = "http://www.fccn.pt:80";
+        surt = WARCInformationParser.toSURT(url);
+        assertEquals("(pt,fccn,", surt);
+
         url = "http://www.fccn.pt?param1=value1&param2=value2";
         surt = WARCInformationParser.toSURT(url);
         assertEquals("(pt,fccn,)/?param1=value1&param2=value2", surt);
 
         url = "http://www.fccn.pt/path/to/page";
         surt = WARCInformationParser.toSURT(url);
-
         assertEquals("(pt,fccn,)/path/to/page", surt);
     }
 

@@ -44,9 +44,14 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         obj.addProperty("tstamp", src.getTimestampString());
         obj.addProperty("date", src.getTimestampFormatted());
         obj.addProperty("dateLatest", src.getTimestampLatestFormatted());
+        obj.addProperty("timeRange", src.getTimerange());
         obj.add("host", context.serialize(src.getHost()));
 
+        obj.add("urlTimestamp", context.serialize(src.getUrlTimestamp()));
+
+
         obj.add("urls", context.serialize(src.getURL()));
+        obj.add("surts", context.serialize(src.getSurt()));
         if (src.getTitle() != null && !src.getTitle().isEmpty())
             obj.add("title", context.serialize(src.getTitle()));
         obj.add("urlTokens", context.serialize(src.getURLTokens()));
