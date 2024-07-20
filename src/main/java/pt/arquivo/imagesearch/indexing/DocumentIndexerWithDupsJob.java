@@ -330,6 +330,8 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
                 try {
                     for (TextDocumentData docData : docDatas.values()) {
+                        if (docData.isRedirect())
+                            continue;
                         String digestKey = docData.getDigestContent();
                         Text digestKeyText = new Text(digestKey);
                         context.write(digestKeyText, docData);
