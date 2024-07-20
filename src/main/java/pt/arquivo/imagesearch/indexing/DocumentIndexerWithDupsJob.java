@@ -230,7 +230,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                 
                 TextDocumentData value = entry.getValue();
                 try {
-                    for (String surt : value.getSurt()) {
+                    for (String surt : value.getSurts()) {
                         context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
                     }
                     for (Outlink outlink : value.getOutlinks().keySet()) {
@@ -244,7 +244,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                 
                 TextDocumentData value = entry.getValue();
                 try {
-                    for (String surt : value.getSurt()) {
+                    for (String surt : value.getSurts()) {
                         context.write(new Text(surt), new TextDocumentDataOutlinkPair(value, null));
                     }
                     for (Outlink outlink : value.getOutlinks().keySet()) {

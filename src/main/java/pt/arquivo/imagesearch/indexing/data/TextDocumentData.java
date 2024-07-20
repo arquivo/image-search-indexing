@@ -90,12 +90,12 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     /**
      * Document URL
      */
-    private ArrayList<String> url;
+    private ArrayList<String> urls;
 
     /**
      * Document SURT
      */
-    private ArrayList<String> surt;
+    private ArrayList<String> surts;
 
     /**
      * Host of the matching 
@@ -143,6 +143,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     private boolean isRedirect;
 
+    private String surt;
+
+    private String url;
+
     public TextDocumentData(TextDocumentData other){
         this.collection = new ArrayList<>(other.collection);
         this.warc = other.warc;
@@ -154,8 +158,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.timestamp = other.timestamp;
         this.timestampString = other.timestampString;
         this.timestampLatest = other.timestampLatest;
-        this.url = new ArrayList<>(other.url);
-        this.surt = new ArrayList<>(other.surt);
+        this.urls = new ArrayList<>(other.urls);
+        this.surts = new ArrayList<>(other.surts);
         this.host = new ArrayList<>(other.host);
         this.content = new ArrayList<>(other.content);
         this.outlinks = new HashMap<>(other.outlinks);
@@ -167,6 +171,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.urlTimestamp = new ArrayList<>(other.urlTimestamp);
         this.code = other.code;
         this.captureCount = other.captureCount;
+        this.isRedirect = other.isRedirect;
+        this.surt = other.surt;
+        this.url = other.url;
+        
     }
 
     public TextDocumentData() {
@@ -177,12 +185,14 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.collection = new ArrayList<>();
         this.content = new ArrayList<>();
         this.urlTokens = new ArrayList<>();
-        this.surt = new ArrayList<>();
+        this.surts = new ArrayList<>();
         this.host = new ArrayList<>();
-        this.url = new ArrayList<>();
+        this.urls = new ArrayList<>();
         this.metadata = new ArrayList<>();
         this.urlTimestamp = new ArrayList<>();
         this.captureCount = 1;
+        this.url = "";
+        this.surt = "";
     }
 
     @Override
@@ -192,7 +202,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     @Override
     public String toString() {
-        return String.format("\"%s\": \"%s\", %s", title, url, timestamp.toString());
+        return String.format("\"%s\": \"%s\", %s", title, urls, timestamp.toString());
     }
 
     public String getId() {
@@ -266,11 +276,11 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public ArrayList<String> getURL() {
-        return url;
+        return urls;
     }
 
-    public ArrayList<String> getSurt() {
-        return surt;
+    public ArrayList<String> getSurts() {
+        return surts;
     }
 
     public ArrayList<String> getHost() {
@@ -361,9 +371,9 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addSurt(String surt) {
-        if (surt.isEmpty() || this.surt.contains(surt))
+        if (surt.isEmpty() || this.surts.contains(surt))
             return;
-        this.surt.add(surt);
+        this.surts.add(surt);
     }
 
     public void addUrlTokens(String urlTokens) {
@@ -390,21 +400,28 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.urlTokens.add(urlTokens);
     }
 
+    private LocalDateTime getTimestamp(String timestamp) {
+        // timestamp format is YYYYMMDDHHmmss
+        if (timestamp.length() < 14) {
+            timestamp = timestamp.concat("00000000000000").substring(0, 14);
+        }
+        return LocalDateTime.of(
+                Integer.parseInt(timestamp.substring(0, 4)),
+                Integer.parseInt(timestamp.substring(4, 6)),
+                Integer.parseInt(timestamp.substring(6, 8)),
+                Integer.parseInt(timestamp.substring(8, 10)),
+                Integer.parseInt(timestamp.substring(10, 12)),
+                Integer.parseInt(timestamp.substring(12, 14))
+        );
+    }
     public void setTimestamp(String timestampString) {
         this.timestampString = timestampString;
         // timestampString format is YYYYMMDDHHmmss
         if (timestampString.length() < 14) {
             timestampString = timestampString.concat("00000000000000").substring(0, 14);
         }
-        this.timestamp = LocalDateTime.of(
-                Integer.parseInt(timestampString.substring(0, 4)),
-                Integer.parseInt(timestampString.substring(4, 6)),
-                Integer.parseInt(timestampString.substring(6, 8)),
-                Integer.parseInt(timestampString.substring(8, 10)),
-                Integer.parseInt(timestampString.substring(10, 12)),
-                Integer.parseInt(timestampString.substring(12, 14))
-        );
-        // deep copy timestamp to timestampLatest
+        
+        this.timestamp = getTimestamp(timestampString);
         this.timestampLatest = this.timestamp;
     }
     
@@ -435,15 +452,19 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addURL(String url, String timestamp) {
+        if (this.url.isEmpty()){ 
+            this.url = url;
+            this.surt = WARCInformationParser.toSURT(url);
+        }
         this.addURLTimestamp(url, timestamp);
         this.addURL(url);
     }
 
     
     public void addURL(String url) {
-        if (this.url.contains(url))
+        if (this.urls.contains(url))
             return;
-        this.url.add(url);
+        this.urls.add(url);
         if (!url.startsWith("http"))
             url = "http://" + url;
         URL uri;
@@ -463,7 +484,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         String outlinkSurt = WARCInformationParser.toSURT(outlink);
         if (outlinkSurt.trim().isEmpty())
             return;
-        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor, this.timestamp, this.surt.get(0));
+        Outlink outlinkObj = new Outlink(outlinkSurt, outlink, anchor, this.timestamp, this.surts.get(0));
         this.outlinks.put(outlinkObj, outlinkObj);
     }
 
@@ -498,7 +519,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         }
         boolean isInternal = false;
         // broader domain matching
-        for (String surt : surt){
+        for (String surt : surts){
             if (WARCInformationParser.isInternal(surt, inlink.getSource())) {
                 isInternal = true;
                 break;
@@ -536,11 +557,11 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addTimestampLatest(LocalDateTime otherTimestamp) {
-        if (timestampLatest == null || otherTimestamp == null) {
+        if (this.timestampLatest == null || otherTimestamp == null) {
             return;
         }
-        if (otherTimestamp.isAfter(timestampLatest)) {
-            timestampLatest = timestamp;
+        if (otherTimestamp.isAfter(this.timestampLatest)) {
+            this.timestampLatest = otherTimestamp;
         }
     }
 
@@ -558,6 +579,14 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         String surt = WARCInformationParser.toSURT(url);
         String urlTimestamp = timestamp + "/" + surt;
         this.addURLTimestamp(urlTimestamp);
+    }
+
+    public String getSurt() {
+        return surt;
+    }
+
+    public String getUrl() {
+        return url;
     }
 
     @Override
@@ -591,8 +620,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.timestamp = other.timestamp;
             this.timestampString = other.timestampString;
             this.timestampLatest = other.timestampLatest;
-            this.url = other.url;
-            this.surt = other.surt;
+            this.urls = other.urls;
+            this.surts = other.surts;
             this.host = other.host;
             this.content = other.content;
             this.outlinks = other.outlinks;

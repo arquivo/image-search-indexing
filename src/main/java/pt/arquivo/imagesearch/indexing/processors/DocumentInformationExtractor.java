@@ -619,7 +619,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
     }
 
     public void insertRedirectDocumentIndex(TextDocumentData pageImageData) {
-        for (String surt : pageImageData.getSurt()) {
+        for (String surt : pageImageData.getSurts()) {
             if (entriesRedirect.containsKey(surt)) {
                 TextDocumentData oldPageImageData = entriesRedirect.get(surt);
                 TextDocumentData mergedImageData = TextDocumentData.merge(oldPageImageData, pageImageData);
