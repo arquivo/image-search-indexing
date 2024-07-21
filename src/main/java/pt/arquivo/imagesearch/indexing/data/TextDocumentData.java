@@ -634,6 +634,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.captureCount = other.captureCount;
             this.isRedirect = other.isRedirect;
             this.urlTimestamp = other.urlTimestamp;
+            this.surt = other.surt;
+            this.url = other.url;
 
         } catch (ClassNotFoundException e) {
             System.err.println("Error reading TextDocumentData from Writable");
