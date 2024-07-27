@@ -19,6 +19,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
@@ -250,7 +251,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
             } catch (Exception e) {
                 logger.error("Error parsing redirect URL", e);
             }
-            parseRedirectRecord(record, mimeType, arcName, url, timestamp, offset, statusCode, redirectUrl);
 
         } else {
             parseTextRecord(record, mimeType, arcName, url, timestamp, offset, statusCode);
@@ -324,7 +324,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
             parseTextRecord(record.getWARCRecord(), mimeType, arcName, url, timestamp, offset, statusCode);
         }
     }
-
     public TextDocumentData parseTextRecord(InputStream record, String mimeType, String arcName, String url,
             String timestamp, long offset, int statusCode) {
         getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_READ).increment(1);
@@ -398,7 +397,13 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
          */
 
-        Parser parser = new AutoDetectParser(config);
+         Parser parser = null;
+         if (mimeType.equals("text/html")) {
+             parser = new HtmlParser();
+         } else {
+             parser = new AutoDetectParser(config);
+         }
+         
         Metadata metadata = new Metadata();
         BodyContentHandler bodyHandler = new BodyContentHandler(CONTENT_CHAR_LIMIT);
 
