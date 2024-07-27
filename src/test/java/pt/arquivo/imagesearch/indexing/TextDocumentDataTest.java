@@ -27,9 +27,9 @@ public class TextDocumentDataTest {
         textDocumentData.setDigestContainer("dummy digest container");
         textDocumentData.addContent(body);
 
-        textDocumentData.addURL("http://example.com/link1", timestamp);
-        textDocumentData.addURL("http://example.com/link2", timestamp);
-        textDocumentData.addURL("http://example.com/link3", timestamp);
+        textDocumentData.addURL("http://example.com/link1", timestamp, "dummy collection");
+        textDocumentData.addURL("http://example.com/link2", timestamp, "dummy collection 2");
+        textDocumentData.addURL("http://example.com/link3", timestamp, "dummy collection 3");
         
         textDocumentData.addCollection("collection1");
 
@@ -56,9 +56,9 @@ public class TextDocumentDataTest {
 
         textDocumentData2.addContent("This is a dummy body content 2.");
 
-        textDocumentData2.addURL("http://example.com/link4", timestamp);
-        textDocumentData2.addURL("http://example.com/link5", timestamp);
-        textDocumentData2.addURL("http://example.com/link6", timestamp);
+        textDocumentData2.addURL("http://example.com/link4", timestamp, "dummy collection 4");
+        textDocumentData2.addURL("http://example.com/link5", timestamp, "dummy collection 5");
+        textDocumentData2.addURL("http://example.com/link6", timestamp, "dummy collection 6");
         
         textDocumentData2.addCollection("collection2");
 
@@ -82,6 +82,9 @@ public class TextDocumentDataTest {
 
         assert(textDocumentData.getURL().get(0).contains("http://example.com/link1"));
         assert(textDocumentData.getURL().get(1).contains("http://example.com/link2"));
+
+        assert(textDocumentData.getUrlTimestamp().get(0).equals("dummy collection/20190101000000/(com,example,)/link1"));
+
 
         assert(textDocumentData.getCollection().get(0).contains("collection1"));
         assert(textDocumentData.getCollection().get(1).contains("collection2"));

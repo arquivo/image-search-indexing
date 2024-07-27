@@ -143,9 +143,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
 
     private boolean isRedirect;
 
-    private String surt;
-
-    private String url;
 
     public TextDocumentData(TextDocumentData other){
         this.collection = new ArrayList<>(other.collection);
@@ -172,8 +169,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.code = other.code;
         this.captureCount = other.captureCount;
         this.isRedirect = other.isRedirect;
-        this.surt = other.surt;
-        this.url = other.url;
         
     }
 
@@ -191,8 +186,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.metadata = new ArrayList<>();
         this.urlTimestamp = new ArrayList<>();
         this.captureCount = 1;
-        this.url = "";
-        this.surt = "";
     }
 
     @Override
@@ -451,12 +444,8 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         return metadata;
     }
 
-    public void addURL(String url, String timestamp) {
-        if (this.url.isEmpty()){ 
-            this.url = url;
-            this.surt = WARCInformationParser.toSURT(url);
-        }
-        this.addURLTimestamp(url, timestamp);
+    public void addURL(String url, String timestamp, String collection) {
+        this.addURLTimestamp(url, timestamp, collection);
         this.addURL(url);
     }
 
@@ -575,18 +564,10 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         this.urlTimestamp.add(urlTimestamp);
     }
 
-    public void addURLTimestamp(String url, String timestamp) {
+    public void addURLTimestamp(String url, String timestamp, String collection) {
         String surt = WARCInformationParser.toSURT(url);
-        String urlTimestamp = timestamp + "/" + surt;
+        String urlTimestamp = collection + "/" + timestamp + "/" + surt;
         this.addURLTimestamp(urlTimestamp);
-    }
-
-    public String getSurt() {
-        return surt;
-    }
-
-    public String getUrl() {
-        return url;
     }
 
     @Override
@@ -634,8 +615,6 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
             this.captureCount = other.captureCount;
             this.isRedirect = other.isRedirect;
             this.urlTimestamp = other.urlTimestamp;
-            this.surt = other.surt;
-            this.url = other.url;
 
         } catch (ClassNotFoundException e) {
             System.err.println("Error reading TextDocumentData from Writable");

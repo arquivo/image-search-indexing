@@ -33,7 +33,9 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.addProperty("id", src.getDigestContainer());
 
         
-        obj.add("collection", context.serialize(src.getCollection()));
+        obj.add("collections", context.serialize(src.getCollection()));
+
+        obj.add("collection", context.serialize(src.getCollection().get(0)));
         if (src.getContent() != null && !src.getContent().isEmpty())
             obj.add("content", context.serialize(src.getContent()));
         
@@ -59,8 +61,8 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
 
         //obj.addProperty("warc", src.getWarc());
         //obj.addProperty("warcOffset", src.getWarcOffset());
-        obj.addProperty("surt", src.getSurt());
-        obj.addProperty("url", src.getUrl());
+        obj.addProperty("surt", src.getSurts().get(0));
+        obj.addProperty("url", src.getURL().get(0));
         //obj.addProperty("protocol", src.getProtocol());
         //obj.addProperty("urlHash", src.getURLHash());
         //obj.add("outlinks", context.serialize(src.getOutlinks()));

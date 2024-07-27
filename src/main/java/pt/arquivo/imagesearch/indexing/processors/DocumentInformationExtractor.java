@@ -350,7 +350,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
 
         try {
-            textDocumentData.addURL(url, timestamp);
+            textDocumentData.addURL(url, timestamp, collection);
             textDocumentData.setTimestamp(timestamp);
             textDocumentData.setWarc(arcName);
             textDocumentData.setWarcOffset(offset);
@@ -403,7 +403,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
          } else {
              parser = new AutoDetectParser(config);
          }
-         
+
         Metadata metadata = new Metadata();
         BodyContentHandler bodyHandler = new BodyContentHandler(CONTENT_CHAR_LIMIT);
 
@@ -523,8 +523,8 @@ public class DocumentInformationExtractor implements InformationExtractor {
         }
 
         try {
-            textDocumentData.addURL(url, timestamp);
-            textDocumentData.addURL(redirectUrl, timestamp);
+            textDocumentData.addURL(url, timestamp, collection);
+            textDocumentData.addURL(redirectUrl, timestamp, collection);
             textDocumentData.setTimestamp(timestamp);
             textDocumentData.setWarc(arcName);
             textDocumentData.setWarcOffset(offset);
