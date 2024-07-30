@@ -30,6 +30,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     public static final int MAX_INLINKS_INTERNAL = 1000;
     public static final int MAX_INLINKS_EXTERNAL = 1000;
     public static final int MAX_OUTLINKS = 1000;
+    public static final int MAX_UNIQUE_URLS = 1000;
 
 
     /**
@@ -445,13 +446,15 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addURL(String url, String timestamp, String collection) {
+        if (this.urls.contains(url) || this.urls.size() > MAX_UNIQUE_URLS)
+            return;
         this.addURLTimestamp(url, timestamp, collection);
         this.addURL(url);
     }
 
     
     public void addURL(String url) {
-        if (this.urls.contains(url))
+        if (this.urls.contains(url) || this.urls.size() > MAX_UNIQUE_URLS)
             return;
         this.urls.add(url);
         if (!url.startsWith("http"))
@@ -559,7 +562,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
     }
 
     public void addURLTimestamp(String urlTimestamp) {
-        if (urlTimestamp.isEmpty() || this.urlTimestamp.contains(urlTimestamp))
+        if (urlTimestamp.isEmpty() || this.urlTimestamp.contains(urlTimestamp) || this.urlTimestamp.size() > MAX_UNIQUE_URLS)
             return;
         this.urlTimestamp.add(urlTimestamp);
     }

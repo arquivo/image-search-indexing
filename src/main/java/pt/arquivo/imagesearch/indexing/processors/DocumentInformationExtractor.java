@@ -249,7 +249,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
                 redirectUrl = record.getHeader().getHeaderValue("location").toString();
                 parseRedirectRecord(record, mimeType, arcName, url, timestamp, offset, statusCode, redirectUrl);
             } catch (Exception e) {
-                logger.error("Error parsing redirect URL", e);
+                logger.debug("Error parsing redirect URL", e);
             }
 
         } else {
