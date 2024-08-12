@@ -73,8 +73,8 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.add("statusCode", context.serialize(src.getStatusCode()));
         
         //obj.addProperty("safe", 0);
-        //obj.addProperty("spam", 0);
-        //obj.addProperty("blocked", 0);
+        obj.addProperty("reputation", 0.5);
+        obj.addProperty("blocked", 0);
 
         return obj;
     }
