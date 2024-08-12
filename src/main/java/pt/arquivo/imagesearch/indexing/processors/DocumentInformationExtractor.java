@@ -444,6 +444,13 @@ public class DocumentInformationExtractor implements InformationExtractor {
         try {
 
             String body = bodyHandler.toString();
+            body = removeJunkCharacters(body);
+
+            if (body.isEmpty()) {
+                getCounter(DOCUMENT_COUNTERS.RECORDS_TIKA_EMPTY_BODY).increment(1);
+                return textDocumentData;
+            }
+
             String title = metadata.get("dc:title");
 
             if (title == null || title.isEmpty())
@@ -483,7 +490,6 @@ public class DocumentInformationExtractor implements InformationExtractor {
             });
 
 
-            body = removeJunkCharacters(body);
             md5Text.update((body+"\t").getBytes());
             md5Text.update((metadataString+"\t").getBytes());
             md5Text.update((title+"\t").getBytes());

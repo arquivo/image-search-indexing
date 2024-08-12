@@ -95,6 +95,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
         RECORDS_TIKA_FAILED_NO_SUCH_METHOD,
         RECORDS_TIKA_PARSED_MIME,
         RECORDS_TIKA_IGNORED_MIME_DETECTED,
+        RECORDS_TIKA_EMPTY_BODY,
         
         RECORDS_PARSING_FAILED,
         RECORDS_SUCCESS,
