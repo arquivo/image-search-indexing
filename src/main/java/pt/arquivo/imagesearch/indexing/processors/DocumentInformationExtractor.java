@@ -61,7 +61,7 @@ public class DocumentInformationExtractor implements InformationExtractor {
             "application/vnd.sun.xml.impress.template", "application/vnd.sun.xml.writer",
             "application/vnd.sun.xml.writer.template", "application/xhtml+xml", "application/x-bzip2",
             "application/x-gzip", "application/x-kword", "application/x-kspread", "application/x-shockwave-flash",
-            "application/zip", "text/html", "text/plain", "text/richtext", "text/rtf", "text/sgml",
+            "application/zip", "application/rtf", "text/html", "text/plain", "text/richtext", "text/rtf", "text/sgml",
             "text/tab-separated-values", "text/xml"));
 
     private static final Set<String> METADATA_KEYS = new HashSet<>(
