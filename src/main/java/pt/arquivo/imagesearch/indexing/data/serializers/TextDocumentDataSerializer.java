@@ -33,9 +33,9 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.addProperty("id", src.getDigestContainer());
 
         
-        //obj.add("collections", context.serialize(src.getCollection()));
+        obj.add("collections", context.serialize(src.getCollection()));
 
-        //obj.add("collection", context.serialize(src.getCollection().get(0)));
+        obj.add("collectionOldest", context.serialize(src.getCollection().get(0)));
         if (src.getContent() != null && !src.getContent().isEmpty())
             obj.add("content", context.serialize(src.getContent()));
         
@@ -44,7 +44,7 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         obj.addProperty("type", src.getMimeTypeDetected());
         //obj.addProperty("typeReported", src.getMimeTypeReported());
         //obj.addProperty("tstamp", src.getTimestampString());
-        obj.addProperty("date", src.getTimestampFormatted());
+        obj.addProperty("dateOldest", src.getTimestampFormatted());
         obj.addProperty("dateLatest", src.getTimestampLatestFormatted());
         obj.addProperty("timeRange", src.getTimerange());
         //obj.add("host", context.serialize(src.getHost()));
@@ -59,7 +59,7 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
  
         //obj.addProperty("warc", src.getWarc());
         //obj.addProperty("warcOffset", src.getWarcOffset());
-        obj.addProperty("surt", src.getSurts().get(0));
+        obj.addProperty("surtOldest", src.getSurts().get(0));
         //obj.addProperty("url", src.getURL().get(0));
         //obj.addProperty("protocol", src.getProtocol());
         //obj.addProperty("urlHash", src.getURLHash());
@@ -73,8 +73,8 @@ public class TextDocumentDataSerializer implements JsonSerializer<TextDocumentDa
         //obj.add("statusCode", context.serialize(src.getStatusCode()));
         
         //obj.addProperty("safe", 0);
-        obj.addProperty("reputation", 0.5);
-        obj.addProperty("blocked", 0);
+        //obj.addProperty("reputation", 0.5);
+        //obj.addProperty("blocked", 0);
 
         return obj;
     }

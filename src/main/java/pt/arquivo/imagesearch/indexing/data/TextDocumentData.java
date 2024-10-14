@@ -658,7 +658,7 @@ public class TextDocumentData implements Comparable<LocalDateTime>, Writable, Se
         other.getMetadata().forEach(result::addMetadata);
         other.getUrlTimestamp().forEach(result::addURLTimestamp);
 
-        result.captureCount += other.captureCount; 
+        result.captureCount += other.getCaptureCount(); 
         result.addTimestampLatest(other.getTimestampLatest());
 
         return result;

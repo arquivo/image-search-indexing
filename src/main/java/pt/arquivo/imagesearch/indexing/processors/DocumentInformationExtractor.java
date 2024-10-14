@@ -68,8 +68,9 @@ public class DocumentInformationExtractor implements InformationExtractor {
             Arrays.asList("dc:creator", "dc:subject", "dc:description"));
 
     // private static final int MAX_OUTLINKS = 1000;
-    private static final int CONTENT_CHAR_LIMIT = 10000000; // 1 000 000 chars == (8MB of text)
-    private static final int ANCHOR_CHAR_LIMIT = 100; // 1 000 chars == (800B of text)
+    private static final int CONTENT_CHAR_LIMIT = 10000000; 
+    private static final int ANCHOR_CHAR_LIMIT = 100; 
+    private static final int TITLE_FROM_BODY_MAX_LENGTH = 50;
     
 
     private Logger logger = Logger.getLogger(DocumentInformationExtractor.class);
@@ -456,11 +457,12 @@ public class DocumentInformationExtractor implements InformationExtractor {
             if (title == null || title.isEmpty())
                 title = metadata.get("title");
 
-            if (title != null && !title.isEmpty())
-                textDocumentData.addTitle(title);
 
-            if (title == null)
-                title = "";
+            if (title == null || title.isEmpty())
+                title = body.substring(0, Math.min(body.length(), TITLE_FROM_BODY_MAX_LENGTH));
+
+            textDocumentData.addTitle(title);
+
 
             List<String> metadataStrings = new LinkedList<>();
 
