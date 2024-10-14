@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Collection;
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 /**
  * Hadoop process responsible for the 1nd stage of the pipeline.
@@ -192,7 +193,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                     File dest = new File(filename);
 
                     // download and parse WARC locally to avoid problems when streaming from remote server
-                    AlternativeFileUtils.copyURLToFile(url, dest, 1000 * 60, 1000 * 30);
+                    AlternativeFileUtils.copyURLToFile(url, dest, 1000 * 120, 1000 * 60);
                     dest = new File(filename);
                     if (fileSize != dest.length()) {
                         long localFileSize = dest.length();
@@ -365,6 +366,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                 HashMap<Inlink,Inlink> inlinksInternal = new HashMap<>();
                 HashMap<Inlink,Inlink> inlinksExternal = new HashMap<>();
                 boolean wasCaptured = false;
+                LocalDateTime captureDateStart = null;
 
                 for (Writable value: values) {
                     context.getCounter(DOCUMENT_COUNTERS.REDUCE_TOTAL_RECORDS).increment(1);
@@ -402,6 +404,7 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
                         
                     } else if (newDocdata.getTextDocumentData() != null) {
                         wasCaptured = true;
+                        captureDateStart = ((TextDocumentData) newDocdata.getTextDocumentData()).getTimestamp();
                     }
                 }
 
@@ -417,20 +420,21 @@ public class DocumentIndexerWithDupsJob extends Configured implements Tool {
 
                 context.getCounter(DOCUMENT_COUNTERS.REDUCE_UNIQUE_INLINKS).increment(1);
 
-                exportInlinksToJson(context, key.toString(), wasCaptured, inlinksInternal.values(), inlinksExternal.values());
+                exportInlinksToJson(context, key.toString(), wasCaptured, inlinksInternal.values(), inlinksExternal.values(), captureDateStart);
             } catch (Exception e) {
                 logger.error("Error reducing", e);
             }
         }
 
-        private void exportInlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, String target, boolean wasCaptured, Collection<Inlink> inlinksInternal, Collection<Inlink> inlinksExternal) {
+        private void exportInlinksToJson(Reducer<Text,Writable,NullWritable,Text>.Context context, String target, boolean wasCaptured, Collection<Inlink> inlinksInternal, Collection<Inlink> inlinksExternal, LocalDateTime captureDateStart) {
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(InlinkSerializer.SetInlink.class, new InlinkSerializer())
                     .disableHtmlEscaping()
+                    .serializeNulls()
                     .create();
             
             try {
-                context.write(NullWritable.get(), new Text(gson.toJson(new InlinkSerializer.SetInlink(target, wasCaptured, inlinksInternal, inlinksExternal))));
+                context.write(NullWritable.get(), new Text(gson.toJson(new InlinkSerializer.SetInlink(target, wasCaptured, inlinksInternal, inlinksExternal, captureDateStart))));
             } catch (IOException | InterruptedException e) {
                 logger.error(e.getMessage());
             }

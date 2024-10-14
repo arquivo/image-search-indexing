@@ -1,6 +1,7 @@
 package pt.arquivo.imagesearch.indexing.data.serializers;
 
 import java.lang.reflect.Type;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Collection;
@@ -21,12 +22,14 @@ public class InlinkSerializer implements JsonSerializer<InlinkSerializer.SetInli
         public Collection<Inlink> inlinksInternal;
         public Collection<Inlink> inlinksExternal;
         public String surt;
+        public LocalDateTime captureDateStart;
 
-        public SetInlink(String surt, boolean wasCaptured, Collection<Inlink> inlinksInternal, Collection<Inlink> inlinksExternal) {
+        public SetInlink(String surt, boolean wasCaptured, Collection<Inlink> inlinksInternal, Collection<Inlink> inlinksExternal, LocalDateTime captureDateStart) {
             this.wasCaptured = wasCaptured;
             this.inlinksInternal = inlinksInternal;
             this.inlinksExternal = inlinksExternal;
             this.surt = surt;
+            this.captureDateStart = captureDateStart;
         }
     }
 
@@ -58,7 +61,7 @@ public class InlinkSerializer implements JsonSerializer<InlinkSerializer.SetInli
             //jsonOutlink.addProperty("end", inlink.getCaptureDateEnd().toString());
             jsonOutlink.addProperty("source", inlink.getSource());
             jsonOutlink.addProperty("anchor", inlink.getAnchor());
-            jsonOutlink.addProperty("count", inlink.getCount());
+            //jsonOutlink.addProperty("count", inlink.getCount());
             array.add(jsonOutlink);
         }
         
@@ -67,7 +70,12 @@ public class InlinkSerializer implements JsonSerializer<InlinkSerializer.SetInli
         output.addProperty("count", inlinksAll.size());
         output.addProperty("countInternal", inlinks.inlinksInternal.size());
         output.addProperty("countExternal", inlinks.inlinksExternal.size());
-        output.addProperty("wasCaptured", inlinks.wasCaptured);
+        if (inlinks.captureDateStart == null) {
+            output.add("captureDate", null);
+        } else {
+            output.addProperty("captureDate", inlinks.captureDateStart.toString());
+
+        }
         output.add("inlinks", array);
         
 
